@@ -13,23 +13,7 @@ import en from "./locales/en.json";
 /** Language codes with their own name, in picker order. */
 export const LANGUAGES = [
   ["en", "English"],
-  ["ar", "العربية"],
-  ["bs", "Bosanski"],
-  ["de", "Deutsch"],
-  ["es", "Español"],
-  ["fil", "Filipino"],
-  ["fr", "Français"],
-  ["id", "Bahasa Indonesia"],
-  ["ja", "日本語"],
-  ["ko", "한국어"],
-  ["pl", "Polski"],
-  ["pt", "Português (Brasil)"],
-  ["ru", "Русский"],
-  ["sv", "Svenska"],
   ["th", "ไทย"],
-  ["tr", "Türkçe"],
-  ["vi", "Tiếng Việt"],
-  ["zh", "简体中文"],
 ] as const;
 export type Lang = (typeof LANGUAGES)[number][0];
 
@@ -67,7 +51,7 @@ function apply(next: Lang) {
   rules = new Intl.PluralRules(lang);
   numbers = new Intl.NumberFormat(lang);
   document.documentElement.lang = lang;
-  document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+  document.documentElement.dir = "ltr";
   // Without storage, the next start shows English until settings load.
   writeStored(LANG_KEY, lang);
 }
@@ -103,7 +87,8 @@ export function useLang(pref: string | undefined) {
 
 export const getLang = () => lang;
 /** The layout runs right to left: screen X in pointer and arrow-key logic is mirrored. */
-export const isRtl = () => lang === "ar";
+/** Right-to-left text; neither English nor Thai is, but the layout code still asks. */
+export const isRtl = () => false;
 
 function lookup(key: Key, p?: Params): string {
   const cat = catalogs[lang] ?? (en as Catalog);

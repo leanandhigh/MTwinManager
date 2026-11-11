@@ -162,23 +162,11 @@
   }
 
   /* Faces for scripts Geist doesn't carry, and the line height Thai needs. */
-  :root:lang(ar) {
-    --font-ui: "Segoe UI Variable Text", "Segoe UI", "Geist Variable", system-ui, sans-serif;
-  }
   :root:lang(th) {
     --font-ui: "Geist Variable", "Leelawadee UI", "Segoe UI", system-ui, sans-serif;
     --lh-body: 1.6;
   }
-  :root:lang(ja) {
-    --font-ui: "Geist Variable", "Yu Gothic UI", "Meiryo UI", system-ui, sans-serif;
-  }
-  :root:lang(zh) {
-    --font-ui: "Geist Variable", "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif;
-  }
-  :root:lang(ko) {
-    --font-ui: "Geist Variable", "Malgun Gothic", system-ui, sans-serif;
-  }
-  :root:is(:lang(ja), :lang(zh), :lang(ko), :lang(th)) {
+  :root:lang(th) {
     --fs-micro: 12px;
   }
   @media (max-width: 1100px) {

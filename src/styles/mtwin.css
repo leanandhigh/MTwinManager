@@ -16,18 +16,6 @@
   :root:lang(th) {
     --font-ui: "Geist Mono Variable", "Leelawadee UI", "Segoe UI", ui-monospace, monospace;
   }
-  :root:lang(ar) {
-    --font-ui: "Geist Mono Variable", "Segoe UI", ui-monospace, monospace;
-  }
-  :root:lang(ja) {
-    --font-ui: "Geist Mono Variable", "Yu Gothic UI", "Meiryo UI", ui-monospace, monospace;
-  }
-  :root:lang(zh) {
-    --font-ui: "Geist Mono Variable", "Microsoft YaHei UI", ui-monospace, monospace;
-  }
-  :root:lang(ko) {
-    --font-ui: "Geist Mono Variable", "Malgun Gothic", ui-monospace, monospace;
-  }
   :root:not([data-theme="light"]) {
     --ground: #121214;
     --surface-1: #1a1a1e;

@@ -15,7 +15,7 @@ use std::sync::atomic::{AtomicU8, Ordering};
 use serde::Deserialize;
 
 /// Supported languages; index 0 (English) is the default.
-pub const LANGS: [&str; 18] = ["en", "ar", "bs", "de", "es", "fil", "fr", "id", "ja", "ko", "pl", "pt", "ru", "sv", "th", "tr", "vi", "zh"];
+pub const LANGS: [&str; 2] = ["en", "th"];
 
 static CURRENT: AtomicU8 = AtomicU8::new(0);
 
@@ -30,23 +30,7 @@ type Catalog = HashMap<String, Entry>;
 
 fn source(i: usize) -> &'static str {
     match LANGS[i] {
-        "ar" => include_str!("../locales/ar.json"),
-        "bs" => include_str!("../locales/bs.json"),
-        "de" => include_str!("../locales/de.json"),
-        "es" => include_str!("../locales/es.json"),
-        "fil" => include_str!("../locales/fil.json"),
-        "fr" => include_str!("../locales/fr.json"),
-        "id" => include_str!("../locales/id.json"),
-        "ja" => include_str!("../locales/ja.json"),
-        "ko" => include_str!("../locales/ko.json"),
-        "pl" => include_str!("../locales/pl.json"),
-        "pt" => include_str!("../locales/pt.json"),
-        "ru" => include_str!("../locales/ru.json"),
-        "sv" => include_str!("../locales/sv.json"),
         "th" => include_str!("../locales/th.json"),
-        "tr" => include_str!("../locales/tr.json"),
-        "vi" => include_str!("../locales/vi.json"),
-        "zh" => include_str!("../locales/zh.json"),
         _ => "{}",
     }
 }
@@ -100,32 +84,10 @@ fn system_language() -> String {
     String::new()
 }
 
-/// CLDR plural category of a whole number in `lang`.
+/// CLDR plural category of a whole number in `lang`: Thai has only "other".
 fn category(lang: &str, n: u64) -> &'static str {
-    let (d, h) = (n % 10, n % 100);
-    let slavic_few = (2..=4).contains(&d) && !(12..=14).contains(&h);
     match lang {
-        "id" | "ja" | "ko" | "th" | "vi" | "zh" => "other",
-        "fr" | "pt" if n < 2 => "one",
-        "fil" if n <= 3 || !matches!(d, 4 | 6 | 9) => "one",
-        "fil" => "other",
-        "ar" => match (n, h) {
-            (0, _) => "zero",
-            (1, _) => "one",
-            (2, _) => "two",
-            (_, 3..=10) => "few",
-            (_, 11..=99) => "many",
-            _ => "other",
-        },
-        "ru" if d == 1 && h != 11 => "one",
-        "ru" if slavic_few => "few",
-        "ru" => "many",
-        "bs" if d == 1 && h != 11 => "one",
-        "bs" if slavic_few => "few",
-        "bs" => "other",
-        "pl" if n == 1 => "one",
-        "pl" if slavic_few => "few",
-        "pl" => "many",
+        "th" => "other",
         _ if n == 1 => "one",
         _ => "other",
     }
@@ -181,22 +143,9 @@ mod tests {
 
     #[test]
     fn plural_categories() {
-        let forms = |lang| [0, 1, 2, 5, 11, 12, 21, 22, 25, 101, 111].map(|n| category(lang, n));
-        assert_eq!(forms("en"), ["other", "one", "other", "other", "other", "other", "other", "other", "other", "other", "other"]);
-        assert_eq!(forms("ru"), ["many", "one", "few", "many", "many", "many", "one", "few", "many", "one", "many"]);
-        assert_eq!(forms("pl"), ["many", "one", "few", "many", "many", "many", "many", "few", "many", "many", "many"]);
-        // As Intl.PluralRules has them.
-        assert_eq!(forms("ar"), ["zero", "one", "two", "few", "many", "many", "many", "many", "many", "other", "many"]);
-        assert_eq!(forms("fil"), ["one", "one", "one", "one", "one", "one", "one", "one", "one", "one", "one"]);
-        assert_eq!([4, 6, 9, 14, 16, 19, 10].map(|n| category("fil", n)), ["other", "other", "other", "other", "other", "other", "one"]);
-        assert_eq!(forms("fr"), ["one", "one", "other", "other", "other", "other", "other", "other", "other", "other", "other"]);
-        assert_eq!(forms("pt"), forms("fr"));
-        assert_eq!(forms("es"), forms("en"));
-        for lang in ["ja", "ko", "th", "vi", "zh"] {
-            assert_eq!(forms(lang), ["other"; 11]);
-        }
-        assert_eq!(forms("bs"), ["other", "one", "few", "other", "other", "other", "one", "few", "other", "one", "other"]);
-        assert!(forms("id").iter().all(|c| *c == "other"));
+        let forms = |lang| [0, 1, 2, 5, 11, 21].map(|n| category(lang, n));
+        assert_eq!(forms("en"), ["other", "one", "other", "other", "other", "other"]);
+        assert_eq!(forms("th"), ["other"; 6]);
     }
 
     #[test]
@@ -205,7 +154,7 @@ mod tests {
             assert!(serde_json::from_str::<Catalog>(source(i)).is_ok(), "locales/{lang}.json");
         }
         assert_eq!(fill("{a} and {b}", &[("a", &1), ("b", &"x")]), "1 and x");
-        assert_eq!(LANGS[resolve("de")], "de");
-        assert_eq!(LANGS[resolve("fil-PH")], "fil");
+        assert_eq!(LANGS[resolve("th")], "th");
+        assert_eq!(LANGS[resolve("th-TH")], "th");
     }
 }

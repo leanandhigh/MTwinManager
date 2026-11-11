@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { api } from "../../api";
+import { t } from "../../i18n";
 import { setSplashPhase, type SplashPhase } from "./phase";
 import "./splash.css";
 import logo from "../../assets/mtwin-logo.png";
 
-/** When the window grows: the animation settles at 3 s (79% of 3.8 s), then holds 2 s. */
+/** When the window grows: the bar fills by 4.9 s, then the window grows. */
 const GROW_MS = 3000 + 2000;
 /** Set once the splash has run: a webview reload doesn't play it again. */
 const KEY = "roalt.splash";
@@ -25,7 +26,7 @@ function seen() {
 const FIRST: SplashPhase = seen() ? "gone" : "play";
 setSplashPhase(FIRST);
 
-/** The start-up splash over the app: the tile glitches into the RoALT mark, then the window
+/** The start-up splash over the app: the mark rises in a turning ring while the bar fills, then the window
  * (opened small by `splash::start`) grows into the app and this fades away. */
 export function Splash() {
   const [state, setState] = useState<SplashPhase>(FIRST);
@@ -56,18 +57,24 @@ export function Splash() {
       onTransitionEnd={(e) => e.target === e.currentTarget && setState("gone")}
       aria-hidden="true"
     >
-      <div className="mark" data-tauri-drag-region>
-        <div className="logo">
-          <img className="mt-mark" src={logo} alt="" draggable={false} />
+      <div className="sp-glow" />
+      <div className="sp-grid" />
+      <div className="sp-body" data-tauri-drag-region>
+        <div className="sp-logo">
+          <span className="sp-ring" />
+          <img src={logo} alt="" draggable={false} />
         </div>
-      </div>
-      <div className="mark">
-        <div className="word">
-          <b>MTWIN HUB</b>
+        <div className="sp-word">
+          MTWIN <b>HUB</b>
+        </div>
+        <div className="sp-bar">
+          <span />
+        </div>
+        <div className="sp-foot">
+          <span className="sp-status">{t("common.loading")}</span>
           <span>v{import.meta.env.APP_VERSION}</span>
         </div>
       </div>
-      <div className="scan" />
     </div>
   );
 }

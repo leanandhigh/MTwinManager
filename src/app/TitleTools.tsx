@@ -43,16 +43,10 @@ export function TitleTools({ dark, onRefresh, onToggleTheme, sideTabs, onToggleT
   );
 }
 
-/** The language: a globe and the code ("EN"), opening every language the app speaks, each in its own
- * name (English and Thai first: MTwin Hub's two). */
+/** The language: a globe and the code ("EN"), opening English and Thai, each in its own name. */
 function LangPicker({ onLang }: { onLang: (lang: string) => void }) {
   const anchor = useAnchor();
   const current = getLang();
-  const order = ["en", "th"];
-  const list = [...LANGUAGES].sort((a, b) => {
-    const [x, y] = [order.indexOf(a[0]), order.indexOf(b[0])];
-    return (x < 0 ? 99 : x) - (y < 0 ? 99 : y);
-  });
   return (
     <>
       <button type="button" className="lang-btn" popoverTarget="lang-menu" style={anchor.style} aria-haspopup="menu" aria-label={t("settings.language")} data-tip={t("settings.language")}>
@@ -61,9 +55,8 @@ function LangPicker({ onLang }: { onLang: (lang: string) => void }) {
         <Icon name="chevron" size={11} className="lang-chev" />
       </button>
       <Popover id="lang-menu" anchor={anchor.name} placement="below-end" role="menu" label={t("settings.language")} className="lang-menu">
-        {list.map(([code, name], i) => (
+        {LANGUAGES.map(([code, name]) => (
           <span key={code} className="contents">
-            {i === 2 && <div role="separator" className="menu-sep" />}
             <button
               type="button"
               role="menuitemradio"
