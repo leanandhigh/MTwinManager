@@ -13,6 +13,7 @@ import { Icon } from "../../ui/Icon";
 import { StatusPill } from "../../ui/Status";
 import { LoadFailed, toast, toastError } from "../../ui/Toast";
 import { useStored } from "../../ui/stored";
+import { DocsDialog } from "./DocsDialog";
 import { GamePage } from "./GamePage";
 import { Decal, isOnline, PORT_HOST, useProgress } from "./shared";
 
@@ -37,6 +38,7 @@ export function ProgressView({ accounts }: { accounts: AccountSummary[] }) {
   const q = useProgress();
   const [game, setGameState] = useState<string | null>(lastGame);
   const [scriptOpen, setScriptOpen] = useState(false);
+  const [docsOpen, setDocsOpen] = useState(false);
   const setGame = (g: string | null) => {
     lastGame = g;
     setGameState(g);
@@ -56,6 +58,9 @@ export function ProgressView({ accounts }: { accounts: AccountSummary[] }) {
           <div className="pg-head-tools">
             {s && <ServerPill s={s} />}
             {s && <AutoDelete hours={s.autoDeleteHours} />}
+            <Button size="md" icon="info" onClick={() => setDocsOpen(true)}>
+              {t("progress.docs")}
+            </Button>
             <Button size="md" variant="primary" icon="copy" onClick={() => setScriptOpen(true)}>
               {t("progress.getScript")}
             </Button>
@@ -68,6 +73,7 @@ export function ProgressView({ accounts }: { accounts: AccountSummary[] }) {
         )}
       </div>
       <ScriptDialog open={scriptOpen} onClose={() => setScriptOpen(false)} host={PORT_HOST(s)} />
+      <DocsDialog open={docsOpen} onClose={() => setDocsOpen(false)} host={PORT_HOST(s)} />
     </main>
   );
 }

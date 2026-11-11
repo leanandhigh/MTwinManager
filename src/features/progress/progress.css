@@ -463,6 +463,42 @@
     user-select: text;
   }
 
+  /* Docs. */
+  .pg-docs {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    max-height: min(72vh, 900px);
+    overflow-y: auto;
+  }
+  .pg-doc {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .pg-doc-code {
+    position: relative;
+  }
+  .pg-doc-copy {
+    position: absolute;
+    top: 6px;
+    inset-inline-end: 6px;
+    background: var(--surface-1);
+  }
+  .pg-doc-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .pg-doc-table td {
+    padding: 7px 10px 7px 0;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  .pg-doc-table td.mono {
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
   /* The Catalog's editor. */
   .pg-form-row {
     display: grid;
