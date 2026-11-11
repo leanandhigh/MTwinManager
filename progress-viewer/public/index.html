@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Progress Viewer</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='4' fill='%2334d399'/%3E%3Cpath d='M4 11V7M8 11V4M12 11V8' stroke='%23111' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <span class="logo">PROGRESS VIEWER</span>
+      <span class="sep"></span>
+      <div class="game-pick" id="gamePick"></div>
+    </div>
+    <div class="top-actions">
+      <button class="icon-btn" id="backBtn" title="Back" hidden><svg viewBox="0 0 16 16"><path d="M13 8H3M7 4 3 8l4 4"/></svg></button>
+      <span class="conn" id="conn" title=""><i></i><span data-t="connecting">Connecting</span></span>
+      <button class="btn btn-light" id="openScript"><svg viewBox="0 0 16 16"><path d="M5.5 4 2 8l3.5 4M10.5 4 14 8l-3.5 4M9 2.5 7 13.5"/></svg><span data-t="getScript">Get Script</span></button>
+      <button class="btn" id="openAuto"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.2"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4"/></svg><span data-t="autoDelete">Auto-Delete</span></button>
+      <div class="lang"><button data-lang="en">EN</button><button data-lang="th">TH</button></div>
+    </div>
+  </header>
+
+  <main id="homeView" hidden>
+    <section>
+      <div class="sec-head">
+        <div class="home-title">
+          <span class="home-icon"><svg viewBox="0 0 16 16"><rect x="1.5" y="4" width="13" height="8" rx="4"/><path d="M5 6.5v3M3.5 8h3"/><circle cx="10.5" cy="7.2" r=".6"/><circle cx="11.8" cy="8.8" r=".6"/></svg></span>
+          <h2 data-t="selectGame">Select Game</h2>
+          <span class="chip" id="gameCount"></span>
+        </div>
+        <label class="search wide"><svg viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg><input id="gameSearch" data-tp="searchGames" placeholder="Search games..."></label>
+      </div>
+      <div class="sec-head">
+        <div class="filters" id="gameFilters"></div>
+        <div class="menu-wrap">
+          <button class="btn" id="gameSortBtn"><svg viewBox="0 0 16 16"><path d="M4 3v10M2 11l2 2 2-2M8 4h6M8 8h4M8 12h2"/></svg><span id="gameSortLabel"></span><svg class="chev" viewBox="0 0 16 16"><path d="m4 6 4 4 4-4"/></svg></button>
+          <div class="menu" id="gameSortMenu" hidden></div>
+        </div>
+      </div>
+      <div class="game-grid" id="gameGrid"></div>
+    </section>
+    <section id="idleSec" hidden>
+      <div class="idle-head">
+        <svg viewBox="0 0 16 16"><path d="M13 9.5A5.5 5.5 0 0 1 6.5 3a5.5 5.5 0 1 0 6.5 6.5Z"/></svg>
+        <b data-t="idleTitle">Supported · nobody using it right now</b>
+        <span class="chip" id="idleCount"></span>
+        <span class="rule"></span>
+      </div>
+      <p class="muted" data-t="idleBody">Ready to use: run the script in any of these games and your accounts show up here.</p>
+      <div class="idle-grid" id="idleGrid"></div>
+    </section>
+  </main>
+
+  <main id="gameView" hidden>
+    <section id="empty" class="empty" hidden>
+      <div class="empty-card">
+        <h2 data-t="emptyTitle">No accounts yet</h2>
+        <p data-t="emptyBody">Copy the script, put it in your executor's autoexec folder (or run it), and join a game. Accounts show up here within a few seconds.</p>
+        <button class="btn btn-light" data-open-script><span data-t="getScript">Get Script</span></button>
+      </div>
+    </section>
+
+    <section id="summarySec">
+      <h3 class="label" data-t="summary">Summary</h3>
+      <div class="summary" id="summary"></div>
+    </section>
+
+    <section id="itemsSec">
+      <div class="sec-head">
+        <div>
+          <h3 class="label" id="itemsLabel">Items</h3>
+          <div class="sub" id="itemsSub"></div>
+        </div>
+        <div class="tools">
+          <div class="seg" id="typeTabs"></div>
+          <div class="menu-wrap">
+            <button class="btn" id="sortBtn"><svg viewBox="0 0 16 16"><path d="M4 3v10M2 11l2 2 2-2M8 4h6M8 8h4M8 12h2"/></svg><span id="sortLabel"></span><svg class="chev" viewBox="0 0 16 16"><path d="m4 6 4 4 4-4"/></svg></button>
+            <div class="menu" id="sortMenu" hidden></div>
+          </div>
+          <label class="search"><svg viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg><input id="itemSearch" data-tp="search" placeholder="Search..."></label>
+        </div>
+      </div>
+      <div class="grid" id="itemGrid"></div>
+      <div class="pager" id="itemPager"></div>
+    </section>
+
+    <section id="machinesSec">
+      <div class="sec-head">
+        <h3 class="label"><span data-t="machines">Machines</span> <b id="machineCount"></b></h3>
+        <button class="icon-btn" id="toggleOffline" title=""><svg viewBox="0 0 16 16"><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8Z"/><circle cx="8" cy="8" r="2"/></svg></button>
+      </div>
+      <div class="sec-head">
+        <div class="tools">
+          <label class="check-btn"><input type="checkbox" id="machinesAll"><span data-t="selectAll">Select all</span></label>
+          <span class="muted" id="machineMeta"></span>
+        </div>
+        <div class="tools">
+          <button class="btn" id="machinesClear" data-t="clear">Clear</button>
+          <button class="btn btn-danger" id="machinesDelete"><svg viewBox="0 0 16 16"><path d="M3 4.5h10M6 4.5V3h4v1.5M4.5 4.5l.7 9h5.6l.7-9"/></svg><span data-t="delete">Delete</span></button>
+        </div>
+      </div>
+      <div class="machines" id="machines"></div>
+    </section>
+
+    <section id="accountsSec">
+      <div class="sec-head">
+        <h3 class="label" data-t="accounts">Accounts</h3>
+        <div class="tools">
+          <button class="btn btn-ghost" id="exportCsv"><svg viewBox="0 0 16 16"><path d="M8 2v8M5 7l3 3 3-3M3 12.5h10"/></svg><span data-t="exportCsv">Export CSV</span></button>
+          <label class="search wide"><svg viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg><input id="accSearch" data-tp="accSearch" placeholder="Search, separate with , for many"></label>
+          <div class="pill-group">
+            <button id="accClear" class="pg-btn accent" data-t="clear">Clear</button>
+            <select id="pcFilter"></select>
+            <select id="rowsPer"><option value="25">25 rows</option><option value="50">50 rows</option><option value="100">100 rows</option></select>
+          </div>
+        </div>
+      </div>
+      <div class="tabs" id="accTabs"></div>
+      <div class="table-wrap">
+        <table class="acc">
+          <thead id="accHead"></thead>
+          <tbody id="accBody"></tbody>
+        </table>
+      </div>
+      <div class="pager" id="accPager"></div>
+    </section>
+  </main>
+
+  <div class="selbar" id="selbar" hidden>
+    <span><b id="selCount">0</b> <span data-t="selected">selected</span></span>
+    <span class="vsep"></span>
+    <button class="btn btn-teal" id="selCopy"><svg viewBox="0 0 16 16"><rect x="5" y="5" width="8.5" height="8.5" rx="1.5"/><path d="M3 10.5V3.5A1 1 0 0 1 4 2.5h6.5"/></svg><span data-t="copyAccount">Copy Account</span></button>
+    <button class="btn btn-blue" id="selCsv"><svg viewBox="0 0 16 16"><path d="M8 2v8M5 7l3 3 3-3M3 12.5h10"/></svg><span data-t="exportCsv">Export CSV</span></button>
+    <button class="btn btn-danger" id="selDelete"><svg viewBox="0 0 16 16"><path d="M3 4.5h10M6 4.5V3h4v1.5M4.5 4.5l.7 9h5.6l.7-9"/></svg><span data-t="delete">Delete</span></button>
+    <button class="btn btn-ghost" id="selClear">✕ <span data-t="clear">Clear</span></button>
+  </div>
+
+  <!-- Get Script -->
+  <div class="modal" id="scriptModal" hidden>
+    <div class="dialog">
+      <div class="dlg-head">
+        <div class="dlg-icon"><svg viewBox="0 0 16 16"><path d="M5.5 4 2 8l3.5 4M10.5 4 14 8l-3.5 4M9 2.5 7 13.5"/></svg></div>
+        <div><h2 data-t="getScript">Get Script</h2><p data-t="scriptSub">Loader to run on your Executor</p></div>
+        <button class="icon-btn" data-close>✕</button>
+      </div>
+      <div class="dlg-body">
+        <label class="field-label"><svg viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="8" rx="1"/><path d="M6 13.5h4"/></svg><span data-t="pcName">PC Name</span></label>
+        <input class="input" id="pcName" maxlength="60">
+        <label class="field-label"><svg viewBox="0 0 16 16"><path d="m3 4 3 3-3 3M8 11h5"/></svg><span data-t="script">Script</span></label>
+        <div class="code">
+          <div class="code-bar"><i style="background:#f87171"></i><i style="background:#fbbf24"></i><i style="background:#34d399"></i><span>autoexec/progress.luau</span></div>
+          <pre id="scriptCode"></pre>
+        </div>
+        <p class="hint" data-t="scriptHint">Put it in your executor's autoexec folder so every client reports on join. It keeps retrying until this viewer is running.</p>
+      </div>
+      <div class="dlg-foot">
+        <button class="btn btn-ghost" data-close data-t="close">Close</button>
+        <button class="btn btn-light" id="copyScript"><span data-t="copy">Copy</span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Auto-Delete -->
+  <div class="modal" id="autoModal" hidden>
+    <div class="dialog small">
+      <div class="dlg-head">
+        <div class="dlg-icon"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.2"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2"/></svg></div>
+        <div><h2 data-t="autoDelete">Auto-Delete</h2><p data-t="autoSub">Remove accounts that stopped reporting</p></div>
+        <button class="icon-btn" data-close>✕</button>
+      </div>
+      <div class="dlg-body">
+        <label class="field-label"><span data-t="autoAfter">Delete after offline for</span></label>
+        <select class="input" id="autoHours">
+          <option value="0" data-t="never">Never</option>
+          <option value="1">1 h</option><option value="6">6 h</option><option value="12">12 h</option>
+          <option value="24">24 h</option><option value="72">3 d</option><option value="168">7 d</option>
+        </select>
+      </div>
+      <div class="dlg-foot">
+        <button class="btn btn-ghost" data-close data-t="close">Close</button>
+        <button class="btn btn-light" id="saveAuto"><span data-t="save">Save</span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Account details -->
+  <div class="modal" id="accModal" hidden>
+    <div class="dialog wide">
+      <div class="dlg-head">
+        <img class="avatar" id="accAvatar" alt="">
+        <div><h2 id="accTitle"></h2><p id="accSub"></p></div>
+        <button class="icon-btn" data-close>✕</button>
+      </div>
+      <div class="dlg-body" id="accDetail"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" hidden></div>
+  <script src="app.js"></script>
+</body>
+</html>
