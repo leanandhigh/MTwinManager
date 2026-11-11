@@ -18,21 +18,6 @@ node progress-viewer/server.mjs
 Or double-click `progress-viewer/start.bat` on Windows, or `npm run progress` from the repo root.
 Then open <http://localhost:16390>.
 
-### As a Windows .exe (no Node.js needed)
-
-`ProgressViewer.exe` is one file with everything inside. Double-click it: a console window opens
-(close it to stop the viewer) and the dashboard opens in your browser. Data is saved in a
-`progress-data` folder next to the .exe. Double-clicking it again while it runs just opens the
-dashboard. The same options below work from a shortcut or command line, plus `--no-open`.
-
-Build it yourself with [Bun](https://bun.sh) installed (from Windows, Linux or macOS):
-
-```bash
-npm run progress:exe
-```
-
-It lands in `progress-viewer/dist/ProgressViewer.exe`.
-
 | Option | What it does |
 |---|---|
 | `--lan` | Also accept reports from other PCs on your network (they use this PC's IP in the script). Deleting and settings still only work from this PC. |
