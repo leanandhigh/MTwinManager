@@ -45,6 +45,9 @@ fn bootstrapper() -> String {
 pub struct Updater {
     /// Roblox's live version, once checked.
     latest: Mutex<Option<String>>,
+    /// The live version and when this app first saw it (Unix seconds): a client a bootstrapper
+    /// started after that, still on its old build, shows the bootstrapper doesn't update.
+    latest_seen: Mutex<Option<(String, u64)>>,
     /// What `roblox://client` last said.
     sent: Mutex<Option<RobloxClient>>,
     installing: AtomicBool,
@@ -69,6 +72,11 @@ impl Updater {
     }
 
     fn set_latest(&self, v: String) {
+        let mut seen = lock(&self.latest_seen);
+        if seen.as_ref().is_none_or(|(old, _)| *old != v) {
+            *seen = Some((v.clone(), unix_now()));
+        }
+        drop(seen);
         *lock(&self.latest) = Some(v);
     }
 
@@ -142,6 +150,14 @@ fn bootstrapper_would_close(installed: Option<&str>, live: &[Option<&str>], runn
     running > 0 && known.peek().is_some() && known.all(|l| outdated(installed, Some(l)))
 }
 
+/// The bootstrapper started a client on its `installed` build after the live version was out
+/// (`seen`, when this app first saw it): it launches without updating (pinned to an executor's
+/// build, or its updates turned off), so it won't close anything (pure). `running`: each
+/// running client's build and start time.
+fn bootstrapper_stays(installed: &str, seen: Option<u64>, running: &[(Option<String>, u64)]) -> bool {
+    seen.is_some_and(|at| running.iter().any(|(v, started)| v.as_deref() == Some(installed) && *started >= at))
+}
+
 /// The registry channel's live version (None on production, or when Roblox can't be asked).
 async fn channel_version(s: &App) -> Option<String> {
     let channel = client::channel()?;
@@ -164,7 +180,18 @@ pub async fn update_hold(s: &App, closing: usize) -> Option<String> {
     }
     if let Some(installed) = client::bootstrapper_version(&exe) {
         let (production, channel) = (production_version(s).await, channel_version(s).await);
-        if !bootstrapper_would_close(Some(&installed), &[production.as_deref(), channel.as_deref()], running) {
+        // The chosen executor's build counts as up to date: bootstrappers like ExploitStrap pin to it.
+        let executor = executor_version(s).await;
+        if !bootstrapper_would_close(Some(&installed), &[production.as_deref(), channel.as_deref(), executor.as_deref()], running) {
+            return None;
+        }
+        let seen = lock(&s.update.latest_seen).as_ref().filter(|(v, _)| Some(v) == production.as_ref()).map(|(_, at)| *at);
+        let clients: Vec<_> = crate::instances::process::roblox_processes()
+            .into_iter()
+            .map(|p| (crate::instances::process::exe_path(p.pid).and_then(|e| installed_version(&e)), p.start_time))
+            .collect();
+        if bootstrapper_stays(&installed, seen, &clients) {
+            log::info!("launch not held: the bootstrapper already started {installed} after {production:?} was out, so it doesn't update");
             return None;
         }
         log::info!(
@@ -613,6 +640,7 @@ mod tests {
         assert!(!bootstrapper_would_close(Some(a), &[Some(a), Some(c)], 3), "up to date on production");
         assert!(!bootstrapper_would_close(Some(c), &[Some(a), Some(c)], 3), "up to date on the channel");
         assert!(bootstrapper_would_close(Some(b), &[Some(a), Some(c)], 3), "behind both");
+        assert!(!bootstrapper_would_close(Some(b), &[Some(a), Some(c), Some(b)], 3), "on the executor's build");
     }
 
     /// The false "Roblox has an update" hold: Roblox lists a version it hasn't rolled out here.
@@ -671,5 +699,15 @@ mod tests {
         drop(dir);
         assert!(!path.exists());
         assert!(run(&path.join("missing.exe"), Duration::from_secs(1)).is_err());
+    }
+
+    #[test]
+    fn a_bootstrapper_that_launched_its_old_build_since_the_update_stays() {
+        let old = "version-aaaaaaaaaaaaaaaa";
+        let other = Some("version-bbbbbbbbbbbbbbbb".to_owned());
+        assert!(bootstrapper_stays(old, Some(100), &[(Some(old.to_owned()), 150)]));
+        assert!(!bootstrapper_stays(old, Some(100), &[(Some(old.to_owned()), 50)]), "started before the update was seen");
+        assert!(!bootstrapper_stays(old, Some(100), &[(other, 150)]), "another build");
+        assert!(!bootstrapper_stays(old, None, &[(Some(old.to_owned()), 150)]), "update time unknown");
     }
 }
