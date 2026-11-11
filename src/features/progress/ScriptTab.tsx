@@ -61,7 +61,7 @@ if not db or not profile then return end
 for _, kind in ipairs({ "Weapons", "Pets" }) do
 	items(profile[kind] and profile[kind].Owned, function(id, count)
 		local info = db[id] or {}
-		return { name = info.ItemName, rarity = info.Rarity, category = kind, image = P.image(info) }
+		return { name = info.ItemName, rarity = info.Rarity, category = kind, image = info.Image }
 	end)
 end
 `,
@@ -81,7 +81,7 @@ items(data.Items)
   },
 ];
 
-const REFERENCE = `value(name, amount, { key = "id", image = decalId })
+const REFERENCE = `value(name, amount, { key = "id", image = decalId })   -- image: a decal id you give (or "rbxassetid://…")
 item(id, count, { name, rarity, category, image = decalId })
 items(tbl, opts)            -- { [id] = count }, { [id] = { Count = n } } or a list of ids
 items(tbl, function(id, count) return { name, rarity, category, image } end)
@@ -90,7 +90,6 @@ level(n)
 read("leaderstats.Coins")   -- a number from a path, like the Catalog's "Read from"
 find("ReplicatedStorage.Modules.Data")   -- the object, or the table a ModuleScript returns
 num(v)                      -- "1,234" -> 1234; a TextLabel's or a Value's number
-P.image(info)               -- a picture id from an item's table (Image, Icon, rbxassetid://…)
 P.require(module)  P.player  P.report
 
 Paths start at the player (leaderstats.Coins), PlayerGui, Character, game, workspace

@@ -820,7 +820,7 @@ local profile = require(game.ReplicatedStorage.Modules.ProfileData)
 for _, kind in ipairs({ "Weapons", "Pets" }) do
 \titems(profile[kind].Owned, function(id)
 \t\tlocal info = db[id] or {}
-\t\treturn { name = info.ItemName, rarity = info.Rarity, category = kind, image = P.image(info) }
+\t\treturn { name = info.ItemName, rarity = info.Rarity, category = kind, image = info.Image }
 \tend)
 end
 `,

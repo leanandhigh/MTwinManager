@@ -13,7 +13,8 @@
 --   level(n)
 --   read("leaderstats.Coins")                      a number from a path (as in the Catalog)
 --   find("ReplicatedStorage.Modules.Data")         the object or table at a path
---   num(v), P.image(info), P.require(module), P.player, P.report
+--   num(v), P.require(module), P.player, P.report
+-- Pictures are only what you give: `image = <decal id>` in value/item, or the Catalog's Decal ID.
 -- The Catalog's "Read from" paths are read after them. Errors go back to RoALT (Script tab).
 --
 -- Config (all optional), set before loading:
@@ -73,23 +74,6 @@ local function number(v)
 		if v:IsA("TextLabel") or v:IsA("TextBox") or v:IsA("TextButton") then return number(v.Text) end
 	end
 	return nil
-end
-
--- A picture id in an item's table: the usual fields first, then any asset link in it.
-local IMAGE_FIELDS = { "Image", "ImageId", "ImageID", "Icon", "IconId", "Thumbnail", "Texture", "TextureId", "Decal", "DecalId" }
-local function imageOf(info)
-	if type(info) ~= "table" then return decal(info) end
-	for _, field in ipairs(IMAGE_FIELDS) do
-		local id = decal(info[field])
-		if id ~= "" then return id end
-	end
-	for _, v in pairs(info) do
-		if type(v) == "string" and (v:find("rbxassetid://") or v:find("asset/%?id=") or v:find("rbxthumb")) then
-			local id = v:match("id=(%d+)") or v:match("(%d+)")
-			if id then return id end
-		end
-	end
-	return ""
 end
 
 local required = {}
@@ -201,7 +185,7 @@ local function compile(source, name)
 end
 
 local function api(report)
-	local P = { report = report, player = player, read = readPath, find = find, number = number, decal = decal, image = imageOf, require = safeRequire }
+	local P = { report = report, player = player, read = readPath, find = find, number = number, decal = decal, require = safeRequire }
 	function P.value(name, amount, opts)
 		amount = number(amount)
 		if name == nil or amount == nil then return end
