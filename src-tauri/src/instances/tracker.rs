@@ -1445,6 +1445,8 @@ trait Procs {
     fn hung(&self, pid: u32) -> bool;
     /// `start_time` said None, but this client hasn't exited.
     fn unreadable_client(&self, pid: u32) -> bool;
+    /// A process's command line, when it can be read.
+    fn command_line(&self, pid: u32) -> Option<String>;
 }
 
 struct Live;
@@ -1464,6 +1466,10 @@ impl Procs for Live {
 
     fn unreadable_client(&self, pid: u32) -> bool {
         process::unreadable_client(pid)
+    }
+
+    fn command_line(&self, pid: u32) -> Option<String> {
+        process::command_line(pid)
     }
 }
 
@@ -1525,6 +1531,18 @@ fn observe(e: &mut Entry, dir: Option<&Path>, procs: &dyn Procs, roblox: &mut Op
     }
     if e.log.is_none() {
         e.log = logwatch::find_log(dir, e.btid, launched);
+    }
+    // Behind a bootstrapper: the client whose command line is this launch (its browser tracker id).
+    // Needs no log, so it works however the bootstrapper starts Roblox.
+    if !e.adopted
+        && let Some(p) = roblox
+            .get_or_insert_with(|| procs.roblox())
+            .iter()
+            .find(|p| p.start_time + 1 >= after && !taken.contains(&p.pid) && procs.command_line(p.pid).is_some_and(|l| process::is_launch(&l, e.btid)))
+            .cloned()
+    {
+        log::info!("instance {}: adopted client process {} behind bootstrapper {} (its launch)", e.inst.id, p.pid, e.inst.pid);
+        adopt(e, p, taken);
     }
     // Behind a bootstrapper: the client is the one that wrote the log.
     if !e.adopted
@@ -1799,6 +1817,10 @@ mod tests {
 
         fn hung(&self, pid: u32) -> bool {
             self.1.lock().unwrap().contains(&pid)
+        }
+
+        fn command_line(&self, _pid: u32) -> Option<String> {
+            None
         }
     }
 

@@ -20,8 +20,8 @@ import { Decal, isOnline, PORT_HOST, useProgress } from "./shared";
 /** The game open in Progress, kept while RoALT runs. */
 let lastGame: string | null = null;
 
-type GameCard = { id: string; name: string; iconUrl: string | null; playing: number | null; mine: number; online: number };
-type GameFilter = "all" | "favorites" | "running";
+type GameCard = { id: string; name: string; iconUrl: string | null; playing: number | null; mine: number; online: number; supported: boolean };
+type GameFilter = "all" | "supported" | "custom" | "favorites" | "running";
 type GameSort = "online" | "mine" | "playing" | "name";
 
 const list = (s: string | null) => {
@@ -56,9 +56,7 @@ export function ProgressView({ accounts }: { accounts: AccountSummary[] }) {
             <p className="page-sub">{t("progress.sub")}</p>
           </div>
           <div className="pg-head-tools">
-            {s && <ServerPill s={s} />}
-            {s && <AutoDelete hours={s.autoDeleteHours} />}
-            <Button size="md" icon="info" onClick={() => setDocsOpen(true)}>
+            <Button size="md" variant="ghost" icon="info" onClick={() => setDocsOpen(true)}>
               {t("progress.docs")}
             </Button>
             <Button size="md" variant="primary" icon="copy" onClick={() => setScriptOpen(true)}>
@@ -66,6 +64,7 @@ export function ProgressView({ accounts }: { accounts: AccountSummary[] }) {
             </Button>
           </div>
         </header>
+        {s && game === null && <StatusStrip s={s} />}
         {!s ? null : game === null ? (
           <GameList s={s} onOpen={setGame} onScript={() => setScriptOpen(true)} />
         ) : (
@@ -84,20 +83,40 @@ function ServerPill({ s }: { s: ProgressState }) {
   return <StatusPill tone="info" pulse label={t("progress.starting")} />;
 }
 
+/** The reporter, the accounts reporting, and when offline ones are removed: one strip. */
+function StatusStrip({ s }: { s: ProgressState }) {
+  const online = s.accounts.filter((a) => isOnline(a, s)).length;
+  return (
+    <div className="pg-strip panel">
+      <div className="pg-strip-cell">
+        <span className="pg-strip-k">{t("progress.reporter")}</span>
+        <ServerPill s={s} />
+      </div>
+      <div className="pg-strip-cell">
+        <span className="pg-strip-k">{t("progress.accountsK")}</span>
+        <span className="pg-strip-v">
+          <b data-on={online > 0 || undefined}>{fmtNum(online)}</b> {t("progress.onlineWord")} <span className="text-fg-3">· {t("progress.reportingN", { n: fmtNum(s.accounts.length) })}</span>
+        </span>
+      </div>
+      <div className="pg-strip-cell">
+        <span className="pg-strip-k">{t("progress.autoDelete")}</span>
+        <AutoDelete hours={s.autoDeleteHours} />
+      </div>
+    </div>
+  );
+}
+
 const AUTO_DELETE = [0, 1, 6, 24, 72, 168];
 function AutoDelete({ hours }: { hours: number }) {
   const label = (h: number) => (h === 0 ? t("progress.autoDeleteNever") : h < 24 ? t("progress.autoDeleteHours", { n: h }) : t("progress.autoDeleteDays", { n: h / 24 }));
   const options = [...new Set([...AUTO_DELETE, hours])].sort((a, b) => a - b).map((h) => ({ value: String(h), label: label(h) }));
   return (
-    <label className="pg-inline">
-      <span className="text-fg-3">{t("progress.autoDelete")}</span>
-      <Select
-        value={String(hours)}
-        options={options}
-        aria-label={t("progress.autoDelete")}
-        onChange={(v) => api.progressAutoDelete(Number(v)).then(() => toast(t("progress.saved")), toastError)}
-      />
-    </label>
+    <Select
+      value={String(hours)}
+      options={options}
+      aria-label={t("progress.autoDelete")}
+      onChange={(v) => api.progressAutoDelete(Number(v)).then(() => toast(t("progress.saved")), toastError)}
+    />
   );
 }
 
@@ -172,6 +191,8 @@ function GameList({ s, onOpen, onScript }: { s: ProgressState; onOpen: (id: stri
       playing: m ? m.playing : null,
       mine: mine.length,
       online: mine.filter((a) => isOnline(a, s)).length,
+      // Set up here: its own script, or a catalog of what to read. Else only "Every game" reads it.
+      supported: !!s.collectors[id]?.trim() || (s.catalog[id]?.length ?? 0) > 0,
     };
   });
   const fav = new Set(favs);
@@ -179,8 +200,16 @@ function GameList({ s, onOpen, onScript }: { s: ProgressState; onOpen: (id: stri
   const match = (g: GameCard) => !needle || g.name.toLowerCase().includes(needle);
   const added = new Set(s.games);
   const used = games.filter((g) => g.mine > 0 || fav.has(g.id) || added.has(g.id));
-  const counts: Record<GameFilter, number> = { all: used.length, favorites: games.filter((g) => fav.has(g.id)).length, running: games.filter((g) => g.online > 0).length };
-  const shown = (filter === "favorites" ? games.filter((g) => fav.has(g.id)) : filter === "running" ? games.filter((g) => g.online > 0) : used).filter(match);
+  const pick: Record<GameFilter, (g: GameCard) => boolean> = {
+    all: () => true,
+    supported: (g) => g.supported,
+    custom: (g) => !g.supported,
+    favorites: (g) => fav.has(g.id),
+    running: (g) => g.online > 0,
+  };
+  const pool = (f: GameFilter) => (f === "favorites" || f === "running" ? games : used).filter(pick[f]);
+  const counts = Object.fromEntries((Object.keys(pick) as GameFilter[]).map((f) => [f, pool(f).length])) as Record<GameFilter, number>;
+  const shown = pool(filter).filter(match);
   const by: Record<GameSort, (a: GameCard, b: GameCard) => number> = {
     online: (a, b) => b.online - a.online || b.mine - a.mine,
     mine: (a, b) => b.mine - a.mine,
@@ -190,16 +219,28 @@ function GameList({ s, onOpen, onScript }: { s: ProgressState; onOpen: (id: stri
   shown.sort((a, b) => by[sort](a, b) || a.name.localeCompare(b.name));
   const toggleFav = (id: string) => setFavs(fav.has(id) ? favs.filter((f) => f !== id) : [...favs, id]);
 
-  const filters: { id: GameFilter; label: Key; icon: "grid" | "star" | "play" }[] = [
+  const filters: { id: GameFilter; label: Key; icon: "grid" | "star" | "play" | "check" | "terminal"; tip?: Key }[] = [
     { id: "all", label: "progress.all", icon: "grid" },
+    { id: "supported", label: "progress.supported", icon: "check", tip: "progress.supportedTip" },
+    { id: "custom", label: "progress.custom", icon: "terminal", tip: "progress.customTip" },
     { id: "favorites", label: "progress.favourites", icon: "star" },
     { id: "running", label: "progress.running", icon: "play" },
   ];
 
   return (
-    <section aria-label={t("progress.selectGame")}>
+    <section aria-label={t("progress.games")}>
+      <h2 className="section-title pg-section">{t("progress.games")}</h2>
       <div className="pg-bar">
-        <h2 className="section-title">{t("progress.selectGame")}</h2>
+        <div className="pg-chips" role="group" aria-label={t("progress.filter")}>
+          {filters.map((f) => (
+            <span key={f.id} data-tip={f.tip ? t(f.tip) : undefined} className="contents">
+              <Chip pressed={filter === f.id} count={counts[f.id]} onClick={() => setFilter(f.id)}>
+                <Icon name={f.icon} size={13} />
+                {t(f.label)}
+              </Chip>
+            </span>
+          ))}
+        </div>
         <div className="pg-bar-tools">
           <Input leading="search" className="pg-search" value={search} placeholder={t("progress.searchGames")} aria-label={t("progress.searchGames")} onChange={(e) => setSearch(e.target.value)} />
           <Select<GameSort>
@@ -208,21 +249,13 @@ function GameList({ s, onOpen, onScript }: { s: ProgressState; onOpen: (id: stri
             aria-label={t("progress.sortBy")}
             options={[
               { value: "online", label: t("progress.sortOnline") },
-              { value: "mine", label: t("progress.myAccounts") },
-              { value: "playing", label: t("progress.playing") },
+              { value: "mine", label: t("progress.statAccounts") },
+              { value: "playing", label: t("progress.statPlayers") },
               { value: "name", label: t("progress.name") },
             ]}
           />
           <Button size="md" icon="plus" onClick={() => setAdding(true)}>{t("progress.addGame")}</Button>
         </div>
-      </div>
-      <div className="pg-chips" role="group" aria-label={t("progress.filter")}>
-        {filters.map((f) => (
-          <Chip key={f.id} pressed={filter === f.id} count={counts[f.id]} onClick={() => setFilter(f.id)}>
-            <Icon name={f.icon} size={13} />
-            {t(f.label)}
-          </Chip>
-        ))}
       </div>
 
       {shown.length ? (
@@ -231,13 +264,18 @@ function GameList({ s, onOpen, onScript }: { s: ProgressState; onOpen: (id: stri
             <div key={g.id} className="pg-game panel" data-running={g.online > 0 || undefined}>
               <button type="button" className="pg-game-open" onClick={() => onOpen(g.id)}>
                 <span className="pg-game-top">
-                  <Decal url={g.iconUrl ?? undefined} name={g.name} size={52} />
-                  <span className="pg-game-name">{g.name}</span>
+                  <Decal url={g.iconUrl ?? undefined} name={g.name} size={48} />
+                  <span className="min-w-0 flex flex-col gap-1.5">
+                    <span className="pg-game-name">{g.name}</span>
+                    <span className="pg-kind" data-supported={g.supported || undefined}>
+                      {t(g.supported ? "progress.supported" : "progress.custom")}
+                    </span>
+                  </span>
                 </span>
                 <span className="pg-game-stats">
-                  <span><b data-on={g.mine > 0 || undefined}>{g.mine ? fmtNum(g.mine) : "—"}</b>{t("progress.myAccounts")}</span>
-                  <span><b>{g.playing !== null ? fmtNum(g.playing) : "—"}</b>{t("progress.playing")}</span>
-                  <span><b data-on={g.online > 0 || undefined}>{g.online ? fmtNum(g.online) : "—"}</b>{t("progress.online")}</span>
+                  <span><b data-on={g.online > 0 || undefined}>{g.online ? fmtNum(g.online) : "—"}</b>{t("progress.statOnline")}</span>
+                  <span><b>{g.mine ? fmtNum(g.mine) : "—"}</b>{t("progress.statAccounts")}</span>
+                  <span><b>{g.playing !== null ? fmtNum(g.playing) : "—"}</b>{t("progress.statPlayers")}</span>
                 </span>
               </button>
               <IconButton size="sm" icon="star" className="pg-fav" pressed={fav.has(g.id)} label={t(fav.has(g.id) ? "progress.unfavourite" : "progress.favourite")} onClick={() => toggleFav(g.id)} />

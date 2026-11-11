@@ -352,6 +352,15 @@ mod tests {
 
     use super::*;
 
+    #[test]
+    fn tells_a_launch_by_its_browser_tracker_id() {
+        let line = r#""C:\x\RobloxPlayerBeta.exe" roblox-player:1+launchmode:play+browsertrackerid:123+robloxLocale:en_us"#;
+        assert!(is_launch(line, 123));
+        assert!(!is_launch(line, 12), "a prefix of another id");
+        assert!(!is_launch(line, 1234));
+        assert!(is_launch("roblox-player:1+browsertrackerid:77", 77), "at the end");
+    }
+
     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
     /// A windowless child from System32 (never Roblox).
