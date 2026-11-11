@@ -90,6 +90,12 @@ const num = (v) => {
   return Number.isFinite(n) ? n : null;
 };
 
+// Images are set by the script as a full http(s) link and shown as-is; anything else is dropped.
+const imageUrl = (v) => {
+  const s = str(v, 500).trim();
+  return /^https?:\/\//i.test(s) ? s : "";
+};
+
 function cleanList(list, max, map) {
   if (!Array.isArray(list)) return [];
   const out = [];
@@ -121,7 +127,7 @@ function acceptReport(body) {
     level: num(body.level),
     currencies: cleanList(body.currencies, 20, (c) =>
       c.name && num(c.amount) != null
-        ? { key: str(c.key || c.name, 60), name: str(c.name, 60), amount: num(c.amount), image: str(c.image, 120) }
+        ? { key: str(c.key || c.name, 60), name: str(c.name, 60), amount: num(c.amount), image: imageUrl(c.image) }
         : null,
     ),
     stats: cleanList(body.stats, 20, (s) =>
@@ -135,7 +141,7 @@ function acceptReport(body) {
             rarity: str(it.rarity, 30) || "Common",
             type: str(it.type, 30) || "Item",
             count: Math.max(1, num(it.count) ?? 1),
-            image: str(it.image, 120),
+            image: imageUrl(it.image),
           }
         : null,
     ),
@@ -150,50 +156,6 @@ function publicState() {
   const now = Date.now();
   const accounts = Object.values(state.accounts).map((a) => ({ ...a, online: now - a.lastSeen < ONLINE_MS }));
   return { now, revision, onlineMs: ONLINE_MS, settings: state.settings, accounts };
-}
-
-// ---------- thumbnails ----------
-// Item images come from the game as rbxassetid://<id>. The browser cannot show those, so this
-// resolves them through Roblox's public thumbnail API once and caches the CDN link.
-
-const thumbCache = new Map(); // id -> { url, at }
-const thumbWaiters = new Map(); // id -> resolver[]
-let thumbQueue = new Set();
-let thumbTimer = null;
-
-function resolveThumb(id) {
-  const hit = thumbCache.get(id);
-  if (hit && (hit.url || Date.now() - hit.at < 600_000)) return Promise.resolve(hit.url);
-  return new Promise((resolve) => {
-    if (!thumbWaiters.has(id)) thumbWaiters.set(id, []);
-    thumbWaiters.get(id).push(resolve);
-    thumbQueue.add(id);
-    thumbTimer ??= setTimeout(flushThumbs, 60);
-  });
-}
-
-async function flushThumbs() {
-  thumbTimer = null;
-  const ids = [...thumbQueue].slice(0, 100);
-  for (const id of ids) thumbQueue.delete(id);
-  if (thumbQueue.size) thumbTimer = setTimeout(flushThumbs, 60);
-  const found = new Map();
-  try {
-    const url = `https://thumbnails.roblox.com/v1/assets?assetIds=${ids.join(",")}&size=150x150&format=Png&isCircular=false`;
-    const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
-    if (res.ok) {
-      const json = await res.json();
-      for (const d of json.data ?? []) if (d.state === "Completed" && d.imageUrl) found.set(String(d.targetId), d.imageUrl);
-    }
-  } catch {
-    // Offline or blocked: the dashboard falls back to the item's initials.
-  }
-  for (const id of ids) {
-    const u = found.get(id) ?? null;
-    thumbCache.set(id, { url: u, at: Date.now() });
-    for (const r of thumbWaiters.get(id) ?? []) r(u);
-    thumbWaiters.delete(id);
-  }
 }
 
 // ---------- games ----------
@@ -333,14 +295,6 @@ async function handle(req, res) {
         supported: supported.has(g.id),
       })),
     });
-  }
-
-  if (p === "/api/thumb" && req.method === "GET") {
-    const id = (url.searchParams.get("id") || "").replace(/\D/g, "");
-    const u = id ? await resolveThumb(id) : null;
-    if (!u) return send(res, 404, "no image", "text/plain");
-    res.writeHead(302, { Location: u, "Cache-Control": "public, max-age=86400" });
-    return res.end();
   }
 
   if (p === "/api/accounts/delete" && req.method === "POST") {

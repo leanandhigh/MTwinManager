@@ -5,7 +5,7 @@ items with rarity, which PC each account runs on, and who is online right now.
 
 It works like roblox-executor-mcp's bridge: a small server runs on your PC, your executor loads
 `/script.luau` from it, and that script reports back every 10 seconds. Nothing leaves your PC
-except item and game image lookups to Roblox's public thumbnail API.
+except game names, player counts and banners from Roblox's public APIs for the home page.
 
 ## Run it
 
@@ -73,12 +73,13 @@ getgenv().ProgressConfig = {
         report.level = 10
         table.insert(report.currencies, { name = "Gems", amount = 1234 })
         table.insert(report.stats, { name = "Battle Pass", value = "4", max = 30 })
-        table.insert(report.items, { id = "sword1", name = "Fire Sword", rarity = "Legendary", type = "Weapons", count = 2, image = "123456" })
+        table.insert(report.items, { id = "sword1", name = "Fire Sword", rarity = "Legendary", type = "Weapons", count = 2, image = "https://example.com/fire-sword.png" })
     end,
 }
 ```
 
-`image` is a Roblox asset id. To list a game on the home page before anyone plays it, add its
+`image` is a full http(s) link, shown as-is (items and currencies without one show their initials). For MM2,
+set `Image = function(id, info) return "https://..." end` in the config to give each item a picture. To list a game on the home page before anyone plays it, add its
 universe id to `SUPPORTED` in `server.mjs`.
 
 ## API

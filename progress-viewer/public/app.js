@@ -100,7 +100,7 @@ const ago = (ms) => {
 };
 const initials = (name) => esc(String(name || "?").replace(/[^A-Za-z0-9 ]/g, "").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "?");
 const thumb = (image, name, cls = "") =>
-  image ? `<img class="${cls}" src="/api/thumb?id=${esc(image)}" alt="" loading="lazy" onerror="this.outerHTML='<div class=&quot;initials ${cls}&quot;>${initials(name)}</div>'">`
+  image ? `<img class="${cls}" src="${esc(image)}" referrerpolicy="no-referrer" alt="" loading="lazy" onerror="this.outerHTML='<div class=&quot;initials ${cls}&quot;>${initials(name)}</div>'">`
         : `<div class="initials ${cls}">${initials(name)}</div>`;
 
 function toast(msg) {

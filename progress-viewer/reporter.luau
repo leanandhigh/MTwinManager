@@ -34,9 +34,14 @@ end
 local httpRequest = (syn and syn.request) or (http and http.request) or http_request or request
 	or (fluxus and fluxus.request)
 
-local function assetId(image)
-	if image == nil then return "" end
-	return tostring(image):match("(%d+)") or ""
+-- Item images: the dashboard shows `image` as-is, so it must be a full http(s) link.
+-- Set config.Image = function(id, info) return "https://..." end to fill it in for MM2.
+local function imageFor(id, info)
+	if type(config.Image) == "function" then
+		local ok, url = pcall(config.Image, id, info)
+		if ok and type(url) == "string" then return url end
+	end
+	return ""
 end
 
 local gameName = "Unknown game"
@@ -133,7 +138,7 @@ local function collectMM2(report)
 					key = tostring(id),
 					name = (info and info.ItemName) or pretty(id),
 					amount = tonumber(count),
-					image = info and assetId(info.Image) or "",
+					image = imageFor(id, info),
 				})
 			end
 		end
@@ -150,7 +155,7 @@ local function collectMM2(report)
 					rarity = info.Rarity or "Common",
 					type = info.ItemType or "Weapons",
 					count = tonumber(count),
-					image = assetId(info.Image),
+					image = imageFor(id, info),
 				})
 			end
 		end
@@ -167,7 +172,7 @@ local function collectMM2(report)
 					rarity = info.Rarity or "Common",
 					type = "Pets",
 					count = tonumber(count),
-					image = assetId(info.Image),
+					image = imageFor(id, info),
 				})
 			end
 		end
