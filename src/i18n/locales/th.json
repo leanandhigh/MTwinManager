@@ -1710,5 +1710,9 @@
   "accounts.killText": "จะปิดเฉพาะไคลเอนต์ของบัญชีที่เลือกทันที ไคลเอนต์อื่นยังทำงานต่อ",
   "accounts.killed": "ปิดแล้ว {n} ไคลเอนต์",
   "app.killSelectedN": "ปิดที่เลือก ({n})",
-  "app.pickClient": "เลือก {name}"
+  "app.pickClient": "เลือก {name}",
+  "app.runningWord": "กำลังรัน",
+  "app.updateWord": "อัปเดต {version}",
+  "app.updatingWord": "กำลังดาวน์โหลด…",
+  "app.publicWord": "เครือข่ายสาธารณะ"
 }

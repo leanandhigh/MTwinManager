@@ -1710,5 +1710,9 @@
   "accounts.killText": "Only the selected accounts' clients are ended, at once; the others keep running.",
   "accounts.killed": "Killed {n} client(s)",
   "app.killSelectedN": "Kill selected ({n})",
-  "app.pickClient": "Select {name}"
+  "app.pickClient": "Select {name}",
+  "app.runningWord": "running",
+  "app.updateWord": "Update {version}",
+  "app.updatingWord": "Downloading…",
+  "app.publicWord": "Public network"
 }

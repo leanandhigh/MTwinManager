@@ -111,7 +111,8 @@ function RunningCapsule({ accounts }: { accounts: AccountSummary[] }) {
       sheet={(close) => <RunningSheet running={running} byId={byId} tools={tools} close={close} />}
     >
       <span aria-hidden="true" className={`status-mark ${coming ? "pulse" : ""}`} data-shape={TONE_SHAPE[tone]} style={{ color: TONE_COLOR[tone] }} />
-      <span>{running.length}</span>
+      <span className="capsule-count">{running.length}</span>
+      <span className="capsule-word">{t("app.runningWord")}</span>
     </Capsule>
   );
 }
@@ -218,7 +219,10 @@ function NoticeCapsule({ settings }: { settings: Settings }) {
           )
         }
       >
-        {kind === "update" && install.busy ? <Icon name="refresh" size={15} className="spin" /> : <Icon name={kind === "update" ? "download" : "globe"} size={15} />}
+        {kind === "update" && install.busy ? <Icon name="refresh" size={14} className="spin" /> : <Icon name={kind === "update" ? "download" : "globe"} size={14} />}
+        <span className="capsule-word" data-kind={kind ?? undefined}>
+          {kind === "update" ? (install.busy ? t("app.updatingWord") : t("app.updateWord", { version: version ?? "" })) : t("app.publicWord")}
+        </span>
       </Capsule>
       {install.dialog}
     </>
