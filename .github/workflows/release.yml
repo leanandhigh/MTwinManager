@@ -173,9 +173,9 @@ jobs:
           TAG: ${{ needs.windows.outputs.tag }}
           VERSION: ${{ needs.windows.outputs.version }}
           SIGNED: ${{ needs.windows.outputs.signed }}
-          # A push to the branch publishes at once (that's what reaches the self-updater); tags
-          # and manual runs stay drafts to review.
-          PUBLISH: ${{ github.event_name == 'push' && github.ref_type == 'branch' }}
+          # The Progress branch publishes at once (that's what reaches the self-updater), whether
+          # pushed or run by hand; tags and runs on other branches stay drafts to review.
+          PUBLISH: ${{ github.ref == 'refs/heads/claude/sleepy-edison-wz3daw' }}
         run: |
           sha256sum -- * > SHA256SUMS.txt
           cat SHA256SUMS.txt
