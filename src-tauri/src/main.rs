@@ -24,6 +24,7 @@ mod splash;
 mod storage;
 mod tray;
 mod vault;
+mod weao;
 mod webview;
 
 use std::io::ErrorKind;
@@ -743,6 +744,7 @@ fn main() {
             commands::roblox_install,
             commands::news,
             commands::online_ping,
+            weao::roblox_versions,
             commands::client_bootstrappers,
             progress::progress_state,
             progress::progress_remove,

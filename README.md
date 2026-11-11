@@ -383,6 +383,7 @@ In **Settings → Launching**, turn on **Auto-rejoin** (and, if you like, **Auto
 - Installs Roblox updates **only** when the installer is signed by Roblox Corporation.
 - Updates itself **only** when you click Update now, and only with an installer that carries RoALT's release signature.
 - Redacts launch tickets from anything it reads in Roblox's logs.
+- Asks **WhatExpsAre.Online** (`weao.xyz` and its other domains) for Roblox's versions, only while Tools → Roblox updates is open.
 - Listens on **`127.0.0.1:16390`** for Progress reports, from this PC only. Reports and the Catalog are kept in `progress.json` in the data folder; nothing in them is secret.
 - Keeps **Browse** on Roblox: no other site, no Create, no downloads, no pop-up windows. A page's Play link is read for the game only; RoALT launches with its own ticket. With **Lock purchases** on, Browse refuses Robux-spending requests before they leave your PC (in-game purchases happen in the Roblox client, which RoALT can't block).
 

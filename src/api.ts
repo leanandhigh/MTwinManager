@@ -111,6 +111,10 @@ export type { PlayerStats, PlayerValue };
 import type { PageCard } from "./bindings/PageCard";
 import type { CatalogEntry } from "./bindings/CatalogEntry";
 import type { DetectedBootstrapper } from "./bindings/DetectedBootstrapper";
+import type { RobloxVersions } from "./bindings/RobloxVersions";
+export type { RobloxVersions };
+export type { VersionSet } from "./bindings/VersionSet";
+export type { PlatformVersion } from "./bindings/PlatformVersion";
 export type { DetectedBootstrapper };
 import type { ProgressGame } from "./bindings/ProgressGame";
 import type { ProgressState } from "./bindings/ProgressState";
@@ -299,6 +303,8 @@ export const api = {
   /** Progress: what alts have in game, as the in-game reporter sends it to RoALT's local port. */
   progressState: () => invoke<ProgressState>("progress_state"),
   /** Bootstrappers installed on this PC (Bloxstrap, Fishstrap, ExploitStrap...). */
+  /** Roblox's current, future and past builds per platform, from WEAO (cached a minute unless `refresh`). */
+  robloxVersions: (refresh = false) => invoke<RobloxVersions>("roblox_versions", { refresh }),
   clientBootstrappers: () => invoke<DetectedBootstrapper[]>("client_bootstrappers"),
   /** Removes these accounts (`key`s) until they report again; how many went. */
   progressRemove: (keys: string[]) => invoke<number>("progress_remove", { keys }),

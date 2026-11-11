@@ -1424,6 +1424,20 @@ async function handle(cmd: string, args: Args): Promise<unknown> {
         failed: [],
       };
     }
+    case "roblox_versions":
+      return {
+        current: {
+          windows: { version: "version-31fc142272764f02", date: "9/17/2025, 8:57:32 PM UTC" },
+          mac: { version: "version-3360cc788ced462d", date: "9/17/2025, 8:57:32 PM UTC" },
+          android: { version: "2.690.721", date: "9/21/2025, 6:46:57 PM UTC" },
+          ios: { version: "2.690.721", date: "9/12/2025, 4:59:14 PM UTC" },
+        },
+        future: { windows: { version: "version-2a06298afe3947ab", date: "9/23/2025, 11:42:47 PM UTC" }, mac: { version: "version-774691dc93a947ef", date: "9/23/2025, 11:42:37 PM UTC" }, android: null, ios: null },
+        past: { windows: { version: "version-5e1f0c9a7d3b4e21", date: "9/10/2025, 7:02:11 PM UTC" }, mac: { version: "version-91ab02cd33ef4410", date: "9/10/2025, 7:02:05 PM UTC" }, android: null, ios: null },
+        installed: "version-5e1f0c9a7d3b4e21",
+        checkedAt: Date.now(),
+        error: null,
+      };
     case "client_bootstrappers":
       return [
         { name: "Fishstrap", path: "C:\\Users\\you\\AppData\\Local\\Fishstrap\\Fishstrap.exe", registered: true },
