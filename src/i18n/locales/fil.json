@@ -1765,5 +1765,7 @@
   "accounts.killNone": "None of the selected accounts has a Roblox client running.",
   "accounts.killTitle": "Kill {n} Roblox client(s)?",
   "accounts.killText": "Only the selected accounts' clients are ended, at once; the others keep running.",
-  "accounts.killed": "Killed {n} client(s)"
+  "accounts.killed": "Killed {n} client(s)",
+  "app.killSelectedN": "Kill selected ({n})",
+  "app.pickClient": "Select {name}"
 }

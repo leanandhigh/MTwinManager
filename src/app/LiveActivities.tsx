@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { AccountSummary, BulkStage, Settings } from "../api";
+import { api, type AccountSummary, type BulkStage, type Instance, type Settings } from "../api";
 import { useInstances } from "../data";
 import { TONE_COLOR, TONE_SHAPE } from "../ui/Status";
 import { t, type Key } from "../i18n";
@@ -12,6 +12,7 @@ import { jumpTo } from "../features/settings/jumpTo";
 import { usePublicBlock } from "../features/settings/PublicNetworkBanner";
 import { UpdateText, useUpdateInstall, useUpdateOffer } from "../features/settings/UpdateBanner";
 import { announce } from "../ui/a11y";
+import { toast, toastError } from "../ui/Toast";
 import { Button } from "../ui/Button";
 import { Icon } from "../ui/Icon";
 import { Capsule, Ring } from "../ui/island/Capsule";
@@ -107,40 +108,77 @@ function RunningCapsule({ accounts }: { accounts: AccountSummary[] }) {
       show={running.length > 0}
       label={label}
       sheetLabel={t("app.running", { count: running.length })}
-      sheet={(close) => (
+      sheet={(close) => <RunningSheet running={running} byId={byId} tools={tools} close={close} />}
+    >
+      <span aria-hidden="true" className={`status-mark ${coming ? "pulse" : ""}`} data-shape={TONE_SHAPE[tone]} style={{ color: TONE_COLOR[tone] }} />
+      <span>{running.length}</span>
+    </Capsule>
+  );
+}
+
+/** The running clients, each with a tick box: Kill selected ends just the ticked ones. */
+function RunningSheet({ running, byId, tools, close }: {
+  running: Instance[];
+  byId: Map<number, AccountSummary>;
+  tools: ReturnType<typeof useWindowTools>;
+  close: () => void;
+}) {
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [killing, setKilling] = useState(false);
+  const chosen = running.filter((i) => picked.has(i.id));
+  const toggle = (id: string) =>
+    setPicked((p) => {
+      const n = new Set(p);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  const kill = () => {
+    if (!chosen.length || killing) return;
+    setKilling(true);
+    void Promise.allSettled(chosen.map((i) => api.instanceClose(i.id, true))).then((r) => {
+      setKilling(false);
+      setPicked(new Set());
+      const failed = r.find((x) => x.status === "rejected");
+      if (failed) toastError((failed as PromiseRejectedResult).reason);
+      else toast(t("accounts.killed", { n: chosen.length }));
+    });
+  };
+  return (
         <div className="flex flex-col">
           <ul className="flex flex-col p-2 max-h-72 overflow-auto">
-            {running.slice(0, 8).map((i) => {
+            {running.map((i) => {
               const a = byId.get(i.accountId);
               const [label, color] = STATES[i.state];
+              const name = a ? accountName(a) : t("dashboard.account", { id: i.accountId });
               return (
-                <li key={i.id} className="flex items-center gap-2.5 px-2 min-h-10 rounded-[10px]">
-                  {a && <Avatar account={a} size={22} />}
-                  <span className="flex-1 min-w-0 truncate font-medium">{a ? accountName(a) : t("dashboard.account", { id: i.accountId })}</span>
-                  <span className="inline-flex items-center gap-1.5 text-[12px] text-fg-2">
-                    <span aria-hidden="true" className="led" style={{ color }} />
-                    {label}
-                  </span>
+                <li key={i.id}>
+                  <label className="flex items-center gap-2.5 px-2 min-h-10 rounded-[10px] cursor-pointer hover:bg-hover">
+                    <input type="checkbox" className="cb" checked={picked.has(i.id)} onChange={() => toggle(i.id)} aria-label={t("app.pickClient", { name })} />
+                    {a && <Avatar account={a} size={22} />}
+                    <span className="flex-1 min-w-0 truncate font-medium">{name}</span>
+                    <span className="inline-flex items-center gap-1.5 text-[12px] text-fg-2">
+                      <span aria-hidden="true" className="led" style={{ color }} />
+                      {label}
+                    </span>
+                  </label>
                 </li>
               );
             })}
-            {running.length > 8 && <li className="px-2 py-1.5 text-[12px] text-fg-3">+{running.length - 8}</li>}
           </ul>
           <div className="flex flex-wrap gap-2 px-3 pb-3">
             <Button size="md" icon="home" onClick={() => (close(), requestNavigation("dashboard"))}>{t("app.nav.dashboard")}</Button>
             <Button size="md" icon="minimize" disabled={tools.busy} onClick={() => void tools.minimizeAll()}>{t("dashboard.minimizeAll")}</Button>
             <Button size="md" icon="grid" disabled={tools.busy} onClick={() => void tools.tile(false)}>{t("dashboard.tile")}</Button>
           </div>
-          <div className="px-3 pb-3">
+          <div className="flex flex-col gap-2 px-3 pb-3">
+            <Button size="md" variant="danger" icon="stop" block busy={killing} disabled={!chosen.length} onClick={kill}>
+              {chosen.length ? t("app.killSelectedN", { n: chosen.length }) : t("accounts.killSelected")}
+            </Button>
             {/* Once it fires the sheet closes, so the focus goes back to the capsule, not nowhere. */}
             <KillAllButton onFired={close} />
           </div>
         </div>
-      )}
-    >
-      <span aria-hidden="true" className={`status-mark ${coming ? "pulse" : ""}`} data-shape={TONE_SHAPE[tone]} style={{ color: TONE_COLOR[tone] }} />
-      <span>{running.length}</span>
-    </Capsule>
   );
 }
 

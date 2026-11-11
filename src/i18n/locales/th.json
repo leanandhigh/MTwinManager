@@ -1708,5 +1708,7 @@
   "accounts.killNone": "ไม่มีบัญชีที่เลือกที่กำลังเปิด Roblox อยู่",
   "accounts.killTitle": "ปิด Roblox {n} ไคลเอนต์?",
   "accounts.killText": "จะปิดเฉพาะไคลเอนต์ของบัญชีที่เลือกทันที ไคลเอนต์อื่นยังทำงานต่อ",
-  "accounts.killed": "ปิดแล้ว {n} ไคลเอนต์"
+  "accounts.killed": "ปิดแล้ว {n} ไคลเอนต์",
+  "app.killSelectedN": "ปิดที่เลือก ({n})",
+  "app.pickClient": "เลือก {name}"
 }
