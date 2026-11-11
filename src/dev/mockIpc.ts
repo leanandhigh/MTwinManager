@@ -73,7 +73,7 @@ let accounts: AccountSummary[] = seed.map(([alias, displayName, username, userId
 let settings: Settings = {
   theme: "dark", accent: "", backgroundDim: 60, density: "detailed", autoLockMinutes: 15, clipboardClearSeconds: 30, cacheMinutes: 10,
   multiInstance: true, protectSharedLogin: true, launchDelayMs: 6000, autoRejoin: false, autoRestartOnCrash: false,
-  breakerMax: 3, breakerWindowMin: 10, closeGraceS: 5, launchArgs: "", closeToTray: false,
+  breakerMax: 3, breakerWindowMin: 10, closeGraceS: 5, launchArgs: "", clientPath: "", closeToTray: false,
   memRestartMb: 0, memThrottle: { mb: 0, cpuCap: 10 }, trimEveryMin: 0, autoSpread: false, fairCap: false,
   adaptive: { enabled: false, background: { cpuCap: 25, eco: true, trimEveryMin: null, affinity: null } }, bandwidthKbps: 0,
   antiAfk: { enabled: false, intervalMin: 15 },
@@ -791,7 +791,7 @@ const mm2Items: [string, string, string, string][] = [
 const progressAccount = (i: number, pc: string, seenAgo: number, level: number, candy: number, owned: number[]): ProgressAccount => {
   const a = accounts[i];
   return {
-    key: `${MM2}:${a.userId}`, pc, gameId: MM2, gameName: "Murder Mystery 2", userId: a.userId, name: a.username, displayName: a.displayName, level,
+    key: `${MM2}:${a.userId}`, pc, gameId: MM2, gameName: "Murder Mystery 2", placeId: 142823291, userId: a.userId, name: a.username, displayName: a.displayName, level,
     values: [{ key: "Candies2025", name: "Halloween Candy", amount: candy, image: "" }, { key: "Coins", name: "Coins", amount: candy * 7, image: "" }],
     stats: [{ key: "BattlePass", name: "Battle Pass", value: String(level % 30), max: 30 }],
     items: owned.map((n, k) => ({ id: mm2Items[k][0], name: mm2Items[k][1], rarity: mm2Items[k][2], category: mm2Items[k][3], count: n, image: "" })).filter((x) => x.count > 0),
@@ -1461,7 +1461,7 @@ async function handle(cmd: string, args: Args): Promise<unknown> {
       return {};
     case "progress_games":
       return (args.universeIds as number[]).flatMap((id) =>
-        id === 66654135 ? [{ universeId: id, name: "Murder Mystery 2", playing: 19114, iconUrl: null }] : id === 383310974 ? [{ universeId: id, name: "Adopt Me!", playing: 151020, iconUrl: null }] : [],
+        id === 66654135 ? [{ universeId: id, rootPlaceId: 142823291, name: "Murder Mystery 2", playing: 19114, iconUrl: null }] : id === 383310974 ? [{ universeId: id, rootPlaceId: 920587237, name: "Adopt Me!", playing: 151020, iconUrl: null }] : [],
       );
     case "online_ping":
       return !DEMO && settings.onlineCount ? { online: 1284, playing: 5120 } : null;

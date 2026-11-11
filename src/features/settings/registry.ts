@@ -80,7 +80,7 @@ export type Entry = {
   /** Where search and jumps go while `when` is false (else the parent). */
   fallback?: string;
   /** Queries a successful write makes stale. */
-  invalidates?: readonly ("multi" | "values")[];
+  invalidates?: readonly ("multi" | "values" | "client")[];
   /** ASCII search words (fps, afk, qos): never shown, never translated. */
   aliases?: readonly string[];
 };
@@ -110,6 +110,11 @@ const SETTINGS_ENTRIES: readonly Entry[] = [
   {
     id: "launchArgs", place: launching, label: "settings.launchArgs", hint: "settings.launchArgsShort", more: "settings.launchArgsHint", field: "launchArgs",
     control: { kind: "text", placeholder: "settings.placeholderNone", size: "lg" }, aliases: ["args", "bootstrapper", "command"],
+  },
+  {
+    id: "clientPath", place: launching, label: "settings.clientPath", hint: "settings.clientPathShort", more: "settings.clientPathHint", field: "clientPath",
+    control: { kind: "text", placeholder: "settings.clientPathAuto", size: "lg" }, invalidates: ["client"],
+    aliases: ["bootstrapper", "bloxstrap", "fishstrap", "froststrap", "voidstrap", "exe", "path", "launch with"],
   },
   { id: "protectMain", place: launching, label: "settings.protectMain", more: "settings.protectMainHint", field: "protectMain", control: SWITCH, aliases: ["select all"] },
   { id: "autoRejoin", place: launching, label: "settings.autoRejoin", hint: "settings.autoRejoinHint", field: "autoRejoin", control: SWITCH, aliases: ["reconnect", "disconnect", "kick"] },

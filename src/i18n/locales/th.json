@@ -1640,5 +1640,13 @@
   "progress.docsPictures": "รูปภาพ",
   "progress.docsPicturesText": "ใช้เฉพาะที่คุณกำหนด: image = Decal ID ใน value หรือ item หรือ Decal ID ในแคตตาล็อก ซึ่งมีผลเหนือกว่าเสมอ",
   "progress.docsOrder": "ลำดับการทำงาน",
-  "progress.docsOrderText": "ทุกรายงาน: สคริปต์ทุกเกม ตามด้วยสคริปต์เกมนี้ แล้วตำแหน่ง \"อ่านค่าจาก\" ในแคตตาล็อก สคริปต์ที่ผิดพลาดจะหยุดตรงนั้น ส่วนที่เหลือยังรายงานต่อ"
+  "progress.docsOrderText": "ทุกรายงาน: สคริปต์ทุกเกม ตามด้วยสคริปต์เกมนี้ แล้วตำแหน่ง \"อ่านค่าจาก\" ในแคตตาล็อก สคริปต์ที่ผิดพลาดจะหยุดตรงนั้น ส่วนที่เหลือยังรายงานต่อ",
+  "game.stat.placeId": "Place ID",
+  "game.stat.universeId": "Universe ID",
+  "progress.copyId": "คัดลอก",
+  "progress.idCopied": "คัดลอก {id} แล้ว",
+  "settings.clientPath": "เปิดด้วย",
+  "settings.clientPathShort": "ไฟล์ .exe ของ bootstrapper หรือเว้นว่างเพื่อใช้ตัวที่เปิดลิงก์ Roblox",
+  "settings.clientPathHint": "RoALT เปิดเกมผ่านโปรแกรมที่เปิดลิงก์ roblox-player: Roblox หรือ bootstrapper เช่น Bloxstrap, Fishstrap, Froststrap หรือ Voidstrap โดยใช้คำสั่งแบบเดียวกับที่ลงทะเบียนไว้ (เช่น -player) ถ้าต้องการใช้ตัวอื่น ให้วางพาธเต็มของไฟล์ .exe ที่นี่ เช่น C:\\Users\\you\\AppData\\Local\\Fishstrap\\Fishstrap.exe โดย bootstrapper จะจัดการอัปเดตและ FFlags ของ Roblox เอง",
+  "settings.clientPathAuto": "อัตโนมัติ"
 }

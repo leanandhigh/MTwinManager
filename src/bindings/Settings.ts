@@ -71,6 +71,11 @@ closeGraceS: number,
  */
 launchArgs: string, 
 /**
+ * The program to launch Roblox with (a bootstrapper such as Bloxstrap or Fishstrap, or
+ * RobloxPlayerBeta.exe); "": the one that opens roblox-player links (`launcher::client::find`).
+ */
+clientPath: string, 
+/**
  * Closing the window hides it; the tray icon brings it back or quits.
  */
 closeToTray: boolean, 

@@ -1925,5 +1925,13 @@
   "progress.docsPictures": "Pictures",
   "progress.docsPicturesText": "Only what you give: image = a decal id in value or item, or the Catalog's Decal ID, which always wins.",
   "progress.docsOrder": "Order",
-  "progress.docsOrderText": "Each report: Every game, then This game, then the Catalog's Read from paths. A script that errors stops there; the rest still report."
+  "progress.docsOrderText": "Each report: Every game, then This game, then the Catalog's Read from paths. A script that errors stops there; the rest still report.",
+  "game.stat.placeId": "Place ID",
+  "game.stat.universeId": "Universe ID",
+  "progress.copyId": "Copy",
+  "progress.idCopied": "Copied {id}",
+  "settings.clientPath": "Launch with",
+  "settings.clientPathShort": "A bootstrapper's .exe, or empty for the one that opens Roblox links.",
+  "settings.clientPathHint": "RoALT launches through whatever opens roblox-player links: Roblox, or a bootstrapper such as Bloxstrap, Fishstrap, Froststrap or Voidstrap, with the same words it registered (like -player). To use another one, paste the full path of its .exe here, e.g. C:\\Users\\you\\AppData\\Local\\Fishstrap\\Fishstrap.exe. A bootstrapper manages Roblox's updates and FFlags itself.",
+  "settings.clientPathAuto": "Automatic"
 }

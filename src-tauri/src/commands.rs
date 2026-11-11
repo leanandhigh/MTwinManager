@@ -3387,6 +3387,14 @@ pub fn settings_set(app: AppHandle, s: State<'_, App>, patch: SettingsPatch) -> 
         crate::launcher::launch_args(&a)?;
         v.launch_args = a.trim().to_owned();
     }
+    if let Some(c) = patch.client_path {
+        let c = c.trim().trim_matches('"').to_owned();
+        if !c.is_empty() && !(c.to_ascii_lowercase().ends_with(".exe") && std::path::Path::new(&c).is_file()) {
+            return Err(AppError::Invalid(tr!("Choose the .exe of Roblox or of a bootstrapper (Bloxstrap, Fishstrap...).")));
+        }
+        crate::launcher::client::set_custom(&c);
+        v.client_path = c;
+    }
     if let Some(f) = patch.custom_flags {
         crate::launcher::flags::check(&f)?;
         v.custom_flags = f;

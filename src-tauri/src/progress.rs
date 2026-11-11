@@ -115,6 +115,9 @@ pub struct ProgressAccount {
     /// The universe id (the place id where a game has none).
     pub game_id: String,
     pub game_name: String,
+    /// The place the account is in (a game's start place, or one of its other places).
+    #[serde(default)]
+    pub place_id: Option<i64>,
     pub user_id: i64,
     pub name: String,
     pub display_name: String,
@@ -201,6 +204,8 @@ pub struct ProgressState {
 #[ts(export)]
 pub struct ProgressGame {
     pub universe_id: i64,
+    /// The game's start place.
+    pub root_place_id: i64,
     pub name: String,
     pub playing: i64,
     pub icon_url: Option<String>,
@@ -390,6 +395,7 @@ fn parse_report(body: &Value, now: i64, first_seen: impl Fn(&str) -> Option<i64>
         pc: Some(text(&body["pc"], 60)).filter(|s| !s.is_empty()).unwrap_or_else(|| "Unnamed PC".into()),
         game_name: Some(text(&game["name"], 80)).filter(|s| !s.is_empty()).unwrap_or_else(|| "Unknown game".into()),
         game_id,
+        place_id: num(&game["placeId"]).filter(|n| *n >= 1.0 && n.fract() == 0.0).map(|n| n as i64),
         user_id,
         name: text(&acc["name"], 40),
         display_name: text(&acc["displayName"], 40),
@@ -762,7 +768,7 @@ pub async fn progress_games(s: State<'_, App>, universe_ids: Vec<i64>) -> Result
     let (icons, _) = s.api.game_icons(&ids).await;
     Ok(games
         .into_iter()
-        .map(|g| ProgressGame { icon_url: icons.get(&g.universe_id).cloned(), universe_id: g.universe_id, name: g.name, playing: g.playing })
+        .map(|g| ProgressGame { icon_url: icons.get(&g.universe_id).cloned(), universe_id: g.universe_id, root_place_id: g.root_place_id, name: g.name, playing: g.playing })
         .collect())
 }
 
@@ -784,6 +790,7 @@ mod tests {
         });
         let a = parse_report(&body, 5, |_| Some(1)).unwrap();
         assert_eq!(a.key, "66654135:1001");
+        assert_eq!(a.place_id, Some(142823291));
         assert_eq!((a.first_seen, a.last_seen), (1, 5));
         assert_eq!(a.level, Some(53.0));
         assert_eq!(a.values, vec![ProgressValue { key: "Candy".into(), name: "Halloween Candy".into(), amount: 235.0, image: "123".into() }]);

@@ -445,6 +445,7 @@ fn init(app: &TauriApp, data_dir: &Path, moved_from: Option<&Path>) -> std::resu
     let api = roblox_api::Client::new(Arc::new(move |id, cookie| handle.state::<App>().store_rotated(id, cookie)));
     let settings = db.settings().map_err(|e| e.message())?;
     i18n::set(&settings.language);
+    launcher::client::set_custom(&settings.client_path);
     let shutdown = commands::pending_shutdown(&db);
     let multi = instances::multi::Multi::new();
     if settings.multi_instance

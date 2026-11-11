@@ -17,7 +17,7 @@ export const AREAS: readonly AreaDef[] = [
       { ids: ["multi", "protectLogin", "launchDelay", "launchArgs", "protectMain"] },
       { label: "settings.group.recovery", ids: ["autoRejoin", "autoRestart", "breaker", "antiAfk"] },
       { label: "settings.group.stopping", ids: ["panic", "closeGrace", "shutdown"] },
-      { label: "settings.client", ids: ["client", "autoUpdate"] },
+      { label: "settings.client", ids: ["client", "clientPath", "autoUpdate"] },
     ],
   },
   {

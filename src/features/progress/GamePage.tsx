@@ -53,6 +53,9 @@ export function GamePage({ s, gameId, accounts, onBack }: { s: ProgressState; ga
   }).data?.[0];
   const name = all[0]?.gameName ?? meta?.name ?? t("progress.gameId", { id: gameId });
   const added = s.games.includes(gameId);
+  // The start place from Roblox; else the place reports came from (a game without a universe).
+  const placeId = meta?.rootPlaceId ?? all.find((a) => a.placeId !== null)?.placeId ?? null;
+  const copyId = (id: string | number) => writeText(String(id)).then(() => toast(t("progress.idCopied", { id: String(id) })), toastError);
   const online = scoped.filter((a) => isOnline(a, s)).length;
   const levels = scoped.flatMap((a) => (a.level === null ? [] : [a.level]));
 
@@ -90,6 +93,22 @@ export function GamePage({ s, gameId, accounts, onBack }: { s: ProgressState; ga
       </div>
 
       {!hasReports && <p className="pg-note panel">{t("progress.noReportsYet")}</p>}
+      <div className="pg-ids">
+        {placeId !== null && (
+          <button type="button" className="pg-id" title={t("progress.copyId")} onClick={() => void copyId(placeId)}>
+            <span className="text-fg-3">{t("game.stat.placeId")}</span>
+            <span className="mono">{placeId}</span>
+            <Icon name="copy" size={12} />
+          </button>
+        )}
+        {numeric && (
+          <button type="button" className="pg-id" title={t("progress.copyId")} onClick={() => void copyId(numeric)}>
+            <span className="text-fg-3">{t("game.stat.universeId")}</span>
+            <span className="mono">{numeric}</span>
+            <Icon name="copy" size={12} />
+          </button>
+        )}
+      </div>
       <div className="pg-tiles">
         <div className="pg-tile panel">
           <span>

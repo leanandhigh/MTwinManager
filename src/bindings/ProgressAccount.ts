@@ -18,7 +18,11 @@ pc: string,
 /**
  * The universe id (the place id where a game has none).
  */
-gameId: string, gameName: string, userId: number, name: string, displayName: string, level: number | null, values: Array<ProgressValue>, stats: Array<ProgressStat>, items: Array<ProgressItem>, 
+gameId: string, gameName: string, 
+/**
+ * The place the account is in (a game's start place, or one of its other places).
+ */
+placeId: number | null, userId: number, name: string, displayName: string, level: number | null, values: Array<ProgressValue>, stats: Array<ProgressStat>, items: Array<ProgressItem>, 
 /**
  * What went wrong in the Script tab's scripts on its last report.
  */

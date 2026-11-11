@@ -13,11 +13,40 @@ use crate::vault::Secret;
 
 const PLAYER: &str = "RobloxPlayerBeta.exe";
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ClientExe {
     pub path: PathBuf,
     /// The protocol handler is a bootstrapper (Bloxstrap, Fishstrap, ...), not RobloxPlayerBeta.exe.
     pub bootstrapper: bool,
+    /// Words before and after the launch URI, as the program's `roblox-player` command line has
+    /// them (`Bloxstrap.exe -player "%1"`: `["-player"]` before).
+    pub pre: Vec<String>,
+    pub post: Vec<String>,
+}
+
+/// The program chosen in Settings (`Settings.client_path`), used before anything `find` looks for.
+static CUSTOM: std::sync::RwLock<Option<PathBuf>> = std::sync::RwLock::new(None);
+
+/// Uses this program to launch (a bootstrapper or RobloxPlayerBeta.exe); "" goes back to finding one.
+pub fn set_custom(path: &str) {
+    let p = path.trim().trim_matches('"');
+    *CUSTOM.write().unwrap_or_else(|e| e.into_inner()) = (!p.is_empty()).then(|| PathBuf::from(p));
+}
+
+fn custom() -> Option<PathBuf> {
+    CUSTOM.read().unwrap_or_else(|e| e.into_inner()).clone()
+}
+
+/// A program to launch with: the words its `roblox-player` command line puts around the URI when
+/// it is the handler; for another bootstrapper, `-player` before it (Bloxstrap's, which its forks
+/// keep); none for RobloxPlayerBeta.exe.
+fn client_exe(path: PathBuf) -> ClientExe {
+    let bootstrapper = !is_player(&path);
+    let (pre, post) = handler_lines()
+        .find(|(exe, _)| exe.as_os_str().eq_ignore_ascii_case(path.as_os_str()))
+        .map(|(_, line)| handler_args(&line))
+        .unwrap_or_else(|| (if bootstrapper { vec!["-player".to_owned()] } else { Vec::new() }, Vec::new()));
+    ClientExe { path, bootstrapper, pre, post }
 }
 
 /// Where Roblox records its install: per user (HKCU) or for all users (HKLM, 64- and 32-bit views).
@@ -38,6 +67,12 @@ const ENVIRONMENTS: [(HKEY, &str); 3] = [
 ///
 /// `bootstrapper` = its file name isn't RobloxPlayerBeta.exe. Nothing found → `AppError::Invalid`.
 pub fn find() -> Result<ClientExe> {
+    if let Some(p) = custom() {
+        if p.is_file() {
+            return Ok(client_exe(p));
+        }
+        log::warn!("the client chosen in Settings ({}) doesn't exist; finding Roblox instead", p.display());
+    }
     let own = ENVIRONMENTS.into_iter().filter_map(|(root, key)| reg_string(root, key, Some("clientExe")).map(unquote));
     let named = ENVIRONMENTS
         .into_iter()
@@ -54,23 +89,67 @@ pub fn find() -> Result<ClientExe> {
             "Roblox isn't installed. Install it from roblox.com, then try again. (The Microsoft Store version can't be used: install the one from roblox.com.)"
         ))
     })?;
-    Ok(ClientExe { bootstrapper: !is_player(&path), path })
+    Ok(client_exe(path))
 }
 
 /// The `roblox-player` protocol handlers' programs (HKCU, then HKCR). Roblox's own launcher or
 /// installer there (older installs) stands for the RobloxPlayerBeta.exe beside it, so it is never
 /// taken for a bootstrapper.
 fn handlers() -> impl Iterator<Item = PathBuf> {
+    handler_lines().map(|(h, _)| h).map(|h| {
+        let player = h.with_file_name(PLAYER);
+        if is_roblox_launcher(&h) && player.is_file() { player } else { h }
+    })
+}
+
+/// Each `roblox-player` handler's program with its whole command line (HKCU, then HKCR).
+fn handler_lines() -> impl Iterator<Item = (PathBuf, String)> {
     [
         (HKEY_CURRENT_USER, r"Software\Classes\roblox-player\shell\open\command"),
         (HKEY_CLASSES_ROOT, r"roblox-player\shell\open\command"),
     ]
     .into_iter()
-    .filter_map(|(root, key)| handler_exe(&reg_string(root, key, None)?))
-    .map(|h| {
-        let player = h.with_file_name(PLAYER);
-        if is_roblox_launcher(&h) && player.is_file() { player } else { h }
-    })
+    .filter_map(|(root, key)| reg_string(root, key, None))
+    .filter_map(|line| Some((handler_exe(&line)?, line)))
+}
+
+/// The words a handler's command line puts before and after `%1` (pure): `"C:\B.exe" -player "%1"`
+/// → `(["-player"], [])`. Quotes are dropped (the URI has no spaces); `%*` and the like go.
+fn handler_args(line: &str) -> (Vec<String>, Vec<String>) {
+    let line = line.trim();
+    let rest = match line.strip_prefix('"') {
+        Some(r) => r.split_once('"').map_or("", |(_, after)| after),
+        None => match line.to_ascii_lowercase().find(".exe") {
+            Some(i) => &line[i + 4..],
+            None => line.split_once(char::is_whitespace).map_or("", |(_, after)| after),
+        },
+    };
+    let mut words = Vec::new();
+    let mut word = String::new();
+    let mut quoted = false;
+    for c in rest.chars() {
+        match c {
+            '"' => quoted = !quoted,
+            c if c.is_whitespace() && !quoted => {
+                if !word.is_empty() {
+                    words.push(std::mem::take(&mut word));
+                }
+            }
+            c => word.push(c),
+        }
+    }
+    if !word.is_empty() {
+        words.push(word);
+    }
+    let (mut pre, mut post, mut seen) = (Vec::new(), Vec::new(), false);
+    for w in words {
+        if w == "%1" || w == "%L" || w == "%l" {
+            seen = true;
+        } else if !w.contains('%') {
+            if seen { post.push(w) } else { pre.push(w) }
+        }
+    }
+    (pre, post)
 }
 
 /// The program opening `roblox-player:` links now, for the log.
@@ -89,16 +168,27 @@ fn in_store(path: &Path) -> bool {
     path.components().any(|c| c.as_os_str().eq_ignore_ascii_case("WindowsApps"))
 }
 
-/// Bootstrappers that keep their own copy of Roblox in `%LOCALAPPDATA%\<name>\Versions`
-/// (Froststrap and Voidstrap are forks of the first two and keep the same layout).
-const BOOTSTRAPPERS: [&str; 4] = ["Bloxstrap", "Fishstrap", "Froststrap", "Voidstrap"];
-
-/// The `Versions` folders clients live in: Roblox's own (per user first), then the
-/// bootstrappers' copies.
+/// The `Versions` folders clients live in: Roblox's own (per user first), then every
+/// bootstrapper's copy, whatever it is called: any `%LOCALAPPDATA%\<name>\Versions` (Bloxstrap,
+/// Fishstrap, Froststrap, Voidstrap and the rest keep theirs there), and the one beside the
+/// program chosen in Settings or opening `roblox-player:` links.
 pub(super) fn versions_dirs() -> Vec<PathBuf> {
     let roblox = ["LOCALAPPDATA", "ProgramFiles(x86)", "ProgramFiles"].iter().filter_map(std::env::var_os).map(|d| PathBuf::from(d).join("Roblox"));
-    let strap = std::env::var_os("LOCALAPPDATA").into_iter().flat_map(|d| BOOTSTRAPPERS.map(|b| PathBuf::from(&d).join(b)));
-    roblox.chain(strap).map(|d| d.join("Versions")).collect()
+    let local = std::env::var_os("LOCALAPPDATA").map(PathBuf::from);
+    let strap = local
+        .iter()
+        .filter_map(|d| std::fs::read_dir(d).ok())
+        .flatten()
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .filter(|d| !d.file_name().is_some_and(|n| n.eq_ignore_ascii_case("Roblox")) && d.join("Versions").is_dir());
+    let beside = custom().into_iter().chain(handlers()).filter(|p| !is_player(p)).filter_map(|p| p.parent().map(Path::to_path_buf));
+    let mut out: Vec<PathBuf> = Vec::new();
+    for d in roblox.chain(strap).chain(beside).map(|d| d.join("Versions")) {
+        if !out.iter().any(|o| o.as_os_str().eq_ignore_ascii_case(d.as_os_str())) {
+            out.push(d);
+        }
+    }
+    out
 }
 
 /// The installed client of Roblox version `version` (`version-…`), whatever `find` picks: in the
@@ -149,8 +239,12 @@ fn unquote(s: String) -> PathBuf {
 pub fn start(exe: &ClientExe, uri: &Secret, extra: &[String]) -> Result<(u32, u64)> {
     let dir = exe.path.parent().ok_or_else(|| AppError::Internal(tr!("Roblox's folder is unknown.")))?;
     let mut cmd = Command::new(&exe.path);
+    // A bootstrapper gets its own words around the URI (`-player`); then the user's extra ones.
+    for a in &exe.pre {
+        cmd.raw_arg(a);
+    }
     cmd.raw_arg(uri.expose());
-    for a in extra {
+    for a in exe.post.iter().chain(extra) {
         cmd.raw_arg(a);
     }
     let child = cmd
@@ -183,8 +277,8 @@ fn handler_exe(command: &str) -> Option<PathBuf> {
 }
 
 /// A bootstrapper owns this install, so Roblox's installer must not run over it: `exe` is a
-/// bootstrapper, sits under a `BOOTSTRAPPERS` folder (they set `clientExe` to their own
-/// `Versions` copy), or the `roblox-player` protocol handler isn't RobloxPlayerBeta.exe.
+/// bootstrapper, sits in a `Versions` folder that isn't Roblox's own (they set `clientExe` to
+/// their own copy), or the `roblox-player` protocol handler isn't RobloxPlayerBeta.exe.
 pub fn managed_by_bootstrapper(exe: &ClientExe) -> bool {
     let handler = handlers().find(|p| p.is_file());
     exe.bootstrapper || in_bootstrapper_folder(&exe.path) || handler.is_some_and(|h| !is_player(&h))
@@ -217,7 +311,8 @@ pub fn bootstrapper_version(exe: &ClientExe) -> Option<String> {
 }
 
 fn in_bootstrapper_folder(path: &Path) -> bool {
-    path.components().any(|c| BOOTSTRAPPERS.iter().any(|b| c.as_os_str().eq_ignore_ascii_case(b)))
+    let parts: Vec<_> = path.components().map(|c| c.as_os_str().to_os_string()).collect();
+    parts.windows(2).any(|w| w[1].eq_ignore_ascii_case("Versions") && !w[0].eq_ignore_ascii_case("Roblox"))
 }
 
 fn is_player(path: &Path) -> bool {
@@ -248,6 +343,15 @@ mod tests {
     use super::*;
 
     #[test]
+    fn handler_words() {
+        assert_eq!(handler_args(r#""C:\B\Bloxstrap.exe" -player "%1""#), (vec!["-player".to_owned()], vec![]));
+        assert_eq!(handler_args(r#"C:\Program Files\Fishstrap\Fishstrap.EXE -player %1"#), (vec!["-player".to_owned()], vec![]));
+        assert_eq!(handler_args(r#""C:\R\RobloxPlayerBeta.exe" %1"#), (vec![], vec![]));
+        assert_eq!(handler_args(r#""C:\X\Some Strap.exe" --launch "%1" --quiet %*"#), (vec!["--launch".to_owned()], vec!["--quiet".to_owned()]));
+        assert_eq!(handler_args(r#""C:\X\strap.exe""#), (vec![], vec![]));
+    }
+
+    #[test]
     fn reads_a_bootstrappers_version() {
         assert_eq!(state_version(r#"{"VersionGuid":"version-abc"}"#).as_deref(), Some("version-abc"), "Bloxstrap");
         assert_eq!(state_version(r#"{"Player":{"VersionGuid":"version-abc"},"Studio":{}}"#).as_deref(), Some("version-abc"), "Fishstrap");
@@ -276,6 +380,8 @@ mod tests {
         assert!(in_bootstrapper_folder(Path::new(r"C:\Users\you\AppData\Local\Froststrap\Versions\x\RobloxPlayerBeta.exe")));
         assert!(in_bootstrapper_folder(Path::new(r"C:\Users\you\AppData\Local\Voidstrap\Versions\x\RobloxPlayerBeta.exe")));
         assert!(!in_bootstrapper_folder(Path::new(roblox)));
+        assert!(in_bootstrapper_folder(Path::new(r"C:\Users\you\AppData\Local\SomeNewStrap\Versions\x\RobloxPlayerBeta.exe")), "any bootstrapper's copy");
+        assert!(!in_bootstrapper_folder(Path::new(r"C:\Program Files (x86)\Roblox\Versions\x\RobloxPlayerBeta.exe")));
     }
 
     #[test]
@@ -326,7 +432,7 @@ mod tests {
     #[test]
     fn start_passes_the_raw_argument_in_the_exe_folder() {
         let system = std::env::var_os("SystemRoot").map_or_else(|| PathBuf::from(r"C:\Windows"), PathBuf::from);
-        let exe = ClientExe { path: system.join(r"System32\cmd.exe"), bootstrapper: true };
+        let exe = ClientExe { path: system.join(r"System32\cmd.exe"), bootstrapper: true, ..Default::default() };
         let out = std::env::temp_dir().join(format!("roalt-test-{}.txt", uuid::Uuid::new_v4()));
         // Kept alive a second so its start time is read before it exits. The extra arguments
         // follow the first one, space-separated.
@@ -345,7 +451,7 @@ mod tests {
         let _ = std::fs::remove_file(&out);
         assert!(written.trim().eq_ignore_ascii_case(&system.join("System32").to_string_lossy()), "{written}");
 
-        let missing = ClientExe { path: system.join(r"System32\roalt-no-such.exe"), bootstrapper: false };
+        let missing = ClientExe { path: system.join(r"System32\roalt-no-such.exe"), bootstrapper: false, ..Default::default() };
         assert!(matches!(start(&missing, &arg, &[]), Err(AppError::Internal(_))));
     }
 }

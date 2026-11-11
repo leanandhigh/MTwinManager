@@ -17,7 +17,7 @@ export function StatGrid({ stats }: { stats: Stat[] }) {
       {stats.map(([k, v, title]) => (
         <div key={k} className="min-w-0">
           <dt className="text-[12px] text-fg-3 truncate">{t(k)}</dt>
-          <dd className="mono text-[14px] text-fg font-medium truncate" title={v === null ? t("accounts.detail.noAnswer") : title}>
+          <dd className="mono text-[14px] text-fg font-medium truncate selectable" title={v === null ? t("accounts.detail.noAnswer") : title}>
             {v ?? "–"}
           </dd>
         </div>

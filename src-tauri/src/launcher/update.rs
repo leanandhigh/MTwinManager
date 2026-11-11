@@ -283,7 +283,7 @@ pub async fn launch_client(s: &App) -> Result<(client::ClientExe, bool)> {
 fn launch_choice(exe: client::ClientExe, managed: bool, live: Option<&str>, installed: impl FnOnce(&str) -> Option<PathBuf>) -> (client::ClientExe, bool) {
     let Some(live) = live.filter(|_| !managed) else { return (exe, false) };
     match installed(live) {
-        Some(path) => (client::ClientExe { path, bootstrapper: false }, true),
+        Some(path) => (client::ClientExe { path, bootstrapper: false, ..Default::default() }, true),
         None => (exe, true),
     }
 }
@@ -554,7 +554,7 @@ mod tests {
 
     #[test]
     fn launches_production_unless_a_bootstrapper_manages_it_or_the_version_is_unknown() {
-        let found = client::ClientExe { path: PathBuf::from(r"C:\R\version-test\RobloxPlayerBeta.exe"), bootstrapper: false };
+        let found = client::ClientExe { path: PathBuf::from(r"C:\R\version-test\RobloxPlayerBeta.exe"), bootstrapper: false, ..Default::default() };
         let prod = PathBuf::from(r"C:\R\version-live\RobloxPlayerBeta.exe");
         let there = |v: &str| (v == "version-live").then(|| prod.clone());
         let (exe, production) = launch_choice(found.clone(), false, Some("version-live"), there);

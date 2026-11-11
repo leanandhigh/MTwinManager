@@ -3,4 +3,8 @@
 /**
  * A game's card: its name, icon and players now (`progress_games`).
  */
-export type ProgressGame = { universeId: number, name: string, playing: number, iconUrl: string | null, };
+export type ProgressGame = { universeId: number, 
+/**
+ * The game's start place.
+ */
+rootPlaceId: number, name: string, playing: number, iconUrl: string | null, };

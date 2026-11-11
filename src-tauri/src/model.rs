@@ -246,6 +246,9 @@ pub struct Settings {
     pub close_grace_s: u32,
     /// Extra client arguments after the launch URI (`launcher::launch_args` rules); "" for none.
     pub launch_args: String,
+    /// The program to launch Roblox with (a bootstrapper such as Bloxstrap or Fishstrap, or
+    /// RobloxPlayerBeta.exe); "": the one that opens roblox-player links (`launcher::client::find`).
+    pub client_path: String,
     /// Closing the window hides it; the tray icon brings it back or quits.
     pub close_to_tray: bool,
     /// Open at full size, without the start-up animation (`splash`); from the next start.
@@ -516,6 +519,7 @@ impl Default for Settings {
             breaker_window_min: 10,
             close_grace_s: 5,
             launch_args: String::new(),
+            client_path: String::new(),
             close_to_tray: false,
             skip_splash: false,
             protect_main: true,
@@ -590,6 +594,8 @@ pub struct SettingsPatch {
     pub close_grace_s: Option<u32>,
     #[ts(optional)]
     pub launch_args: Option<String>,
+    #[ts(optional)]
+    pub client_path: Option<String>,
     #[ts(optional)]
     pub close_to_tray: Option<bool>,
     #[ts(optional)]

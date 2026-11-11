@@ -62,7 +62,7 @@ function Details({ placeId, titleId, onClose }: { placeId: number; titleId: stri
         ) : stats.error && !s ? (
           <Problem error={stats.error} onRetry={() => stats.refetch()} />
         ) : s ? (
-          <Body s={s} />
+          <Body s={s} placeId={placeId} />
         ) : (
           <div aria-hidden="true" className="flex flex-col gap-3">
             <Skeleton width="100%" height={96} />
@@ -90,7 +90,7 @@ function age(s: GameStats): Stat[1] {
   return r.minimumAge ? `${r.label} · ${t("game.ageFrom", { n: r.minimumAge })}` : r.label;
 }
 
-function Body({ s }: { s: GameStats }) {
+function Body({ s, placeId }: { s: GameStats; placeId: number }) {
   const [tab, setTab] = useState<"passes" | "badges">("passes");
   const panelId = useId();
   const votes = s.upVotes !== null && s.downVotes !== null ? s.upVotes + s.downVotes : null;
@@ -113,6 +113,9 @@ function Body({ s }: { s: GameStats }) {
     ...(s.groupMembers === null ? [] : [num("game.stat.groupMembers", s.groupMembers)]),
     ["game.stat.created", day(s.created)],
     ["game.stat.updated", day(s.updated)],
+    // Raw ids, no grouping: they're copied into scripts and links.
+    ["game.stat.placeId", String(placeId)],
+    ["game.stat.universeId", String(s.universeId)],
   ];
   return (
     <>
