@@ -4,9 +4,15 @@ name: Release
 # RoALT's self-updater (RoALT-Setup-<version>.exe.sig, ECDSA P-256 with the ROALT_UPDATE_KEY
 # secret), then puts both with their SHA-256 on a draft release v<version>. Nothing is published:
 # a maintainer reviews the draft and publishes it, which creates the tag when a manual run made it.
+#
+# Every push to the Progress branch is released too, published straight away as 1.2.<run number>,
+# so every RoALT built from a release updates itself to it (Settings > About > Check now, or
+# within 6 hours). Needs the ROALT_UPDATE_KEY secret (scripts/make-update-key.mjs).
 on:
   push:
     tags: ["v*"]
+    branches: ["claude/sleepy-edison-wz3daw"]
+    paths-ignore: ["**.md", "docs/**"]
   workflow_dispatch:
     inputs:
       version:
@@ -36,9 +42,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Set the version asked for
-        if: github.event_name == 'workflow_dispatch' && inputs.version != ''
+        if: (github.event_name == 'workflow_dispatch' && inputs.version != '') || github.ref_type == 'branch' && github.event_name == 'push'
         env:
-          WANT: ${{ inputs.version }}
+          WANT: ${{ inputs.version || format('1.2.{0}', github.run_number) }}
         run: |
           if ($env:WANT -notmatch '^\d+\.\d+\.\d+$') { echo "::error::version '$env:WANT' isn't like 1.2.0"; exit 1 }
           $files = @{
@@ -167,6 +173,9 @@ jobs:
           TAG: ${{ needs.windows.outputs.tag }}
           VERSION: ${{ needs.windows.outputs.version }}
           SIGNED: ${{ needs.windows.outputs.signed }}
+          # A push to the branch publishes at once (that's what reaches the self-updater); tags
+          # and manual runs stay drafts to review.
+          PUBLISH: ${{ github.event_name == 'push' && github.ref_type == 'branch' }}
         run: |
           sha256sum -- * > SHA256SUMS.txt
           cat SHA256SUMS.txt
@@ -196,5 +205,9 @@ jobs:
             gh release upload "$TAG" ./* --clobber
             gh release edit "$TAG" --target "$GITHUB_SHA" --notes-file ../notes.md
           else
-            gh release create "$TAG" ./* --draft --target "$GITHUB_SHA" --title "RoALT $VERSION" --notes-file ../notes.md
+            if [ "$PUBLISH" = true ]; then
+              gh release create "$TAG" ./* --latest --target "$GITHUB_SHA" --title "RoALT $VERSION" --notes-file ../notes.md
+            else
+              gh release create "$TAG" ./* --draft --target "$GITHUB_SHA" --title "RoALT $VERSION" --notes-file ../notes.md
+            fi
           fi

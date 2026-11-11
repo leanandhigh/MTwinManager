@@ -708,10 +708,10 @@ Bug reports, ideas and pull requests are welcome.
 repository secret `ROALT_UPDATE_KEY` (Settings > Secrets and variables > Actions), and keep the file safe.
 Released builds carry its public half and only run installers it signed.
 
-**Each release:** Actions > Release > Run workflow, pick the branch, type a version newer than the
-current one (like `1.2.0`). The workflow builds and signs the installer and puts it on a draft
-release; publish the draft. Every RoALT built from a release offers it within 6 hours (or at
-Settings > About > Check now).
+**Each release:** every push to `claude/sleepy-edison-wz3daw` (except Markdown and docs) is built,
+signed and published as `1.2.<run number>`. For a release by hand: Actions > Release > Run workflow,
+pick the branch, type a version newer than the current one; that one stays a draft until you publish
+it. Every RoALT built from a release offers new ones within 6 hours (or at Settings > About > Check now).
 
 </details>
 
