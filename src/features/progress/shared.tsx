@@ -21,6 +21,12 @@ export function useDecals(ids: Iterable<string>) {
       enabled: list.length > 0,
       staleTime: Infinity,
       placeholderData: (prev) => prev,
+      // Roblox makes a picture on first ask ("Pending"): ask again for the missing ones a few times.
+      refetchInterval: (q) => {
+        const got = q.state.data;
+        const missing = !got || list.some((id) => !(id in got));
+        return missing && q.state.dataUpdateCount < 12 ? 5000 : false;
+      },
     }).data ?? {}
   );
 }

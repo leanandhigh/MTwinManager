@@ -6,6 +6,7 @@
 --       PC_NAME = "PC1",                 -- groups accounts into machines in RoALT
 --       Interval = 10,                   -- seconds between reports
 --       Collect = function(report) end,  -- add your own values / stats / items in code
+--       Debug = true,                    -- print what the game's item table holds (once)
 --   }
 --
 -- What it sends, every Interval seconds:
@@ -45,6 +46,24 @@ local httpRequest = (syn and syn.request) or (http and http.request) or http_req
 local function decal(image)
 	if image == nil then return "" end
 	return tostring(image):match("(%d+)") or ""
+end
+
+-- An item's picture id from the game's item table: the usual fields first, then any value that
+-- looks like an asset link ("rbxassetid://123", "http://www.roblox.com/asset/?id=123").
+local IMAGE_FIELDS = { "Image", "ImageId", "ImageID", "Icon", "IconId", "Thumbnail", "Texture", "TextureId", "Decal", "DecalId" }
+local function imageOf(info)
+	if type(info) ~= "table" then return "" end
+	for _, field in ipairs(IMAGE_FIELDS) do
+		local id = decal(info[field])
+		if id ~= "" then return id end
+	end
+	for _, v in pairs(info) do
+		if type(v) == "string" and (v:find("rbxassetid://") or v:find("asset/%?id=") or v:find("rbxthumb")) then
+			local id = v:match("id=(%d+)") or v:match("(%d+)")
+			if id then return id end
+		end
+	end
+	return ""
 end
 
 local function number(v)
@@ -219,10 +238,18 @@ local function pretty(key)
 	return (tostring(key):gsub("(%l)(%u)", "%1 %2"):gsub("(%a)(%d)", "%1 %2"))
 end
 
+local debugged = false
 local function mm2Owned(db, owned, category, report)
 	if type(owned) ~= "table" then return end
 	for id, count in pairs(owned) do
 		local info = db[id] or {}
+		if config.Debug and not debugged then
+			debugged = true
+			local fields = {}
+			for k, v in pairs(info) do table.insert(fields, tostring(k) .. "=" .. tostring(v)) end
+			print("[Progress] debug: item " .. tostring(id) .. " has " .. table.concat(fields, ", "))
+			print("[Progress] debug: picture id found: " .. (imageOf(info) ~= "" and imageOf(info) or "none"))
+		end
 		local n = number(count)
 		if n and n > 0 and id ~= "DefaultGun" and id ~= "DefaultKnife" then
 			table.insert(report.items, {
@@ -231,7 +258,7 @@ local function mm2Owned(db, owned, category, report)
 				rarity = info.Rarity or "Common",
 				category = category or info.ItemType or "Weapons",
 				count = n,
-				image = decal(info.Image),
+				image = imageOf(info),
 			})
 		end
 	end
@@ -264,7 +291,7 @@ local function collectMM2(report)
 					key = tostring(id),
 					name = (info and info.ItemName) or pretty(id),
 					amount = n,
-					image = info and decal(info.Image) or "",
+					image = imageOf(info),
 				})
 			end
 		end
