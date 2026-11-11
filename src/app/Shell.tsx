@@ -17,11 +17,11 @@ import { AREAS, type SettingsArea } from "../features/settings/areas";
 import { jumpTo } from "../features/settings/jumpTo";
 import { useSplashPhase } from "../features/splash/phase";
 import { overlayOpen } from "../ui/a11y";
-import { Island } from "../ui/island/Island";
 import type { IslandLeaf, IslandModel } from "../ui/island/model";
 import { markViewEntering } from "../ui/motion";
 import { Divider, usePanelWidth } from "../ui/Resizer";
 import { LiveActivities } from "./LiveActivities";
+import { Sidebar } from "./Sidebar";
 import { MAIN_SECTIONS, requestNavigation, SECTION_ICON, SECTION_VIEW, SHORTCUT_VIEW, shortcutFor, TOOL_SECTIONS, useNavigationRequests, VIEW_NAME, type BrowseRequest, type Request, type Section, type View } from "./navigation";
 
 // Home is the start; every other view is its own chunk, fetched once Home has painted.
@@ -177,6 +177,15 @@ export function Shell({ vault, settings, islandSlot }: { vault: VaultStatus; set
     }, []),
   );
 
+  // The title bar's Search box: what Ctrl+F does.
+  useEffect(() => {
+    const find = () => {
+      if (!focusIn(".stage main [data-find], #settings-search, #account-filter")) go("accounts", { focus: "#account-filter" });
+    };
+    window.addEventListener("mtwin:find", find);
+    return () => window.removeEventListener("mtwin:find", find);
+  });
+
   // Re-bound each render: Ctrl+4 needs the current draft. Alt is left alone (AltGr types characters).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -275,9 +284,18 @@ export function Shell({ vault, settings, islandSlot }: { vault: VaultStatus; set
   return (
     <div className="shell">
       <span className="sr-only" aria-live="polite">{viewName}</span>
+      {/* The navigation is the sidebar; the title bar keeps only what's live (launches, clients, notices). */}
       {islandSlot &&
         phase !== "play" &&
-        createPortal(<Island model={model} live={<LiveActivities accounts={accounts.data} settings={settings} onPick={launchAs} />} />, islandSlot)}
+        createPortal(
+          <div className="island island-live" data-tauri-drag-region="false">
+            <div className="island-row">
+              <LiveActivities accounts={accounts.data} settings={settings} onPick={launchAs} />
+            </div>
+          </div>,
+          islandSlot,
+        )}
+      <Sidebar model={model} />
       {/* Where a launch button's pill flies from into the island; outlives the view that launched. */}
       <LaunchFlight />
       {side && (
@@ -364,6 +382,9 @@ export function Shell({ vault, settings, islandSlot }: { vault: VaultStatus; set
           )}
         </ViewTransition>
         </Suspense>
+        <footer className="statusbar" aria-hidden="true">
+          {viewName} <span className="statusbar-sep">|</span> MTwin Hub v{import.meta.env.APP_VERSION}
+        </footer>
       </div>
 
       <AddAccountDialog

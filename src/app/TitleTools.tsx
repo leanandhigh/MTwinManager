@@ -1,13 +1,17 @@
 import type { VaultMode } from "../api";
-import { t } from "../i18n";
+import { getLang, t } from "../i18n";
 import { IconButton } from "../ui/Button";
 import { Icon } from "../ui/Icon";
 import { IconSwap } from "../ui/motion";
 
 /** The title bar's own keys: refresh (as F5), the layout, the theme, and the vault (a lock key with a
  * master password, else the encryption's state). */
-export function TitleTools({ dark, onRefresh, onToggleTheme, sideTabs, onToggleTabs, onLock, vaultMode }: {
+export function TitleTools({ dark, onRefresh, onToggleTheme, sideTabs, onToggleTabs, onLock, vaultMode, onLang, onFind }: {
   dark: boolean;
+  /** EN / TH: sets the language. */
+  onLang?: (lang: "en" | "th") => void;
+  /** The Search box: what Ctrl+F does. */
+  onFind?: () => void;
   onRefresh?: () => void;
   onToggleTheme?: () => void;
   sideTabs?: boolean;
@@ -17,6 +21,21 @@ export function TitleTools({ dark, onRefresh, onToggleTheme, sideTabs, onToggleT
 }) {
   return (
     <div className="title-tools">
+      {onLang && (
+        <div className="lang-switch" role="group" aria-label={t("settings.language")}>
+          {(["en", "th"] as const).map((l) => (
+            <button key={l} type="button" aria-pressed={getLang() === l} onClick={() => getLang() !== l && onLang(l)}>
+              {l.toUpperCase()}
+            </button>
+          ))}
+        </div>
+      )}
+      {onFind && (
+        <button type="button" className="title-search" data-tip-kbd="Ctrl+F" onClick={onFind}>
+          <Icon name="search" size={14} />
+          <span>{t("ui.search")}</span>
+        </button>
+      )}
       {onRefresh && <IconButton icon="refresh" label={t("ui.refresh")} shortcut="F5" onClick={onRefresh} />}
       {onToggleTabs && (
         <IconButton icon={sideTabs ? "layoutTop" : "layoutSide"} label={sideTabs ? t("ui.accountsTop") : t("ui.accountsSide")} onClick={onToggleTabs} />

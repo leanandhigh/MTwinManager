@@ -1,0 +1,241 @@
+/* MTwin Hub's look, after its in-game script window: a monospace face, deep grey panels with
+   hairlines, tight corners, purple for what's on, an icon column down the left and a status line at
+   the foot. In its own layer above the views and below the utilities, so it restyles RoALT's
+   components without editing them, and a view's utility class still wins. */
+@layer brand {
+  :root {
+    --font-ui: "Geist Mono Variable", ui-monospace, "Cascadia Mono", Consolas, monospace;
+    --r-xl: 14px;
+    --r-lg: 10px;
+    --r-md: 8px;
+    --r-sm: 6px;
+    --r-xs: 4px;
+    --fs-title: 22px;
+  }
+  /* Scripts the mono face lacks fall back per language, as tokens.css does for the sans one. */
+  :root:lang(th) {
+    --font-ui: "Geist Mono Variable", "Leelawadee UI", "Segoe UI", ui-monospace, monospace;
+  }
+  :root:lang(ar) {
+    --font-ui: "Geist Mono Variable", "Segoe UI", ui-monospace, monospace;
+  }
+  :root:lang(ja) {
+    --font-ui: "Geist Mono Variable", "Yu Gothic UI", "Meiryo UI", ui-monospace, monospace;
+  }
+  :root:lang(zh) {
+    --font-ui: "Geist Mono Variable", "Microsoft YaHei UI", ui-monospace, monospace;
+  }
+  :root:lang(ko) {
+    --font-ui: "Geist Mono Variable", "Malgun Gothic", ui-monospace, monospace;
+  }
+  :root:not([data-theme="light"]) {
+    --ground: #121214;
+    --surface-1: #1a1a1e;
+    --surface-2: #222227;
+    --surface-3: #2b2b31;
+    --island: #1a1a1e;
+    --float: #1d1d22;
+    --line: rgb(255 255 255 / 0.085);
+    --hover: rgb(255 255 255 / 0.05);
+    --sel: color-mix(in srgb, var(--accent) 14%, transparent);
+  }
+
+  /* Panels: a fill and a visible hairline, like the script window's sections. */
+  .panel {
+    border-radius: var(--r-lg);
+    background: var(--surface-1);
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+
+  /* Title bar: one solid strip over everything, its foot ruled. */
+  .titlebar {
+    background: var(--surface-1);
+    border-bottom: 1px solid var(--line);
+  }
+  .app-menu-btn .wordmark {
+    font-weight: 700;
+    letter-spacing: 0.01em;
+  }
+  /* What's live (launches, clients, notices) sits in the middle; nothing shows when nothing is. */
+  .island-live {
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
+  }
+  .island-live:has(.island-row:empty) {
+    display: none;
+  }
+  .lang-switch {
+    display: inline-flex;
+    padding: 2px;
+    gap: 2px;
+    margin-inline-end: 6px;
+    border-radius: var(--r-md);
+    background: var(--surface-2);
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+  .lang-switch button {
+    min-width: 34px;
+    height: 24px;
+    padding: 0 8px;
+    border-radius: var(--r-sm);
+    color: var(--fg-3);
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .lang-switch button[aria-pressed="true"] {
+    background: var(--accent);
+    color: var(--on-accent);
+  }
+  .title-search {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    width: 150px;
+    height: 30px;
+    padding: 0 10px;
+    margin-inline-end: 6px;
+    border-radius: var(--r-md);
+    background: var(--surface-2);
+    box-shadow: inset 0 0 0 1px var(--line);
+    color: var(--fg-3);
+    font-size: 12.5px;
+  }
+  .title-search:hover {
+    color: var(--fg-2);
+    box-shadow: inset 0 0 0 1px var(--edge);
+  }
+
+  /* The icon column. */
+  .sidebar {
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 56px;
+    padding: 10px 8px;
+    background: var(--surface-1);
+    border-inline-end: 1px solid var(--line);
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+  .sb-list,
+  .sb-foot,
+  .sb-sub {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+  .sb-sub {
+    padding: 6px 0;
+    margin-bottom: 4px;
+    border-radius: var(--r-md);
+    background: var(--surface-2);
+    width: 100%;
+  }
+  .sb-item {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: var(--r-md);
+    color: var(--fg-3);
+    transition:
+      background-color var(--dur-fast) var(--ease-out),
+      color var(--dur-fast) var(--ease-out);
+  }
+  .sb-item.sb-small {
+    width: 32px;
+    height: 32px;
+  }
+  .sb-item:hover {
+    background: var(--hover);
+    color: var(--fg);
+  }
+  .sb-item[aria-current="page"] {
+    background: color-mix(in srgb, var(--accent) 20%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
+    color: var(--accent-text);
+  }
+  .sb-sep {
+    width: 24px;
+    height: 1px;
+    margin: 4px 0;
+    background: var(--line);
+  }
+  .sb-badge {
+    position: absolute;
+    top: 3px;
+    inset-inline-end: 3px;
+    min-width: 15px;
+    height: 15px;
+    padding: 0 4px;
+    border-radius: var(--r-pill);
+    background: var(--accent);
+    color: var(--on-accent);
+    font-size: 9.5px;
+    font-weight: 700;
+    line-height: 15px;
+  }
+
+  /* The status line under every view. */
+  .statusbar {
+    flex: none;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: var(--surface-1);
+    border-top: 1px solid var(--line);
+    color: var(--fg-3);
+    font-size: 11.5px;
+  }
+  .statusbar-sep {
+    opacity: 0.5;
+  }
+
+  /* Settings' sections as the script window's collapsible cards: icon, name, chevron. */
+  .set-card .set-group {
+    overflow: hidden;
+  }
+  .set-card-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 11px 16px;
+    text-align: start;
+    border-bottom: 1px solid var(--line);
+  }
+  .set-card-head[aria-expanded="false"] {
+    border-bottom-color: transparent;
+  }
+  .set-card-head:hover {
+    background: var(--hover);
+  }
+  .set-card-icon {
+    color: var(--accent-text);
+  }
+  .set-card-title {
+    flex: 1;
+    min-width: 0;
+    font-size: var(--fs-body);
+    font-weight: 600;
+  }
+  .set-card-chevron {
+    color: var(--fg-3);
+    transition: rotate var(--dur-base) var(--ease-out);
+  }
+  .set-card-head[aria-expanded="false"] .set-card-chevron {
+    rotate: -90deg;
+  }
+
+  /* Bars and meters fill with the accent, as the script window's sliders do. */
+  .meter-fill,
+  .meter > span {
+    background: var(--accent);
+  }
+}

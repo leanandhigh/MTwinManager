@@ -1674,5 +1674,6 @@
   "updates.copy": "Copy version",
   "updates.copied": "Copied {v}",
   "updates.none": "Not listed",
-  "updates.credit": "Data from WhatExpsAre.Online (weao.xyz), refreshed every minute while this page is open."
+  "updates.credit": "Data from WhatExpsAre.Online (weao.xyz), refreshed every minute while this page is open.",
+  "ui.search": "Search..."
 }
