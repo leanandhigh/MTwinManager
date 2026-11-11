@@ -818,6 +818,7 @@ mod tests {
         assert_eq!(decal(&json!("http://www.roblox.com/asset/?id=987")), "987");
         assert_eq!(decal(&json!(42)), "42");
         assert_eq!(decal(&json!("none")), "");
-        assert_eq!(clean_host("localhost:16390\"); os.exit()--"), "localhost:16390osexit--");
+        // The quote that would end the Luau string goes; what an address may hold stays.
+        assert_eq!(clean_host("localhost:16390\"); os.exit()--"), "localhost:16390os.exit--");
     }
 }
