@@ -14,14 +14,19 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { fileURLToPath } from "node:url";
+import { exec } from "node:child_process";
 
-const ROOT = path.dirname(fileURLToPath(import.meta.url));
+// In the .exe (build-exe.mjs) the dashboard and reporter are embedded in __PV_ASSETS and data is
+// saved next to the .exe; run with node, they are read from this folder.
+const EMBEDDED = globalThis.__PV_ASSETS || null;
+const ROOT = EMBEDDED ? path.dirname(process.execPath) : path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(ROOT, "public");
 const args = process.argv.slice(2);
 const LAN = args.includes("--lan") || process.env.LAN === "1";
 const PORT = Number(process.env.PORT || argValue("--port") || 16390);
 const HOST = LAN ? "0.0.0.0" : "127.0.0.1";
-const DATA_FILE = process.env.DATA_FILE || path.join(ROOT, "data", "progress.json");
+const DATA_FILE = process.env.DATA_FILE || path.join(ROOT, EMBEDDED ? "progress-data" : "data", "progress.json");
+const OPEN_BROWSER = EMBEDDED ? !args.includes("--no-open") : args.includes("--open");
 
 // An account is online while it reported within this window. The script reports every 10 s.
 const ONLINE_MS = 30_000;
@@ -214,7 +219,7 @@ function luaString(s) {
 
 function reporterScript(req) {
   const host = String(req.headers.host || `localhost:${PORT}`).replace(/[^\w.:\-\[\]]/g, "");
-  const src = fs.readFileSync(path.join(ROOT, "reporter.luau"), "utf8");
+  const src = EMBEDDED ? EMBEDDED["reporter.luau"] : fs.readFileSync(path.join(ROOT, "reporter.luau"), "utf8");
   return `local __PROGRESS_HOST = ${luaString(host)}\n` + src;
 }
 
@@ -326,6 +331,11 @@ async function handle(req, res) {
 
   // static dashboard
   const rel = p === "/" ? "index.html" : decodeURIComponent(p).replace(/^\/+/, "");
+  if (EMBEDDED) {
+    const body = EMBEDDED["public/" + rel];
+    if (body == null) return send(res, 404, "not found", "text/plain");
+    return send(res, 200, body, MIME[path.extname(rel)] || "application/octet-stream");
+  }
   const file = path.resolve(PUBLIC, rel);
   if (!file.startsWith(PUBLIC + path.sep)) return send(res, 403, "forbidden", "text/plain");
   fs.readFile(file, (err, data) => {
@@ -342,10 +352,20 @@ const server = http.createServer((req, res) => {
   });
 });
 
+function openBrowser() {
+  const url = `http://localhost:${PORT}`;
+  const cmd = process.platform === "win32" ? `start "" "${url}"` : process.platform === "darwin" ? `open "${url}"` : `xdg-open "${url}"`;
+  exec(cmd, () => {});
+}
+
 server.on("error", (e) => {
-  if (e.code === "EADDRINUSE") console.error(`[progress] port ${PORT} is already in use. Is the viewer already running?`);
-  else console.error("[progress]", e);
-  process.exit(1);
+  if (e.code === "EADDRINUSE") {
+    console.error(`[progress] port ${PORT} is already in use. Is the viewer already running?`);
+    // Double-clicking the .exe twice: just show the one that is already running.
+    if (OPEN_BROWSER) openBrowser();
+  } else console.error("[progress]", e);
+  // Leave the message on screen for a moment before a double-clicked window closes.
+  setTimeout(() => process.exit(1), EMBEDDED ? 5000 : 0);
 });
 
 server.listen(PORT, HOST, () => {
@@ -359,6 +379,8 @@ server.listen(PORT, HOST, () => {
     console.log(`  (this PC only; start with --lan to let other PCs report)`);
   }
   console.log(`  Data file:  ${DATA_FILE}`);
+  console.log(`  Close this window to stop the viewer.`);
+  if (OPEN_BROWSER) openBrowser();
 });
 
 for (const sig of ["SIGINT", "SIGTERM"]) {
