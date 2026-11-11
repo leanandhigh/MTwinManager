@@ -228,6 +228,8 @@ pub struct Progress {
     server: Mutex<ProgressServer>,
     /// Decal id → picture URL; None: Roblox has none.
     images: Mutex<HashMap<i64, Option<String>>>,
+    /// Roblox user id → headshot URL, for the session.
+    heads: Mutex<HashMap<i64, String>>,
 }
 
 impl Progress {
@@ -250,6 +252,7 @@ impl Progress {
             dirty: AtomicBool::new(false),
             server: Mutex::new(ProgressServer { port: PORT, running: false, error: None }),
             images: Mutex::new(HashMap::new()),
+            heads: Mutex::new(HashMap::new()),
         }
     }
 
@@ -758,6 +761,25 @@ pub async fn progress_images(s: State<'_, App>, ids: Vec<i64>) -> Result<HashMap
     }
     let cache = s.progress.images.lock().unwrap_or_else(|e| e.into_inner());
     Ok(wanted.into_iter().filter_map(|id| cache.get(&id).cloned().flatten().map(|u| (id, u))).collect())
+}
+
+/// Roblox headshots of the reporting accounts, by user id; ones Roblox has no picture for yet are
+/// missing (asked again next time).
+#[tauri::command]
+pub async fn progress_headshots(s: State<'_, App>, user_ids: Vec<i64>) -> Result<HashMap<i64, String>> {
+    let wanted: Vec<i64> = user_ids.into_iter().filter(|id| *id > 0).collect::<HashSet<_>>().into_iter().take(500).collect();
+    let missing: Vec<i64> = {
+        let heads = s.progress.heads.lock().unwrap_or_else(|e| e.into_inner());
+        wanted.iter().copied().filter(|id| !heads.contains_key(id)).collect()
+    };
+    if !missing.is_empty() {
+        match s.api.headshots(&missing).await {
+            Ok(found) => s.progress.heads.lock().unwrap_or_else(|e| e.into_inner()).extend(found),
+            Err(e) => log::debug!("progress: headshots: {e}"),
+        }
+    }
+    let heads = s.progress.heads.lock().unwrap_or_else(|e| e.into_inner());
+    Ok(wanted.into_iter().filter_map(|id| heads.get(&id).map(|u| (id, u.clone()))).collect())
 }
 
 /// Names, icons and players now of these universes; ones Roblox doesn't answer for are missing.

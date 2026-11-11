@@ -46,6 +46,7 @@ export const qk = {
   executors: ["executors"],
   progressGames: (ids: string) => ["progressGames", ids],
   progressImages: (ids: string) => ["progressImages", ids],
+  progressHeads: (ids: string) => ["progressHeads", ids],
 } as const;
 
 export const queryClient = new QueryClient({

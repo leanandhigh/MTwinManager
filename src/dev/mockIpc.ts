@@ -1489,6 +1489,8 @@ async function handle(cmd: string, args: Args): Promise<unknown> {
     }
     case "progress_images":
       return {};
+    case "progress_headshots":
+      return {};
     case "progress_games":
       return (args.universeIds as number[]).flatMap((id) =>
         id === 66654135 ? [{ universeId: id, rootPlaceId: 142823291, name: "Murder Mystery 2", playing: 19114, iconUrl: null }] : id === 383310974 ? [{ universeId: id, rootPlaceId: 920587237, name: "Adopt Me!", playing: 151020, iconUrl: null }] : [],

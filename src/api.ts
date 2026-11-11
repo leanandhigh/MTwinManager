@@ -319,6 +319,8 @@ export const api = {
   progressAutoDelete: (hours: number) => invoke<void>("progress_auto_delete", { hours }),
   /** Picture URLs for decal ids (as strings of digits, by id); ids without one are missing. */
   progressImages: (ids: number[]) => invoke<Record<string, string>>("progress_images", { ids }),
+  /** Roblox headshot URLs of reporting accounts, by user id. */
+  progressHeadshots: (userIds: number[]) => invoke<Record<string, string>>("progress_headshots", { userIds }),
   progressGames: (universeIds: number[]) => invoke<ProgressGame[]>("progress_games", { universeIds }),
   /** Adds a game by link, place id or universe id: its universe id, null when the text isn't a game. */
   progressGameAdd: (input: string) => invoke<string | null>("progress_game_add", { input }),

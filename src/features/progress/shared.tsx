@@ -31,6 +31,27 @@ export function useDecals(ids: Iterable<string>) {
   );
 }
 
+/** Roblox headshots of these user ids, asked for together and kept for the session. */
+export function useHeadshots(userIds: Iterable<number>) {
+  const list = [...new Set([...userIds].filter((id) => id > 0))].sort((a, b) => a - b);
+  const key = list.join(",");
+  return (
+    useQuery({
+      queryKey: qk.progressHeads(key),
+      queryFn: () => api.progressHeadshots(list),
+      enabled: list.length > 0,
+      staleTime: Infinity,
+      placeholderData: (prev) => prev,
+      // Roblox renders a headshot on first ask: ask again for the missing ones a few times.
+      refetchInterval: (q) => {
+        const got = q.state.data;
+        const missing = !got || list.some((id) => !(id in got));
+        return missing && q.state.dataUpdateCount < 6 ? 8000 : false;
+      },
+    }).data ?? {}
+  );
+}
+
 /** Highest first; unknown rarities last. */
 const RARITY: [string, string][] = [
   ["unique", "#f0abfc"],
@@ -61,10 +82,11 @@ const initials = (name: string) =>
     .join("")
     .toUpperCase() || "?";
 
-/** A decal's picture, or the name's initials while there is none (or it fails to load). */
-export function Decal({ url, name, size = 40, rarity }: { url?: string; name: string; size?: number; rarity?: string }) {
+/** A decal's picture, or the name's initials while there is none (or it fails to load). `round`:
+ * a circle, for an account's headshot. */
+export function Decal({ url, name, size = 40, rarity, round }: { url?: string; name: string; size?: number; rarity?: string; round?: boolean }) {
   const [broken, setBroken] = useState<string | null>(null);
-  const style = { width: size, height: size, ...(rarity ? { ["--rc" as string]: rarityColor(rarity) } : {}) };
+  const style = { width: size, height: size, ...(round ? { borderRadius: "50%" } : {}), ...(rarity ? { ["--rc" as string]: rarityColor(rarity) } : {}) };
   if (url && url !== broken) return <img className="pg-decal" src={url} alt="" style={style} loading="lazy" onError={() => setBroken(url)} />;
   return (
     <span aria-hidden="true" className="pg-decal pg-initials" style={{ ...style, fontSize: Math.max(10, size / 3.2) }}>

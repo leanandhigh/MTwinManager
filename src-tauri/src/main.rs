@@ -751,6 +751,7 @@ fn main() {
             progress::progress_catalog_save,
             progress::progress_auto_delete,
             progress::progress_images,
+            progress::progress_headshots,
             progress::progress_games,
             progress::progress_game_add,
             progress::progress_collector_save,

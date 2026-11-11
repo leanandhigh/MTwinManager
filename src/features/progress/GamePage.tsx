@@ -17,7 +17,7 @@ import { useStored } from "../../ui/stored";
 import { Avatar } from "../accounts/shared";
 import { CatalogTab } from "./CatalogTab";
 import { ScriptTab } from "./ScriptTab";
-import { ago, Decal, isOnline, itemTotals, RarityBadge, rarityColor, rarityRank, useDecals, valueTotals, withCatalog, type ItemTotal } from "./shared";
+import { ago, Decal, isOnline, itemTotals, RarityBadge, rarityColor, rarityRank, useDecals, useHeadshots, valueTotals, withCatalog, type ItemTotal } from "./shared";
 
 type Tab = "items" | "accounts" | "machines" | "catalog" | "script";
 type ItemSort = "rarity" | "amount" | "name";
@@ -257,6 +257,7 @@ function AccountsTab({ s, list, roalt, decals }: { s: ProgressState; list: Progr
   const [open, setOpen] = useState<string | null>(null);
   const [removing, setRemoving] = useState(false);
   const byUser = new Map(roalt.map((a) => [a.userId, a]));
+  const heads = useHeadshots(list.map((a) => a.userId));
 
   const terms = search.split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
   const matched = list.filter((a) => !terms.length || terms.some((q) => `${a.name} ${a.displayName} ${a.pc} ${a.userId} ${byUser.get(a.userId)?.alias ?? ""}`.toLowerCase().includes(q)));
@@ -369,7 +370,7 @@ function AccountsTab({ s, list, roalt, decals }: { s: ProgressState; list: Progr
                   <td><span className="pg-pc"><Icon name="pc" size={12} />{a.pc}</span></td>
                   <td>
                     <span className="pg-acc">
-                      {mine ? <Avatar account={mine} size={26} /> : <Decal name={a.displayName || a.name} size={26} />}
+                      {mine ? <Avatar account={mine} size={26} /> : <Decal url={heads[a.userId]} name={a.displayName || a.name} size={26} round />}
                       <span className="min-w-0">
                         <span className="block truncate font-medium">{a.name}</span>
                         {a.displayName && a.displayName !== a.name && <span className="block truncate meta">{a.displayName}</span>}
@@ -400,7 +401,7 @@ function AccountsTab({ s, list, roalt, decals }: { s: ProgressState; list: Progr
         </table>
         {!rows.length && <p className="pg-none">{t("progress.noAccounts")}</p>}
       </div>
-      <AccountDialog s={s} account={opened} mine={opened ? byUser.get(opened.userId) : undefined} decals={decals} onClose={() => setOpen(null)} />
+      <AccountDialog s={s} account={opened} mine={opened ? byUser.get(opened.userId) : undefined} head={opened ? heads[opened.userId] : undefined} decals={decals} onClose={() => setOpen(null)} />
       <ConfirmDialog
         open={removing}
         onClose={() => setRemoving(false)}
@@ -413,13 +414,14 @@ function AccountsTab({ s, list, roalt, decals }: { s: ProgressState; list: Progr
   );
 }
 
-function AccountDialog({ s, account: a, mine, decals, onClose }: { s: ProgressState; account: ProgressAccount | null; mine?: AccountSummary; decals: Record<string, string>; onClose: () => void }) {
+function AccountDialog({ s, account: a, mine, head, decals, onClose }: { s: ProgressState; account: ProgressAccount | null; mine?: AccountSummary; head?: string; decals: Record<string, string>; onClose: () => void }) {
   const items = a ? sortItems(a.items.map((i) => ({ ...i, holders: 1 })), "rarity") : [];
   return (
     <Dialog open={!!a} onClose={onClose} title={a ? (a.displayName && a.displayName !== a.name ? `${a.displayName} (@${a.name})` : a.name) : ""} width={820}>
       {a && (
         <div className="dlg-body flex flex-col gap-4">
           <div className="pg-chips">
+            {mine ? <Avatar account={mine} size={36} /> : <Decal url={head} name={a.displayName || a.name} size={36} round />}
             <StatusPill tone={isOnline(a, s) ? "ok" : "neutral"} label={t(isOnline(a, s) ? "progress.online" : "progress.offline")} detail={t("progress.lastReport", { ago: ago(s.now - a.lastSeen) })} />
             <span className="pg-pc"><Icon name="pc" size={12} />{a.pc}</span>
             {mine && <span className="pg-pc"><Icon name="accounts" size={12} />{t("progress.inRoalt")}</span>}
