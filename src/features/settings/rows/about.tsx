@@ -1,91 +1,107 @@
 import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { api } from "../../../api";
+import { DISCORD_INVITE } from "../../../app/links";
 import { qk } from "../../../data";
 import { t } from "../../../i18n";
 import { Button } from "../../../ui/Button";
 import { Switch } from "../../../ui/controls";
-import { DonateDialog } from "../../donate/DonateDialog";
-import { DISCORD_INVITE } from "../../donate/links";
-import { ActionButton } from "../kit/ActionButton";
+import { Icon, Logo } from "../../../ui/Icon";
+import { StatusPill } from "../../../ui/Status";
 import { useRow } from "../kit/rowError";
 import { SettingRow } from "../kit/SettingRow";
-import { unhideUpdate } from "../UpdateBanner";
+import { unhideUpdate, useUpdateInstall } from "../UpdateBanner";
 
 const RELEASES = "https://github.com/leanandhigh/RoALT/releases";
 
-/** Check now (and what it found) beside the switch for the background checks. A found update shows
- * in the island again, even one Later hid. */
-function SelfUpdate() {
+/** MTwin Hub's version and its updates in one card: what runs, whether a newer one is out, one
+ * button that checks or (once one is found) installs it, and the switch for the background checks. */
+function UpdateCard() {
   const row = useRow();
   const qc = useQueryClient();
-  const [busy, setBusy] = useState(false);
+  const status = useQuery({ queryKey: qk.appUpdate, queryFn: api.selfUpdateStatus });
+  const available = status.data?.available ?? null;
+  const install = useUpdateInstall(available);
+  const [checking, setChecking] = useState(false);
+  const [checked, setChecked] = useState(false);
+  const version = import.meta.env.APP_VERSION;
+
   async function check() {
-    setBusy(true);
+    setChecking(true);
     row.setError(null);
-    row.setResult(null);
     try {
       const u = await api.selfUpdateCheck();
       unhideUpdate();
       qc.setQueryData(qk.appUpdate, u);
-      row.setResult(u.available ? t("settings.updateAvailable", { version: u.available }) : t("settings.upToDate"));
+      setChecked(true);
     } catch (e) {
       row.fail(e);
     } finally {
-      setBusy(false);
+      setChecking(false);
     }
   }
+
   return (
-    <>
-      <ActionButton busy={busy} label={t("settings.checkNow")} busyLabel={t("settings.checking")} onRun={() => void check()} />
-      <Switch label={t("settings.selfUpdate")} checked={row.ctx.s.selfUpdate} onChange={(selfUpdate) => void row.write({ selfUpdate })} describedBy={row.describedBy} />
-    </>
+    <div className="upd-card">
+      <div className="upd-main">
+        <span className="upd-logo"><Logo size={40} /></span>
+        <span className="min-w-0">
+          <span className="upd-name">MTwin Hub</span>
+          <span className="upd-ver mono">v{version}</span>
+        </span>
+        {available ? (
+          <StatusPill tone="info" pulse label={t("settings.updateAvailable", { version: available })} />
+        ) : checked ? (
+          <StatusPill tone="ok" label={t("settings.upToDate")} />
+        ) : null}
+      </div>
+      <div className="upd-actions">
+        {available ? (
+          <Button size="md" variant="primary" icon="download" busy={install.busy} onClick={install.start}>
+            {t("settings.updateTo", { version: available })}
+          </Button>
+        ) : (
+          <Button size="md" variant="primary" icon="refresh" busy={checking} onClick={() => void check()}>
+            {t(checking ? "settings.checking" : "settings.checkNow")}
+          </Button>
+        )}
+        <Button size="md" variant="ghost" iconEnd="external" onClick={() => openUrl(RELEASES).catch(row.fail)}>
+          {t("settings.releaseNotes")}
+        </Button>
+        <label className="upd-auto">
+          <Switch label={t("settings.selfUpdate")} checked={row.ctx.s.selfUpdate} onChange={(selfUpdate) => void row.write({ selfUpdate })} describedBy={row.describedBy} />
+          <span>{t("settings.autoCheck")}</span>
+        </label>
+      </div>
+      {install.dialog}
+    </div>
   );
 }
 
-export function SelfUpdateRow() {
-  return (
-    <SettingRow id="selfUpdate">
-      <SelfUpdate />
-    </SettingRow>
-  );
-}
-
-function Releases() {
-  const row = useRow();
-  return (
-    <Button size="md" iconEnd="external" aria-describedby={row.describedBy} onClick={() => openUrl(RELEASES).catch(row.fail)}>
-      {t("settings.openReleases")}
-    </Button>
-  );
-}
-
-/** RoALT's own version: the one place it shows. */
 export function VersionRow() {
-  const version = import.meta.env.APP_VERSION;
   return (
-    <SettingRow id="version" name={`MTwin Hub ${version}`} title={<span className="set-label">MTwin Hub <span className="mono">{version}</span></span>}>
-      <Releases />
+    <SettingRow id="version" name={`MTwin Hub ${import.meta.env.APP_VERSION}`} below={<UpdateCard />}>
+      {null}
     </SettingRow>
   );
 }
 
+/** The community: MTwin Hub's Discord. */
 function Support() {
   const row = useRow();
-  const [donating, setDonating] = useState(false);
   return (
-    <>
-      <Button size="md" iconEnd="external" onClick={() => openUrl(DISCORD_INVITE).catch(row.fail)}>{t("app.joinDiscord")}</Button>
-      <Button size="md" icon="heart" onClick={() => setDonating(true)}>{t("donate.button")}</Button>
-      <DonateDialog open={donating} onClose={() => setDonating(false)} />
-    </>
+    <Button size="md" className="discord-btn" onClick={() => openUrl(DISCORD_INVITE).catch(row.fail)}>
+      <Icon name="discord" size={16} />
+      {t("app.joinDiscord")}
+      <Icon name="external" size={13} />
+    </Button>
   );
 }
 
 export function SupportRow() {
   return (
-    <SettingRow id="support" title={<span className="set-label">{t("donate.title")}</span>}>
+    <SettingRow id="support" title={<span className="set-label">{t("settings.community")}</span>}>
       <Support />
     </SettingRow>
   );

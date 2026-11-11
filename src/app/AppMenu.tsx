@@ -3,7 +3,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import type { VaultMode } from "../api";
 import { useOnline, useSettings } from "../data";
 import { fmtNum, t } from "../i18n";
-import { DISCORD_INVITE } from "../features/donate/links";
+import { DISCORD_INVITE } from "./links";
 import { Icon, Logo } from "../ui/Icon";
 import { MenuItem, MenuSeparator, Popover, useAnchor } from "../ui/Popover";
 import { toastError } from "../ui/Toast";
@@ -13,11 +13,10 @@ import { requestNavigation } from "./navigation";
 /** The logo and name, as the app's own menu: the vault's state, the community, Donate, and the keys
  * that used to sit in the sidebar's foot. While locked, only what needs no vault. Beside it, how
  * many use RoALT now while that's on, then a Discord button: the community one click away. */
-export function AppMenu({ unlocked, vaultMode, onRefresh, onDonate }: {
+export function AppMenu({ unlocked, vaultMode, onRefresh }: {
   unlocked: boolean;
   vaultMode?: VaultMode;
   onRefresh: () => void;
-  onDonate: () => void;
 }) {
   const anchor = useAnchor();
   const [open, setOpen] = useState(false);
@@ -38,19 +37,20 @@ export function AppMenu({ unlocked, vaultMode, onRefresh, onDonate }: {
       </button>
       {/* RoALT's own counts, beside its logo and apart from Discord, so they don't read as Discord's. */}
       {n !== null && (
-        <>
-          <span className="online-count" role="img" aria-label={counts} data-tip={counts}>
+        <span className="online-pill" role="img" aria-label={counts} data-tip={counts}>
+          <span className="online-seg">
             <span className="online-dot" />
-            {compact(n)}
-            {playing !== null && (
-              <>
-                <Icon name="play" size={10} className="online-playing" />
-                {compact(playing)}
-              </>
-            )}
+            <b>{compact(n)}</b>
+            <span className="online-word">{t("app.onlineShort")}</span>
           </span>
-          <span className="title-sep online-count-sep" aria-hidden="true" />
-        </>
+          {playing !== null && (
+            <span className="online-seg">
+              <Icon name="play" size={10} className="online-playing" />
+              <b>{compact(playing)}</b>
+              <span className="online-word">{t("app.playingShort")}</span>
+            </span>
+          )}
+        </span>
       )}
       <button type="button" className="wc" aria-label={t("app.joinDiscord")} data-tip={t("app.joinDiscord")} onClick={() => openUrl(DISCORD_INVITE).catch(toastError)}>
         <Icon name="discord" size={16} />
@@ -73,9 +73,6 @@ export function AppMenu({ unlocked, vaultMode, onRefresh, onDonate }: {
         )}
         <MenuItem icon="chat" onSelect={() => openUrl(DISCORD_INVITE).catch(toastError)}>
           {t("app.joinDiscord")}
-        </MenuItem>
-        <MenuItem icon="heart" onSelect={onDonate}>
-          {t("donate.button")}
         </MenuItem>
         {unlocked && (
           <>

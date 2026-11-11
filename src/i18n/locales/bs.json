@@ -1789,5 +1789,13 @@
   "updates.copied": "Copied {v}",
   "updates.none": "Not listed",
   "updates.credit": "Data from WhatExpsAre.Online (weao.xyz), refreshed every minute while this page is open.",
-  "ui.search": "Search..."
+  "ui.search": "Search...",
+  "app.onlineShort": "online",
+  "app.playingShort": "playing",
+  "settings.updatesTitle": "Updates",
+  "settings.updatesShort": "New versions come from MTwin Hub's GitHub releases.",
+  "settings.updateTo": "Update to {version}",
+  "settings.releaseNotes": "Release notes",
+  "settings.autoCheck": "Check automatically",
+  "settings.community": "Community"
 }

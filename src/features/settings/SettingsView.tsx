@@ -12,7 +12,7 @@ import { EntryRow, Renderers, SearchHits, useCtx, type RowRenderers } from "./ki
 import { SettingSection } from "./kit/SettingSection";
 import { dyn, shown } from "./registry";
 import { keyOf, placeNames, search, type Hit, type HitGroup } from "./search";
-import { SelfUpdateRow, SupportRow, VersionRow } from "./rows/about";
+import { SupportRow, VersionRow } from "./rows/about";
 import { AccentRow, BackgroundRow, MotionRow, SoundRow } from "./rows/appearance";
 import { BackupRow, BrowserDataRow, CleanLogsRow, DataFolderRow } from "./rows/data";
 import { BreakerRow, ClientCard, ClientPathRow, MultiRow, ShutdownRow } from "./rows/launching";
@@ -38,7 +38,6 @@ const RENDERERS: RowRenderers = {
   backup: BackupRow,
   cleanLogs: CleanLogsRow,
   browserData: BrowserDataRow,
-  selfUpdate: SelfUpdateRow,
   version: VersionRow,
   support: SupportRow,
 };

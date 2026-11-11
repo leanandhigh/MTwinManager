@@ -36,6 +36,6 @@ export const AREAS: readonly AreaDef[] = [
     groups: [{ ids: ["encryption", "masterPassword", "recoveryCode", "autoLock", "clipboard", "lockPurchases", "publicNetworks"] }],
   },
   { id: "data", label: "settings.section.data", icon: "database", groups: [{ ids: ["dataFolder", "backup", "cache", "cleanLogs", "browserData"] }] },
-  { id: "about", label: "settings.section.about", icon: "info", groups: [{ ids: ["selfUpdate", "onlineCount", "rolimons", "version", "support"] }] },
+  { id: "about", label: "settings.section.about", icon: "info", groups: [{ ids: ["version", "onlineCount", "rolimons", "support"] }] },
   { id: "shortcuts", label: "settings.section.shortcuts", icon: "keyboard", groups: [{ ids: SHORTCUTS.map((s) => `key.${s.id}`) }] },
 ];

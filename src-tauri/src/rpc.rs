@@ -20,7 +20,7 @@ use crate::model::{Instance, InstanceState};
 const CLIENT_ID: &str = "1565066775752741165";
 const DOWNLOAD: &str = "https://github.com/inspectsoftware/RoALT/releases/latest";
 /// The same invite as the app's (`src/features/donate/links.ts`).
-const INVITE: &str = "https://discord.gg/roaltdev";
+const INVITE: &str = "https://discord.gg/y35kyZM8sV";
 /// Discord allows about 5 activity updates per 20 s; one is sent only when it changed.
 const TICK: Duration = Duration::from_secs(5);
 

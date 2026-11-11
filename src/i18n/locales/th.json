@@ -1675,5 +1675,13 @@
   "updates.copied": "คัดลอก {v} แล้ว",
   "updates.none": "ไม่มีข้อมูล",
   "updates.credit": "ข้อมูลจาก WhatExpsAre.Online (weao.xyz) อัปเดตทุกนาทีขณะเปิดหน้านี้",
-  "ui.search": "ค้นหา..."
+  "ui.search": "ค้นหา...",
+  "app.onlineShort": "ออนไลน์",
+  "app.playingShort": "กำลังเล่น",
+  "settings.updatesTitle": "อัปเดต",
+  "settings.updatesShort": "เวอร์ชันใหม่มาจาก GitHub releases ของ MTwin Hub",
+  "settings.updateTo": "อัปเดตเป็น {version}",
+  "settings.releaseNotes": "บันทึกการเปลี่ยนแปลง",
+  "settings.autoCheck": "ตรวจสอบอัตโนมัติ",
+  "settings.community": "ชุมชน"
 }

@@ -238,4 +238,112 @@
   .meter > span {
     background: var(--accent);
   }
+
+  /* Who's online: one pill, two labelled counts. */
+  .online-pill {
+    display: inline-flex;
+    align-items: center;
+    height: 26px;
+    margin-inline: 4px 2px;
+    border-radius: var(--r-pill);
+    background: var(--surface-2);
+    box-shadow: inset 0 0 0 1px var(--line);
+    font-size: 11.5px;
+    white-space: nowrap;
+  }
+  .online-seg {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 0 10px;
+  }
+  .online-seg + .online-seg {
+    border-inline-start: 1px solid var(--line);
+  }
+  .online-seg b {
+    color: var(--fg);
+    font-weight: 700;
+  }
+  .online-word {
+    color: var(--fg-3);
+  }
+  .online-pill .online-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--ok);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 22%, transparent);
+  }
+  .online-pill .online-playing {
+    color: var(--accent-text);
+  }
+  @media (max-width: 860px) {
+    .online-word {
+      display: none;
+    }
+  }
+
+  /* Settings > About: the update card. */
+  .upd-card {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-top: 12px;
+    padding: 16px;
+    border-radius: var(--r-lg);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 12%, var(--surface-2)), var(--surface-2) 60%);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 28%, var(--line));
+  }
+  .upd-main {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .upd-logo {
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    border-radius: var(--r-md);
+    background: var(--surface-1);
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+  .upd-name {
+    display: block;
+    font-size: var(--fs-section);
+    font-weight: 700;
+  }
+  .upd-ver {
+    color: var(--fg-3);
+    font-size: var(--fs-meta);
+  }
+  .upd-main .status-pill {
+    margin-inline-start: auto;
+  }
+  .upd-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+  .upd-auto {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-inline-start: auto;
+    color: var(--fg-2);
+    font-size: var(--fs-small);
+    cursor: pointer;
+  }
+
+  /* Discord's own colour on its button. */
+  .discord-btn {
+    background: #5865f2;
+    color: #fff;
+    box-shadow: none;
+  }
+  .discord-btn:hover {
+    background: #4752c4;
+  }
 }
