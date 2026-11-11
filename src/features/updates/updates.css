@@ -88,4 +88,48 @@
   .up-credit {
     margin-top: 8px;
   }
+  .up-exec {
+    padding: 16px 18px;
+  }
+  .ex-status {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .ex-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .ex-name {
+    font-weight: 700;
+    font-size: var(--fs-section);
+  }
+  .ex-versions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 10px;
+  }
+  .ex-versions dt {
+    color: var(--fg-3);
+    font-size: var(--fs-meta);
+  }
+  .ex-versions dd {
+    margin: 2px 0 0;
+    font-weight: 600;
+  }
+  .ex-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .ex-box {
+    margin-top: 12px;
+    padding: 14px 16px;
+    border-radius: var(--r-md);
+    background: var(--surface-2);
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
 }

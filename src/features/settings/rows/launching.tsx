@@ -14,6 +14,7 @@ import { Popover, useAnchor } from "../../../ui/Popover";
 import { StatusPill, type Tone } from "../../../ui/Status";
 import { friendly, toast } from "../../../ui/Toast";
 import { MultiNotice, useMultiToggle } from "../../launch/MultiNotice";
+import { ExecutorStatus, useExecutors } from "../../updates/ExecutorCard";
 import { useNow } from "../../launch/Running";
 import { useRow } from "../kit/rowError";
 import { SettingRow } from "../kit/SettingRow";
@@ -373,6 +374,52 @@ function ClientPathControl() {
         />
       )}
     </span>
+  );
+}
+
+/** The executor in use, from WEAO's list: Roblox is kept at the build it supports. */
+function ExecutorControl() {
+  const qc = useQueryClient();
+  const { entry, ctx, write, describedBy } = useRow();
+  const list = useExecutors();
+  const found = list.data ?? [];
+  const chosen = ctx.s.executor;
+  const options = [
+    { value: "", label: t("executor.none") },
+    ...found.map((e) => ({ value: e.title, label: `${e.title}${e.updated ? "" : ` · ${t("executor.notUpdated")}`}` })),
+    // Still chosen though WEAO doesn't list it now.
+    ...(chosen && !found.some((e) => e.title === chosen) ? [{ value: chosen, label: chosen }] : []),
+  ];
+  return (
+    <Select
+      value={chosen}
+      aria-label={t(entry.label)}
+      aria-describedby={describedBy}
+      className="min-w-[220px]"
+      options={options}
+      onChange={(executor) => void write({ executor }).then(() => setTimeout(() => void qc.invalidateQueries({ queryKey: qk.client }), 1500))}
+    />
+  );
+}
+
+function ExecutorDetail() {
+  const { ctx } = useRow();
+  const e = (useExecutors().data ?? []).find((x) => x.title === ctx.s.executor);
+  const client = useQuery({ queryKey: qk.client, queryFn: api.robloxClient, staleTime: 0 }).data;
+  if (!ctx.s.executor) return null;
+  if (!e) return <p className="meta mt-2">{t("executor.unlisted")}</p>;
+  return (
+    <div className="ex-box">
+      <ExecutorStatus e={e} live={null} installed={client?.version ?? null} />
+    </div>
+  );
+}
+
+export function ExecutorRow() {
+  return (
+    <SettingRow id="executor" below={<ExecutorDetail />}>
+      <ExecutorControl />
+    </SettingRow>
   );
 }
 

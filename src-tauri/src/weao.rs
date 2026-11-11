@@ -57,6 +57,131 @@ pub struct RobloxVersions {
 
 static CACHED: Mutex<Option<(Instant, RobloxVersions)>> = Mutex::new(None);
 
+/// One executor as WEAO lists it (`/api/status/exploits`): what Settings' picker and the Roblox
+/// updates view show, and the Roblox build it works with (`rbx_version`), which Roblox is kept on
+/// while it is the chosen one (`launcher::update::target_version`).
+#[derive(Serialize, TS, Clone, Debug, PartialEq, Default)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct Executor {
+    pub title: String,
+    pub version: String,
+    pub updated_date: Option<String>,
+    /// The Roblox build (`version-…`) it supports.
+    pub rbx_version: Option<String>,
+    /// Updated for the current Roblox.
+    pub updated: bool,
+    /// Detected by Hyperion.
+    pub detected: bool,
+    pub free: bool,
+    /// WEAO's type: wexecutor, wexternal, mexecutor...
+    pub kind: String,
+    pub platform: String,
+    pub sunc: Option<f64>,
+    pub unc: Option<f64>,
+    pub decompiler: Option<bool>,
+    pub multi_inject: Option<bool>,
+    pub keysystem: Option<bool>,
+    pub cost: Option<String>,
+    pub website: Option<String>,
+    pub discord: Option<String>,
+}
+
+/// WEAO's executors, cached for 5 minutes (Settings and the launcher ask often).
+static EXECUTORS: Mutex<Option<(Instant, Vec<Executor>)>> = Mutex::new(None);
+const EXECUTORS_FOR: Duration = Duration::from_secs(5 * 60);
+
+fn text(v: &Value, key: &str) -> Option<String> {
+    v[key].as_str().map(str::trim).filter(|s| !s.is_empty()).map(str::to_owned)
+}
+
+/// The listed, Windows executors from WEAO's answer (pure), in WEAO's order.
+fn parse_executors(v: &Value) -> Vec<Executor> {
+    v.as_array()
+        .into_iter()
+        .flatten()
+        .filter(|e| !e["hidden"].as_bool().unwrap_or(false))
+        .filter_map(|e| {
+            let title = text(e, "title")?;
+            Some(Executor {
+                version: text(e, "version").unwrap_or_default(),
+                updated_date: text(e, "updatedDate"),
+                rbx_version: text(e, "rbxversion").filter(|r| r.starts_with("version-")),
+                updated: e["updateStatus"].as_bool().unwrap_or(false),
+                detected: e["detected"].as_bool().unwrap_or(false),
+                free: e["free"].as_bool().unwrap_or(false),
+                kind: text(e, "extype").or_else(|| text(e, "type")).unwrap_or_default(),
+                platform: text(e, "platform").unwrap_or_default(),
+                sunc: e["suncPercentage"].as_f64(),
+                unc: e["uncPercentage"].as_f64(),
+                decompiler: e["decompiler"].as_bool(),
+                multi_inject: e["multiInject"].as_bool(),
+                keysystem: e["keysystem"].as_bool(),
+                cost: text(e, "cost"),
+                website: text(e, "websitelink"),
+                discord: text(e, "discordlink"),
+                title,
+            })
+        })
+        .filter(|e| e.platform.eq_ignore_ascii_case("windows") || e.kind.starts_with('w'))
+        .collect()
+}
+
+fn client() -> Result<reqwest::Client, String> {
+    reqwest::Client::builder()
+        .user_agent(USER_AGENT)
+        .https_only(true)
+        .connect_timeout(Duration::from_secs(8))
+        .timeout(Duration::from_secs(15))
+        .build()
+        .map_err(|e| format!("HTTP client unavailable: {e}"))
+}
+
+/// WEAO's executors (cached 5 min unless `refresh`); Err with why when none could be read.
+pub async fn executors(refresh: bool) -> Result<Vec<Executor>, String> {
+    if !refresh && let Some((at, list)) = EXECUTORS.lock().unwrap_or_else(|e| e.into_inner()).clone() && at.elapsed() < EXECUTORS_FOR {
+        return Ok(list);
+    }
+    let http = client()?;
+    let mut last = String::from("WEAO didn't answer");
+    for host in HOSTS {
+        match http.get(format!("https://{host}/api/status/exploits")).send().await {
+            Ok(r) if r.status().as_u16() == 429 => last = format!("WEAO is rate limiting ({host})"),
+            Ok(r) if r.status().is_success() => match r.json::<Value>().await {
+                Ok(v) => {
+                    let list = parse_executors(&v);
+                    if list.is_empty() {
+                        last = format!("WEAO listed no executors ({host})");
+                        continue;
+                    }
+                    *EXECUTORS.lock().unwrap_or_else(|e| e.into_inner()) = Some((Instant::now(), list.clone()));
+                    return Ok(list);
+                }
+                Err(e) => last = format!("WEAO's answer was unreadable ({host}): {}", e.without_url()),
+            },
+            Ok(r) => last = format!("WEAO answered HTTP {} ({host})", r.status().as_u16()),
+            Err(e) => last = format!("WEAO unreachable ({host}): {}", e.without_url()),
+        }
+    }
+    // An old list beats none: the executor's Roblox version rarely changes within the hour.
+    if let Some((_, list)) = EXECUTORS.lock().unwrap_or_else(|e| e.into_inner()).clone() {
+        log::info!("executors: {last}; using the last list");
+        return Ok(list);
+    }
+    Err(last)
+}
+
+/// The Roblox build `name` (WEAO's title, any case) supports, when WEAO lists it with one.
+pub async fn executor_rbx_version(name: &str) -> Option<String> {
+    let list = executors(false).await.inspect_err(|e| log::info!("executor {name}: {e}")).ok()?;
+    list.into_iter().find(|e| e.title.eq_ignore_ascii_case(name)).and_then(|e| e.rbx_version)
+}
+
+#[tauri::command]
+pub async fn executors_list(refresh: bool) -> crate::error::Result<Vec<Executor>> {
+    executors(refresh).await.map_err(crate::error::AppError::Network)
+}
+
 fn platform(v: &Value, key: &str) -> Option<PlatformVersion> {
     let version = v[key].as_str().map(str::trim).filter(|s| !s.is_empty())?.to_owned();
     let date = v[format!("{key}Date")].as_str().map(str::trim).filter(|s| !s.is_empty()).map(str::to_owned);
@@ -92,17 +217,11 @@ pub async fn versions(refresh: bool) -> RobloxVersions {
         return v;
     }
     let installed = tauri::async_runtime::spawn_blocking(installed).await.ok().flatten();
-    let http = reqwest::Client::builder()
-        .user_agent(USER_AGENT)
-        .https_only(true)
-        .connect_timeout(Duration::from_secs(8))
-        .timeout(Duration::from_secs(15))
-        .build();
     let mut out = RobloxVersions { installed, checked_at: crate::commands::now_ms(), ..Default::default() };
-    let http = match http {
+    let http = match client() {
         Ok(h) => h,
         Err(e) => {
-            out.error = Some(format!("HTTP client unavailable: {e}"));
+            out.error = Some(e);
             return out;
         }
     };
@@ -157,5 +276,22 @@ mod tests {
         let future = parse(&json!({ "Windows": "version-2a06298afe3947ab", "Mac": "version-774691dc93a947ef" })).unwrap();
         assert_eq!((future.android, future.windows.unwrap().date), (None, None));
         assert_eq!(parse(&json!({ "error": "rate limited" })), None);
+    }
+
+    #[test]
+    fn reads_executors() {
+        let list = json!([
+            { "title": "Potassium", "version": "1.7.9", "updatedDate": "07/24/2025 at 3:47 PM UTC", "free": false, "detected": true,
+              "rbxversion": "version-2a06298afe3947ab", "updateStatus": true, "platform": "Windows", "extype": "wexecutor",
+              "suncPercentage": 100, "uncPercentage": 99, "decompiler": true, "multiInject": true, "cost": "$20 Lifetime" },
+            { "title": "Macsploit", "platform": "Mac", "extype": "mexecutor", "rbxversion": "version-774691dc93a947ef" },
+            { "title": "Hidden one", "platform": "Windows", "hidden": true },
+            { "title": "Xeno", "free": true, "rbxversion": "", "platform": "Windows", "extype": "wexecutor", "keysystem": true }
+        ]);
+        let got = parse_executors(&list);
+        assert_eq!(got.iter().map(|e| e.title.as_str()).collect::<Vec<_>>(), ["Potassium", "Xeno"], "Windows only, hidden ones left out");
+        assert_eq!(got[0].rbx_version.as_deref(), Some("version-2a06298afe3947ab"));
+        assert_eq!((got[0].sunc, got[0].multi_inject, got[0].updated), (Some(100.0), Some(true), true));
+        assert_eq!((got[1].rbx_version.as_deref(), got[1].keysystem), (None, Some(true)), "no Roblox version without one");
     }
 }

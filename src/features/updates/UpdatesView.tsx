@@ -9,6 +9,8 @@ import { StatusPill } from "../../ui/Status";
 import { LoadFailed, toast, toastError } from "../../ui/Toast";
 import { ago } from "../progress/shared";
 import { useNow } from "../launch/Running";
+import { useSettings } from "../../data";
+import { ExecutorStatus, useExecutors } from "./ExecutorCard";
 
 type Platform = "windows" | "mac" | "android" | "ios";
 const PLATFORMS: [Platform, string][] = [
@@ -42,6 +44,7 @@ export function UpdatesView() {
         </header>
         {v?.error && <p className="up-error panel">{t("updates.partial", { why: v.error })}</p>}
         {v && <Installed v={v} />}
+        {v && <ChosenExecutor v={v} />}
         {v && (
           <>
             <Section title="updates.current" hint="updates.currentHint" set={v.current} platforms={PLATFORMS} installed={v.installed} />
@@ -81,6 +84,22 @@ function Installed({ v }: { v: RobloxVersions }) {
       </div>
       <StatusPill tone={tone} label={label} />
     </div>
+  );
+}
+
+/** The executor chosen in Settings, against Roblox: what it supports, what's live, what's here. */
+function ChosenExecutor({ v }: { v: RobloxVersions }) {
+  const name = useSettings().data?.executor ?? "";
+  const e = (useExecutors().data ?? []).find((x) => x.title === name);
+  if (!name || !e) return null;
+  return (
+    <section className="up-section">
+      <h2 className="section-title">{t("executor.yours")}</h2>
+      <p className="meta">{t("executor.yoursHint")}</p>
+      <div className="panel up-exec">
+        <ExecutorStatus e={e} live={v.current?.windows?.version ?? null} installed={v.installed} />
+      </div>
+    </section>
   );
 }
 

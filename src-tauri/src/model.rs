@@ -260,6 +260,9 @@ pub struct Settings {
     /// The program to launch Roblox with (a bootstrapper such as Bloxstrap or Fishstrap, or
     /// RobloxPlayerBeta.exe); "": the one that opens roblox-player links (`launcher::client::find`).
     pub client_path: String,
+    /// The executor in use (WEAO's name); Roblox is installed, updated and launched at the build
+    /// it supports instead of Roblox's newest (`launcher::update::target_version`). "": none.
+    pub executor: String,
     /// Closing the window hides it; the tray icon brings it back or quits.
     pub close_to_tray: bool,
     /// Open at full size, without the start-up animation (`splash`); from the next start.
@@ -531,6 +534,7 @@ impl Default for Settings {
             close_grace_s: 5,
             launch_args: String::new(),
             client_path: String::new(),
+            executor: String::new(),
             close_to_tray: false,
             skip_splash: false,
             protect_main: true,
@@ -607,6 +611,8 @@ pub struct SettingsPatch {
     pub launch_args: Option<String>,
     #[ts(optional)]
     pub client_path: Option<String>,
+    #[ts(optional)]
+    pub executor: Option<String>,
     #[ts(optional)]
     pub close_to_tray: Option<bool>,
     #[ts(optional)]

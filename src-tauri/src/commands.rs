@@ -3409,6 +3409,18 @@ pub fn settings_set(app: AppHandle, s: State<'_, App>, patch: SettingsPatch) -> 
         crate::launcher::client::set_custom(&c);
         v.client_path = c;
     }
+    if let Some(e) = patch.executor {
+        let e: String = e.trim().chars().filter(|c| !c.is_control()).take(60).collect();
+        if e != v.executor {
+            // Roblox's target changed: check it now, not at the next half hour.
+            let app = app.clone();
+            tauri::async_runtime::spawn(async move {
+                tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                crate::launcher::update::recheck(&app).await;
+            });
+        }
+        v.executor = e;
+    }
     if let Some(f) = patch.custom_flags {
         crate::launcher::flags::check(&f)?;
         v.custom_flags = f;

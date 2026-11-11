@@ -112,6 +112,8 @@ import type { PageCard } from "./bindings/PageCard";
 import type { CatalogEntry } from "./bindings/CatalogEntry";
 import type { DetectedBootstrapper } from "./bindings/DetectedBootstrapper";
 import type { RobloxVersions } from "./bindings/RobloxVersions";
+import type { Executor } from "./bindings/Executor";
+export type { Executor };
 export type { RobloxVersions };
 export type { VersionSet } from "./bindings/VersionSet";
 export type { PlatformVersion } from "./bindings/PlatformVersion";
@@ -305,6 +307,8 @@ export const api = {
   /** Bootstrappers installed on this PC (Bloxstrap, Fishstrap, ExploitStrap...). */
   /** Roblox's current, future and past builds per platform, from WEAO (cached a minute unless `refresh`). */
   robloxVersions: (refresh = false) => invoke<RobloxVersions>("roblox_versions", { refresh }),
+  /** WEAO's Windows executors with the Roblox build each supports (cached 5 min unless `refresh`). */
+  executorsList: (refresh = false) => invoke<Executor[]>("executors_list", { refresh }),
   clientBootstrappers: () => invoke<DetectedBootstrapper[]>("client_bootstrappers"),
   /** Removes these accounts (`key`s) until they report again; how many went. */
   progressRemove: (keys: string[]) => invoke<number>("progress_remove", { keys }),

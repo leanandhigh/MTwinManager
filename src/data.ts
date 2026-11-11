@@ -43,6 +43,7 @@ export const qk = {
   online: ["online"],
   progress: ["progress"],
   robloxVersions: ["robloxVersions"],
+  executors: ["executors"],
   progressGames: (ids: string) => ["progressGames", ids],
   progressImages: (ids: string) => ["progressImages", ids],
 } as const;

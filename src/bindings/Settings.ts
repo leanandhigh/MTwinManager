@@ -76,6 +76,11 @@ launchArgs: string,
  */
 clientPath: string, 
 /**
+ * The executor in use (WEAO's name); Roblox is installed, updated and launched at the build
+ * it supports instead of Roblox's newest (`launcher::update::target_version`). "": none.
+ */
+executor: string, 
+/**
  * Closing the window hides it; the tray icon brings it back or quits.
  */
 closeToTray: boolean, 

@@ -112,6 +112,10 @@ const SETTINGS_ENTRIES: readonly Entry[] = [
     control: { kind: "text", placeholder: "settings.placeholderNone", size: "lg" }, aliases: ["args", "bootstrapper", "command"],
   },
   {
+    id: "executor", place: launching, label: "executor.label", hint: "executor.short", more: "executor.hint", field: "executor",
+    control: CUSTOM, invalidates: ["client"], aliases: ["executor", "exploit", "weao", "downgrade", "version", "pin"],
+  },
+  {
     id: "clientPath", place: launching, label: "settings.clientPath", hint: "settings.clientPathShort", more: "settings.clientPathHint", field: "clientPath",
     control: CUSTOM, invalidates: ["client"],
     aliases: ["bootstrapper", "bloxstrap", "fishstrap", "froststrap", "voidstrap", "exe", "path", "launch with"],

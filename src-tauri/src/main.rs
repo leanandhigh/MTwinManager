@@ -745,6 +745,7 @@ fn main() {
             commands::news,
             commands::online_ping,
             weao::roblox_versions,
+            weao::executors_list,
             commands::client_bootstrappers,
             progress::progress_state,
             progress::progress_remove,

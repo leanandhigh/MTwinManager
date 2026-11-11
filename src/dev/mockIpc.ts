@@ -73,7 +73,7 @@ let accounts: AccountSummary[] = seed.map(([alias, displayName, username, userId
 let settings: Settings = {
   theme: "dark", accent: "", backgroundDim: 60, density: "detailed", autoLockMinutes: 15, clipboardClearSeconds: 30, cacheMinutes: 10,
   multiInstance: true, protectSharedLogin: true, launchDelayMs: 6000, autoRejoin: false, autoRestartOnCrash: false,
-  breakerMax: 3, breakerWindowMin: 10, closeGraceS: 5, launchArgs: "", clientPath: "", closeToTray: false,
+  breakerMax: 3, breakerWindowMin: 10, closeGraceS: 5, launchArgs: "", clientPath: "", executor: "", closeToTray: false,
   memRestartMb: 0, memThrottle: { mb: 0, cpuCap: 10 }, trimEveryMin: 0, autoSpread: false, fairCap: false,
   adaptive: { enabled: false, background: { cpuCap: 25, eco: true, trimEveryMin: null, affinity: null } }, bandwidthKbps: 0,
   antiAfk: { enabled: false, intervalMin: 15 },
@@ -1424,6 +1424,12 @@ async function handle(cmd: string, args: Args): Promise<unknown> {
         failed: [],
       };
     }
+    case "executors_list":
+      return [
+        { title: "Potassium", version: "1.7.9", updatedDate: "07/24/2025 at 3:47 PM UTC", rbxVersion: "version-31fc142272764f02", updated: true, detected: true, free: false, kind: "wexecutor", platform: "Windows", sunc: 100, unc: 99, decompiler: true, multiInject: true, keysystem: null, cost: "$20 Lifetime", website: "https://potassium.pro", discord: null },
+        { title: "Xeno", version: "1.2.45", updatedDate: "07/24/2025 at 9:26 AM UTC", rbxVersion: "version-5e1f0c9a7d3b4e21", updated: false, detected: true, free: true, kind: "wexecutor", platform: "Windows", sunc: 41, unc: 81, decompiler: false, multiInject: true, keysystem: true, cost: null, website: "https://www.xeno.onl/", discord: null },
+        { title: "Matcha", version: "1.6.0", updatedDate: "07/24/2025 at 4:30 AM UTC", rbxVersion: "version-31fc142272764f02", updated: true, detected: false, free: false, kind: "wexternal", platform: "Windows", sunc: null, unc: null, decompiler: null, multiInject: null, keysystem: null, cost: "$11.50 Lifetime", website: null, discord: null },
+      ];
     case "roblox_versions":
       return {
         current: {

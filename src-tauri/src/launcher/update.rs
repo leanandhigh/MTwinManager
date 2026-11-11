@@ -238,6 +238,25 @@ fn unix_now() -> u64 {
     std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs())
 }
 
+/// The chosen executor's Roblox build (`Settings.executor`, from WEAO); None without one, or when
+/// WEAO doesn't list one for it.
+pub async fn executor_version(s: &App) -> Option<String> {
+    let name = s.db.settings().ok().map(|v| v.executor).filter(|e| !e.trim().is_empty())?;
+    let v = crate::weao::executor_rbx_version(&name).await.filter(|v| is_version(v));
+    if v.is_none() {
+        log::info!("executor {name}: no Roblox version known; following Roblox's live one");
+    }
+    v
+}
+
+/// The build Roblox is kept at: the executor's when one is chosen, else Roblox's live one.
+async fn target_version(s: &App) -> Result<String> {
+    if let Some(v) = executor_version(s).await {
+        return Ok(v);
+    }
+    s.api.client_version().await
+}
+
 /// Production's live version, asked now, else the last one known; None when never known.
 async fn production_version(s: &App) -> Option<String> {
     match s.api.client_version().await {
@@ -263,6 +282,17 @@ async fn production_version(s: &App) -> Option<String> {
 pub async fn launch_client(s: &App) -> Result<(client::ClientExe, bool)> {
     let exe = client::find()?;
     let managed = client::managed_by_bootstrapper(&exe);
+    // The executor's build, when installed: launched as it is. It asks for production only when
+    // that's what production runs; asked for production, an older build would update itself.
+    if !managed && let Some(want) = executor_version(s).await {
+        if let Some(path) = client::installed_build(&want) {
+            let live = production_version(s).await;
+            let production = live.as_deref() == Some(want.as_str());
+            log::info!("launching the executor's Roblox build {want} at {} (production's: {live:?})", path.display());
+            return Ok((client::ClientExe { path, bootstrapper: false, ..Default::default() }, production));
+        }
+        log::warn!("the executor's Roblox build {want} isn't installed; launching the usual client (Update Roblox installs it)");
+    }
     let live = if managed { None } else { production_version(s).await };
     let chosen = launch_choice(exe, managed, live.as_deref(), client::installed_build);
     log::info!(
@@ -329,9 +359,15 @@ pub fn spawn(app: AppHandle) {
     });
 }
 
+/// Checks again now (the executor changed): the target, the client's state, auto-update.
+pub async fn recheck(app: &AppHandle) {
+    lock(&app.state::<App>().update.auto_tried).take();
+    check(app).await;
+}
+
 async fn check(app: &AppHandle) {
     let s = app.state::<App>();
-    match s.api.client_version().await {
+    match target_version(&s).await {
         Ok(v) => s.update.set_latest(v),
         Err(e) => log::info!("Roblox version check failed: {e}"),
     }
@@ -397,7 +433,7 @@ async fn run_install(app: &AppHandle, s: &App) -> Result<()> {
         let _ = app.emit(INSTALL_EVENT, p);
     };
     emit(InstallProgress::Downloading { percent: 0 });
-    let version = s.api.client_version().await?;
+    let version = target_version(s).await?;
     *lock(&s.update.latest) = Some(version.clone());
     let url = installer_url(&version).ok_or_else(|| AppError::Roblox("unexpected version name".into()))?;
 
