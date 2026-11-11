@@ -444,6 +444,12 @@ impl Client {
         self.thumbnails(endpoints::GAME_ICONS, universe_ids).await
     }
 
+    /// `GET thumbnails.roblox.com/v1/assets?assetIds=..` (no cookie, `ASSET_ICONS`): decal or
+    /// image id → image URL (`thumbnails`), for Progress.
+    pub async fn asset_icons(&self, asset_ids: &[i64]) -> (HashMap<i64, String>, bool) {
+        self.thumbnails(endpoints::ASSET_ICONS, asset_ids).await
+    }
+
     /// Icons from a thumbnails `route` whose `{}` takes ≤100 ids (no cookie): id → image URL for
     /// `Completed` icons, and whether every icon came back: a call that fails (logged), or an icon
     /// Roblox is still making, leaves it out, and the answer isn't complete (callers don't keep it).

@@ -41,6 +41,9 @@ export const qk = {
   network: ["network"],
   news: ["news"],
   online: ["online"],
+  progress: ["progress"],
+  progressGames: (ids: string) => ["progressGames", ids],
+  progressImages: (ids: string) => ["progressImages", ids],
 } as const;
 
 export const queryClient = new QueryClient({

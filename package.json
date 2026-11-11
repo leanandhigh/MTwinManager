@@ -14,8 +14,7 @@
     "test:news": "node --experimental-strip-types scripts/test-news.mjs",
     "test:liquid": "node --experimental-strip-types scripts/test-liquid.mjs",
     "tauri": "tauri",
-    "bindings": "cargo test --manifest-path src-tauri/Cargo.toml export_bindings",
-    "progress": "node progress-viewer/server.mjs"
+    "bindings": "cargo test --manifest-path src-tauri/Cargo.toml export_bindings"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.3.0",

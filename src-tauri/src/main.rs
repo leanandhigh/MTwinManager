@@ -13,6 +13,7 @@ mod launcher;
 mod model;
 mod network;
 mod performance;
+mod progress;
 mod roblox_api;
 mod rpc;
 mod news;
@@ -57,6 +58,8 @@ pub struct App {
     pub discord: discord::Discord,
     pub update: launcher::update::Updater,
     pub self_update: self_update::SelfUpdater,
+    /// What alts have in game, from the in-game reporter (`progress`).
+    pub progress: progress::Progress,
     /// Whether a Public network is connected (`network`).
     pub network: network::Network,
     /// When the shutdown RoALT scheduled is due (Unix ms; `commands::shutdown_schedule`).
@@ -471,6 +474,7 @@ fn init(app: &TauriApp, data_dir: &Path, moved_from: Option<&Path>) -> std::resu
         update: launcher::update::Updater::new(),
         self_update: self_update::SelfUpdater::new(),
         network: network::Network::new(),
+        progress: progress::Progress::new(data_dir),
         shutdown: Mutex::new(shutdown),
     });
     if let Err(e) = commands::set_panic_hotkey(app.handle(), "", &settings.panic_hotkey) {
@@ -500,6 +504,7 @@ fn init(app: &TauriApp, data_dir: &Path, moved_from: Option<&Path>) -> std::resu
     instances::Tracker::spawn(app.handle().clone());
     instances::afk::spawn(app.handle().clone());
     network::spawn(app.handle().clone());
+    progress::spawn(app.handle().clone());
     launcher::flags::restore();
     launcher::client_settings::spawn(app.handle().clone());
     discord::spawn(app.handle().clone());
@@ -737,6 +742,12 @@ fn main() {
             commands::roblox_install,
             commands::news,
             commands::online_ping,
+            progress::progress_state,
+            progress::progress_remove,
+            progress::progress_catalog_save,
+            progress::progress_auto_delete,
+            progress::progress_images,
+            progress::progress_games,
             commands::self_update_status,
             commands::self_update_check,
             commands::self_update_install,

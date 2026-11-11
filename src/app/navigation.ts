@@ -3,13 +3,14 @@ import type { Key } from "../i18n";
 import type { IconName } from "../ui/Icon";
 import type { SettingsArea } from "../features/settings/areas";
 
-export type View = "dashboard" | "accounts" | "launch" | "browse" | "performance" | "servers" | "monitor" | "discord" | "debug" | "settings";
+export type View = "dashboard" | "accounts" | "launch" | "browse" | "progress" | "performance" | "servers" | "monitor" | "discord" | "debug" | "settings";
 
 export const VIEW_NAME: Record<View, Key> = {
   dashboard: "app.nav.dashboard",
   accounts: "app.nav.accounts",
   launch: "app.nav.launch",
   browse: "app.nav.browse",
+  progress: "app.nav.progress",
   performance: "app.nav.performance",
   servers: "app.nav.servers",
   monitor: "app.nav.monitor",
@@ -19,7 +20,7 @@ export const VIEW_NAME: Record<View, Key> = {
 };
 
 /** The island's places, by the ids `roalt.sectionOrder` keeps (Debug moved into Tools). */
-export const MAIN_SECTIONS = ["home", "play", "browse", "accounts", "performance"] as const;
+export const MAIN_SECTIONS = ["home", "play", "browse", "accounts", "progress", "performance"] as const;
 export const TOOL_SECTIONS = ["servers", "monitor", "discord", "debug"] as const;
 export type Section = (typeof MAIN_SECTIONS)[number] | (typeof TOOL_SECTIONS)[number];
 
@@ -28,6 +29,7 @@ export const SECTION_VIEW: Record<Section, View> = {
   play: "launch",
   browse: "browse",
   accounts: "accounts",
+  progress: "progress",
   performance: "performance",
   servers: "servers",
   monitor: "monitor",
@@ -39,6 +41,7 @@ export const SECTION_ICON: Record<Section, IconName> = {
   play: "play",
   browse: "globe",
   accounts: "accounts",
+  progress: "progress",
   performance: "gauge",
   servers: "servers",
   monitor: "monitor",

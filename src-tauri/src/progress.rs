@@ -1,0 +1,697 @@
+//! Progress: what each alt has in game (level, values like coins or candy, items), reported by a
+//! script the executor runs in each client.
+//!
+//! RoALT listens on `http://127.0.0.1:16390` (this PC only):
+//! - `GET /script.luau`: the reporter (`progress.luau`), with this address filled in. The loader
+//!   the Progress view hands out (`Get script`) loads it from here, like an MCP bridge's autoexec.
+//! - `POST /report` (or `GET /report?d=<json>` for executors without `request`): one account's
+//!   report, every 10 s.
+//! - `GET /catalog?game=<universe id>`: the values and items added by hand in the Catalog that
+//!   have a path to read, so the script reads them too.
+//!
+//! Reports and the Catalog are kept in `progress.json` in the data folder (not the vault: nothing
+//! in them is secret). Nothing here talks to Roblox except the pictures (`images`, decal ids).
+
+use std::collections::{HashMap, HashSet};
+use std::path::PathBuf;
+use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
+
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use tauri::{AppHandle, Manager, State};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::{TcpListener, TcpStream};
+use ts_rs::TS;
+
+use crate::App;
+use crate::commands::now_ms;
+use crate::error::{AppError, Result};
+
+pub const PORT: u16 = 16390;
+/// An account is online while it reported within this (the script reports every 10 s).
+const ONLINE_MS: i64 = 30_000;
+const MAX_HEAD: usize = 16 * 1024;
+const MAX_BODY: usize = 2 * 1024 * 1024;
+const FILE: &str = "progress.json";
+const REPORTER: &str = include_str!("progress.luau");
+/// Games the reporter knows by itself (`collectMM2`), by universe id: listed before anyone plays them.
+pub const SUPPORTED: [i64; 1] = [66_654_135];
+
+/// A number an account has: coins, candy, a material.
+#[derive(Serialize, Deserialize, TS, Clone, Debug, PartialEq, Default)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct ProgressValue {
+    pub key: String,
+    pub name: String,
+    pub amount: f64,
+    /// A Roblox decal (or image) id; empty: none.
+    #[serde(default)]
+    pub image: String,
+}
+
+/// A line of text an account has ("Battle Pass" 4 of 30).
+#[derive(Serialize, Deserialize, TS, Clone, Debug, PartialEq, Default)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct ProgressStat {
+    pub key: String,
+    pub name: String,
+    pub value: String,
+    #[serde(default)]
+    pub max: Option<f64>,
+}
+
+/// Something an account owns, `count` of it.
+#[derive(Serialize, Deserialize, TS, Clone, Debug, PartialEq, Default)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct ProgressItem {
+    pub id: String,
+    pub name: String,
+    pub rarity: String,
+    /// Weapons, Pets, Materials…
+    pub category: String,
+    pub count: f64,
+    /// A Roblox decal (or image) id; empty: none.
+    #[serde(default)]
+    pub image: String,
+}
+
+/// One account in one game, as its last report said.
+#[derive(Serialize, Deserialize, TS, Clone, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct ProgressAccount {
+    /// `<game id>:<user id>`.
+    pub key: String,
+    /// The PC_NAME the script was given: groups accounts into machines.
+    pub pc: String,
+    /// The universe id (the place id where a game has none).
+    pub game_id: String,
+    pub game_name: String,
+    pub user_id: i64,
+    pub name: String,
+    pub display_name: String,
+    pub level: Option<f64>,
+    pub values: Vec<ProgressValue>,
+    pub stats: Vec<ProgressStat>,
+    pub items: Vec<ProgressItem>,
+    /// Unix ms.
+    pub first_seen: i64,
+    /// Unix ms: its last report.
+    pub last_seen: i64,
+}
+
+#[derive(Serialize, Deserialize, TS, Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub enum CatalogKind {
+    /// A number (coins, candy, a material): a column and a total.
+    #[default]
+    Value,
+    /// Something owned, with a count: a card.
+    Item,
+}
+
+/// A value or item added by hand for a game: its name, picture and rarity in RoALT, and, with a
+/// `source`, where the script reads it.
+#[derive(Serialize, Deserialize, TS, Clone, Debug, PartialEq, Default)]
+#[serde(rename_all = "camelCase", default)]
+#[ts(export)]
+pub struct CatalogEntry {
+    /// The id the game (or the script) uses; a report's value key or item id with this id takes
+    /// this entry's name, picture and rarity.
+    pub id: String,
+    pub kind: CatalogKind,
+    pub name: String,
+    /// Weapons, Pets, Materials… (items).
+    pub category: String,
+    pub rarity: String,
+    /// A Roblox decal id; empty: what the script sends.
+    pub image: String,
+    /// Where the script reads it, e.g. `leaderstats.Coins` (`readPath` in progress.luau); empty:
+    /// only named here.
+    pub source: String,
+}
+
+/// Whether RoALT is listening for reports.
+#[derive(Serialize, TS, Clone, Debug, PartialEq, Default)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct ProgressServer {
+    pub port: u16,
+    pub running: bool,
+    /// Why it isn't (the port is taken), as the OS said it.
+    pub error: Option<String>,
+}
+
+/// Everything the Progress view shows.
+#[derive(Serialize, TS, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct ProgressState {
+    pub accounts: Vec<ProgressAccount>,
+    /// By game id.
+    pub catalog: HashMap<String, Vec<CatalogEntry>>,
+    /// Accounts that stopped reporting this long ago are removed; 0: never.
+    pub auto_delete_hours: u32,
+    pub server: ProgressServer,
+    /// Unix ms, by RoALT's clock (`lastSeen` is too).
+    pub now: i64,
+    pub online_ms: i64,
+    /// Universe ids of games the script knows by itself.
+    pub supported: Vec<i64>,
+}
+
+/// A game's card: its name, icon and players now (`progress_games`).
+#[derive(Serialize, TS, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct ProgressGame {
+    pub universe_id: i64,
+    pub name: String,
+    pub playing: i64,
+    pub icon_url: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase", default)]
+struct Stored {
+    accounts: HashMap<String, ProgressAccount>,
+    catalog: HashMap<String, Vec<CatalogEntry>>,
+    auto_delete_hours: u32,
+}
+
+pub struct Progress {
+    file: PathBuf,
+    stored: Mutex<Stored>,
+    dirty: AtomicBool,
+    server: Mutex<ProgressServer>,
+    /// Decal id → picture URL; None: Roblox has none.
+    images: Mutex<HashMap<i64, Option<String>>>,
+}
+
+impl Progress {
+    pub fn new(data_dir: &std::path::Path) -> Self {
+        let file = data_dir.join(FILE);
+        let stored = match std::fs::read_to_string(&file) {
+            Ok(text) => serde_json::from_str(&text).unwrap_or_else(|e| {
+                log::warn!("progress: {FILE} unreadable, starting empty: {e}");
+                Stored::default()
+            }),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Stored::default(),
+            Err(e) => {
+                log::warn!("progress: can't read {FILE}: {e}");
+                Stored::default()
+            }
+        };
+        Self {
+            file,
+            stored: Mutex::new(stored),
+            dirty: AtomicBool::new(false),
+            server: Mutex::new(ProgressServer { port: PORT, running: false, error: None }),
+            images: Mutex::new(HashMap::new()),
+        }
+    }
+
+    fn stored(&self) -> std::sync::MutexGuard<'_, Stored> {
+        self.stored.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    fn changed(&self) {
+        self.dirty.store(true, Ordering::Relaxed);
+    }
+
+    /// Writes progress.json when something changed since (atomically: a temp file renamed over it).
+    fn save(&self) {
+        if !self.dirty.swap(false, Ordering::Relaxed) {
+            return;
+        }
+        let text = match serde_json::to_string(&*self.stored()) {
+            Ok(t) => t,
+            Err(e) => return log::warn!("progress: can't serialize: {e}"),
+        };
+        let tmp = self.file.with_extension("json.tmp");
+        if let Err(e) = std::fs::write(&tmp, text).and_then(|()| std::fs::rename(&tmp, &self.file)) {
+            log::warn!("progress: can't save {FILE}: {e}");
+            self.changed();
+        }
+    }
+
+    fn auto_delete(&self) {
+        let mut s = self.stored();
+        if s.auto_delete_hours == 0 {
+            return;
+        }
+        let cutoff = now_ms() - i64::from(s.auto_delete_hours) * 3_600_000;
+        let before = s.accounts.len();
+        s.accounts.retain(|_, a| a.last_seen >= cutoff);
+        if s.accounts.len() != before {
+            drop(s);
+            self.changed();
+        }
+    }
+
+    pub fn state(&self) -> ProgressState {
+        let s = self.stored();
+        let mut accounts: Vec<ProgressAccount> = s.accounts.values().cloned().collect();
+        accounts.sort_by(|a, b| a.key.cmp(&b.key));
+        ProgressState {
+            accounts,
+            catalog: s.catalog.clone(),
+            auto_delete_hours: s.auto_delete_hours,
+            server: self.server.lock().unwrap_or_else(|e| e.into_inner()).clone(),
+            now: now_ms(),
+            online_ms: ONLINE_MS,
+            supported: SUPPORTED.to_vec(),
+        }
+    }
+
+    fn accept(&self, body: &Value) -> std::result::Result<(), String> {
+        let now = now_ms();
+        let mut s = self.stored();
+        let prev_first = |key: &str| s.accounts.get(key).map(|a| a.first_seen);
+        let account = parse_report(body, now, prev_first)?;
+        s.accounts.insert(account.key.clone(), account);
+        drop(s);
+        self.changed();
+        Ok(())
+    }
+
+    /// The Catalog entries of a game the script has to read (those with a path), as JSON.
+    fn catalog_for_script(&self, game_id: &str) -> String {
+        let s = self.stored();
+        let list: Vec<Value> = s
+            .catalog
+            .get(game_id)
+            .into_iter()
+            .flatten()
+            .filter(|e| !e.source.trim().is_empty())
+            .map(|e| serde_json::json!({ "id": e.id, "name": e.name, "kind": e.kind, "source": e.source }))
+            .collect();
+        serde_json::to_string(&list).unwrap_or_else(|_| "[]".into())
+    }
+}
+
+// ---------- reports ----------
+
+fn text(v: &Value, max: usize) -> String {
+    let s = match v {
+        Value::String(s) => s.clone(),
+        Value::Number(n) => n.to_string(),
+        Value::Bool(b) => b.to_string(),
+        _ => String::new(),
+    };
+    s.trim().chars().filter(|c| !c.is_control()).take(max).collect()
+}
+
+fn num(v: &Value) -> Option<f64> {
+    match v {
+        Value::Number(n) => n.as_f64(),
+        Value::String(s) => s.trim().replace(',', "").parse().ok(),
+        _ => None,
+    }
+    .filter(|n: &f64| n.is_finite())
+}
+
+/// The digits of a decal id ("rbxassetid://123", "123", 123); empty: none.
+fn decal(v: &Value) -> String {
+    let s = text(v, 80);
+    let digits: String = s.chars().skip_while(|c| !c.is_ascii_digit()).take_while(char::is_ascii_digit).collect();
+    if digits.len() > 18 { String::new() } else { digits }
+}
+
+fn list(v: &Value, max: usize) -> impl Iterator<Item = &Value> {
+    v.as_array().into_iter().flatten().filter(|x| x.is_object()).take(max)
+}
+
+/// A report from the script, checked and trimmed. `first_seen`: the account's earlier first report.
+fn parse_report(body: &Value, now: i64, first_seen: impl Fn(&str) -> Option<i64>) -> std::result::Result<ProgressAccount, String> {
+    let acc = &body["account"];
+    let user_id = num(&acc["userId"]).filter(|n| *n >= 1.0 && n.fract() == 0.0).ok_or("account.userId is required")? as i64;
+    let game = &body["game"];
+    let mut game_id = text(&game["id"], 40);
+    if game_id.is_empty() || game_id == "0" {
+        game_id = text(&game["placeId"], 40);
+    }
+    if game_id.is_empty() {
+        game_id = "unknown".into();
+    }
+    let key = format!("{game_id}:{user_id}");
+    // "values"; "currencies" from an older reporter.
+    let values = if body["values"].is_array() { &body["values"] } else { &body["currencies"] };
+    Ok(ProgressAccount {
+        first_seen: first_seen(&key).unwrap_or(now),
+        key,
+        pc: Some(text(&body["pc"], 60)).filter(|s| !s.is_empty()).unwrap_or_else(|| "Unnamed PC".into()),
+        game_name: Some(text(&game["name"], 80)).filter(|s| !s.is_empty()).unwrap_or_else(|| "Unknown game".into()),
+        game_id,
+        user_id,
+        name: text(&acc["name"], 40),
+        display_name: text(&acc["displayName"], 40),
+        level: num(&body["level"]),
+        values: list(values, 50)
+            .filter_map(|c| {
+                let name = text(&c["name"], 60);
+                let key = Some(text(&c["key"], 80)).filter(|s| !s.is_empty()).unwrap_or_else(|| name.clone());
+                let amount = num(&c["amount"])?;
+                (!key.is_empty()).then(|| ProgressValue { name: if name.is_empty() { key.clone() } else { name }, key, amount, image: decal(&c["image"]) })
+            })
+            .collect(),
+        stats: list(&body["stats"], 20)
+            .filter_map(|s| {
+                let name = text(&s["name"], 60);
+                let key = Some(text(&s["key"], 80)).filter(|k| !k.is_empty()).unwrap_or_else(|| name.clone());
+                (!name.is_empty()).then(|| ProgressStat { key, name, value: text(&s["value"], 60), max: num(&s["max"]) })
+            })
+            .collect(),
+        items: list(&body["items"], 5000)
+            .filter_map(|it| {
+                let id = Some(text(&it["id"], 80)).filter(|s| !s.is_empty()).unwrap_or_else(|| text(&it["name"], 80));
+                if id.is_empty() {
+                    return None;
+                }
+                let category = Some(text(&it["category"], 30)).filter(|s| !s.is_empty()).unwrap_or_else(|| text(&it["type"], 30));
+                Some(ProgressItem {
+                    name: Some(text(&it["name"], 80)).filter(|s| !s.is_empty()).unwrap_or_else(|| id.clone()),
+                    id,
+                    rarity: text(&it["rarity"], 30),
+                    category,
+                    count: num(&it["count"]).unwrap_or(1.0).max(0.0),
+                    image: decal(&it["image"]),
+                })
+            })
+            .collect(),
+        last_seen: now,
+    })
+}
+
+// ---------- the local server ----------
+
+/// Starts listening (once, at start) and the loop that saves and auto-deletes.
+pub fn spawn(handle: AppHandle) {
+    let h = handle.clone();
+    tauri::async_runtime::spawn(async move {
+        let listener = match TcpListener::bind(("127.0.0.1", PORT)).await {
+            Ok(l) => l,
+            Err(e) => {
+                log::warn!("progress: can't listen on port {PORT}: {e}");
+                *h.state::<App>().progress.server.lock().unwrap_or_else(|e| e.into_inner()) = ProgressServer { port: PORT, running: false, error: Some(e.to_string()) };
+                return;
+            }
+        };
+        *h.state::<App>().progress.server.lock().unwrap_or_else(|e| e.into_inner()) = ProgressServer { port: PORT, running: true, error: None };
+        log::info!("progress: listening on 127.0.0.1:{PORT}");
+        loop {
+            let (stream, _) = match listener.accept().await {
+                Ok(c) => c,
+                Err(e) => {
+                    log::debug!("progress: accept failed: {e}");
+                    tokio::time::sleep(Duration::from_millis(200)).await;
+                    continue;
+                }
+            };
+            let h = h.clone();
+            tauri::async_runtime::spawn(async move {
+                if tokio::time::timeout(Duration::from_secs(15), serve(&h, stream)).await.is_err() {
+                    log::debug!("progress: a request timed out");
+                }
+            });
+        }
+    });
+    tauri::async_runtime::spawn(async move {
+        let mut ticks = 0u32;
+        loop {
+            tokio::time::sleep(Duration::from_secs(2)).await;
+            let p = &handle.state::<App>().progress;
+            ticks += 1;
+            if ticks.is_multiple_of(30) {
+                p.auto_delete();
+            }
+            p.save();
+        }
+    });
+}
+
+struct Request {
+    method: String,
+    path: String,
+    query: HashMap<String, String>,
+    host: String,
+    body: Vec<u8>,
+}
+
+async fn read_request(stream: &mut TcpStream) -> Option<Request> {
+    let mut buf = Vec::with_capacity(4096);
+    let mut chunk = [0u8; 8192];
+    let head_end = loop {
+        if let Some(i) = buf.windows(4).position(|w| w == b"\r\n\r\n") {
+            break i;
+        }
+        if buf.len() > MAX_HEAD {
+            return None;
+        }
+        let n = stream.read(&mut chunk).await.ok()?;
+        if n == 0 {
+            return None;
+        }
+        buf.extend_from_slice(&chunk[..n]);
+    };
+    let head = String::from_utf8_lossy(&buf[..head_end]).into_owned();
+    let mut lines = head.split("\r\n");
+    let mut first = lines.next()?.split(' ');
+    let method = first.next()?.to_owned();
+    let target = first.next()?.to_owned();
+    let mut length = 0usize;
+    let mut host = String::new();
+    for line in lines {
+        let Some((k, v)) = line.split_once(':') else { continue };
+        match k.trim().to_ascii_lowercase().as_str() {
+            "content-length" => length = v.trim().parse().ok()?,
+            "host" => host = v.trim().to_owned(),
+            _ => {}
+        }
+    }
+    if length > MAX_BODY {
+        return None;
+    }
+    let mut body = buf[head_end + 4..].to_vec();
+    while body.len() < length {
+        let n = stream.read(&mut chunk).await.ok()?;
+        if n == 0 {
+            return None;
+        }
+        body.extend_from_slice(&chunk[..n]);
+    }
+    body.truncate(length);
+    let url = url::Url::parse(&format!("http://localhost{target}")).ok()?;
+    Some(Request {
+        method,
+        path: url.path().to_owned(),
+        query: url.query_pairs().map(|(k, v)| (k.into_owned(), v.into_owned())).collect(),
+        host,
+        body,
+    })
+}
+
+async fn respond(stream: &mut TcpStream, status: &str, kind: &str, body: &str) {
+    let head = format!(
+        "HTTP/1.1 {status}\r\nContent-Type: {kind}\r\nContent-Length: {}\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n",
+        body.len()
+    );
+    let _ = stream.write_all(head.as_bytes()).await;
+    let _ = stream.write_all(body.as_bytes()).await;
+    let _ = stream.shutdown().await;
+}
+
+const TEXT: &str = "text/plain; charset=utf-8";
+const JSON: &str = "application/json; charset=utf-8";
+
+/// Only what an address may hold, so it is safe inside the Luau string.
+fn clean_host(host: &str) -> String {
+    let h: String = host.chars().filter(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | ':' | '-' | '[' | ']')).take(100).collect();
+    if h.is_empty() { format!("localhost:{PORT}") } else { h }
+}
+
+async fn serve(handle: &AppHandle, mut stream: TcpStream) {
+    let Some(req) = read_request(&mut stream).await else {
+        return respond(&mut stream, "400 Bad Request", TEXT, "bad request").await;
+    };
+    let progress = &handle.state::<App>().progress;
+    match (req.method.as_str(), req.path.as_str()) {
+        ("GET", "/script.luau" | "/script.lua") => {
+            let script = format!("local __PROGRESS_HOST = \"{}\"\n{REPORTER}", clean_host(&req.host));
+            respond(&mut stream, "200 OK", TEXT, &script).await;
+        }
+        ("POST", "/report") | ("GET", "/report") => {
+            let parsed = if req.method == "POST" {
+                serde_json::from_slice::<Value>(&req.body).map_err(|e| e.to_string())
+            } else {
+                req.query.get("d").ok_or_else(|| "d is required".to_owned()).and_then(|d| serde_json::from_str(d).map_err(|e| e.to_string()))
+            };
+            match parsed.and_then(|v| progress.accept(&v)) {
+                Ok(()) => respond(&mut stream, "200 OK", JSON, "{\"ok\":true}").await,
+                Err(e) => respond(&mut stream, "400 Bad Request", JSON, &serde_json::json!({ "ok": false, "error": e }).to_string()).await,
+            }
+        }
+        ("GET", "/catalog") => {
+            let game = req.query.get("game").map(String::as_str).unwrap_or_default();
+            respond(&mut stream, "200 OK", JSON, &progress.catalog_for_script(game)).await;
+        }
+        ("GET", "/") => respond(&mut stream, "200 OK", TEXT, "RoALT Progress is running. Load /script.luau from your executor.").await,
+        _ => respond(&mut stream, "404 Not Found", TEXT, "not found").await,
+    }
+}
+
+// ---------- commands ----------
+
+#[tauri::command]
+pub fn progress_state(s: State<'_, App>) -> ProgressState {
+    s.progress.state()
+}
+
+/// Removes these accounts (`key`s); they come back when they report again. How many went.
+#[tauri::command]
+pub fn progress_remove(s: State<'_, App>, keys: Vec<String>) -> usize {
+    let keys: HashSet<String> = keys.into_iter().collect();
+    let mut st = s.progress.stored();
+    let before = st.accounts.len();
+    st.accounts.retain(|k, _| !keys.contains(k));
+    let removed = before - st.accounts.len();
+    drop(st);
+    s.progress.changed();
+    removed
+}
+
+/// Replaces a game's Catalog. Entries without an id are dropped; ids are unique per kind.
+#[tauri::command]
+pub fn progress_catalog_save(s: State<'_, App>, game_id: String, entries: Vec<CatalogEntry>) -> Result<Vec<CatalogEntry>> {
+    let game_id = game_id.trim().to_owned();
+    if game_id.is_empty() || game_id.len() > 40 {
+        return Err(AppError::Invalid("Not a game id.".into()));
+    }
+    let mut seen = HashSet::new();
+    let cut = |s: &str, n: usize| s.trim().chars().filter(|c| !c.is_control()).take(n).collect::<String>();
+    let clean: Vec<CatalogEntry> = entries
+        .into_iter()
+        .take(1000)
+        .map(|e| CatalogEntry {
+            id: cut(&e.id, 80),
+            kind: e.kind,
+            name: cut(&e.name, 80),
+            category: cut(&e.category, 30),
+            rarity: cut(&e.rarity, 30),
+            image: decal(&Value::String(e.image)),
+            source: cut(&e.source, 300),
+        })
+        .filter(|e| !e.id.is_empty() && seen.insert((e.kind, e.id.clone())))
+        .collect();
+    let mut st = s.progress.stored();
+    if clean.is_empty() {
+        st.catalog.remove(&game_id);
+    } else {
+        st.catalog.insert(game_id, clean.clone());
+    }
+    drop(st);
+    s.progress.changed();
+    Ok(clean)
+}
+
+/// Accounts that stop reporting are removed after `hours`; 0: never.
+#[tauri::command]
+pub fn progress_auto_delete(s: State<'_, App>, hours: u32) {
+    s.progress.stored().auto_delete_hours = hours.min(24 * 365);
+    s.progress.changed();
+    s.progress.auto_delete();
+}
+
+/// Pictures for decal (or image) ids, from Roblox's thumbnails (cached for the session). Ids
+/// without one are missing.
+#[tauri::command]
+pub async fn progress_images(s: State<'_, App>, ids: Vec<i64>) -> Result<HashMap<i64, String>> {
+    let wanted: Vec<i64> = ids.into_iter().filter(|id| *id > 0).collect::<HashSet<_>>().into_iter().take(500).collect();
+    let missing: Vec<i64> = {
+        let cache = s.progress.images.lock().unwrap_or_else(|e| e.into_inner());
+        wanted.iter().copied().filter(|id| !cache.contains_key(id)).collect()
+    };
+    if !missing.is_empty() {
+        let (found, complete) = s.api.asset_icons(&missing).await;
+        let mut cache = s.progress.images.lock().unwrap_or_else(|e| e.into_inner());
+        for id in &missing {
+            match found.get(id) {
+                Some(url) => {
+                    cache.insert(*id, Some(url.clone()));
+                }
+                // Only a full answer says Roblox has none; otherwise ask again next time.
+                None if complete => {
+                    cache.insert(*id, None);
+                }
+                None => {}
+            }
+        }
+    }
+    let cache = s.progress.images.lock().unwrap_or_else(|e| e.into_inner());
+    Ok(wanted.into_iter().filter_map(|id| cache.get(&id).cloned().flatten().map(|u| (id, u))).collect())
+}
+
+/// Names, icons and players now of these universes; ones Roblox doesn't answer for are missing.
+#[tauri::command]
+pub async fn progress_games(s: State<'_, App>, universe_ids: Vec<i64>) -> Result<Vec<ProgressGame>> {
+    let ids: Vec<i64> = universe_ids.into_iter().filter(|id| *id > 0).take(100).collect();
+    let games = s.api.games(&ids).await.inspect_err(|e| log::debug!("progress: games: {e}")).unwrap_or_default();
+    let (icons, _) = s.api.game_icons(&ids).await;
+    Ok(games
+        .into_iter()
+        .map(|g| ProgressGame { icon_url: icons.get(&g.universe_id).cloned(), universe_id: g.universe_id, name: g.name, playing: g.playing })
+        .collect())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn report() {
+        let body = json!({
+            "pc": "PC1",
+            "game": { "id": "66654135", "placeId": 142823291, "name": "Murder Mystery 2" },
+            "account": { "userId": 1001, "name": "alt1", "displayName": "Alt" },
+            "level": 53,
+            "values": [{ "key": "Candy", "name": "Halloween Candy", "amount": 235, "image": "rbxassetid://123" }, { "name": "", "amount": 1 }],
+            "stats": [{ "name": "Battle Pass", "value": "4", "max": 30 }],
+            "items": [{ "id": "Embergun", "rarity": "Legendary", "type": "Weapons", "count": 3, "image": 456 }, { "name": "" }]
+        });
+        let a = parse_report(&body, 5, |_| Some(1)).unwrap();
+        assert_eq!(a.key, "66654135:1001");
+        assert_eq!((a.first_seen, a.last_seen), (1, 5));
+        assert_eq!(a.level, Some(53.0));
+        assert_eq!(a.values, vec![ProgressValue { key: "Candy".into(), name: "Halloween Candy".into(), amount: 235.0, image: "123".into() }]);
+        assert_eq!(a.stats[0].max, Some(30.0));
+        assert_eq!(a.items.len(), 1);
+        assert_eq!((a.items[0].name.as_str(), a.items[0].category.as_str(), a.items[0].count, a.items[0].image.as_str()), ("Embergun", "Weapons", 3.0, "456"));
+    }
+
+    #[test]
+    fn report_needs_a_user() {
+        assert!(parse_report(&json!({ "account": {} }), 0, |_| None).is_err());
+        assert!(parse_report(&json!({ "account": { "userId": 1.5 } }), 0, |_| None).is_err());
+        // The place id stands in for a game id of 0 (Studio, an unpublished place).
+        let a = parse_report(&json!({ "account": { "userId": 7 }, "game": { "id": "0", "placeId": 99 }, "currencies": [{ "name": "Coins", "amount": "1,200" }] }), 0, |_| None).unwrap();
+        assert_eq!(a.key, "99:7");
+        assert_eq!(a.values[0].amount, 1200.0, "an older reporter's currencies");
+        assert_eq!(a.pc, "Unnamed PC");
+    }
+
+    #[test]
+    fn decals() {
+        assert_eq!(decal(&json!("rbxassetid://123")), "123");
+        assert_eq!(decal(&json!("http://www.roblox.com/asset/?id=987")), "987");
+        assert_eq!(decal(&json!(42)), "42");
+        assert_eq!(decal(&json!("none")), "");
+        assert_eq!(clean_host("localhost:16390\"); os.exit()--"), "localhost:16390osexit--");
+    }
+}

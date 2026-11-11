@@ -109,6 +109,15 @@ import type { PlayerStats } from "./bindings/PlayerStats";
 import type { PlayerValue } from "./bindings/PlayerValue";
 export type { PlayerStats, PlayerValue };
 import type { PageCard } from "./bindings/PageCard";
+import type { CatalogEntry } from "./bindings/CatalogEntry";
+import type { ProgressGame } from "./bindings/ProgressGame";
+import type { ProgressState } from "./bindings/ProgressState";
+export type { CatalogEntry, ProgressGame, ProgressState };
+export type { CatalogKind } from "./bindings/CatalogKind";
+export type { ProgressAccount } from "./bindings/ProgressAccount";
+export type { ProgressItem } from "./bindings/ProgressItem";
+export type { ProgressStat } from "./bindings/ProgressStat";
+export type { ProgressValue } from "./bindings/ProgressValue";
 
 /** What instance_show does with a client's window (window::Show). */
 export type WindowShow = "focus" | "minimize" | "restore";
@@ -284,6 +293,17 @@ export const api = {
     invoke<ServerPage>("servers_list", { placeId, order, excludeFull, limit, cursor, accountId }),
   gameInfo: (placeId: number) => invoke<GameInfo>("game_info", { placeId }),
   gameStats: (universeId: number) => invoke<GameStats>("game_stats", { universeId }),
+
+  /** Progress: what alts have in game, as the in-game reporter sends it to RoALT's local port. */
+  progressState: () => invoke<ProgressState>("progress_state"),
+  /** Removes these accounts (`key`s) until they report again; how many went. */
+  progressRemove: (keys: string[]) => invoke<number>("progress_remove", { keys }),
+  /** Replaces a game's Catalog (values and items added by hand); the entries as kept. */
+  progressCatalogSave: (gameId: string, entries: CatalogEntry[]) => invoke<CatalogEntry[]>("progress_catalog_save", { gameId, entries }),
+  progressAutoDelete: (hours: number) => invoke<void>("progress_auto_delete", { hours }),
+  /** Picture URLs for decal ids (as strings of digits, by id); ids without one are missing. */
+  progressImages: (ids: number[]) => invoke<Record<string, string>>("progress_images", { ids }),
+  progressGames: (universeIds: number[]) => invoke<ProgressGame[]>("progress_games", { universeIds }),
   /** Shows the profile card on Browse's page (null: takes it away). */
   browseCard: (card: PageCard | null) => invoke<void>("browse_card", { card }),
   /** A Roblox player's profile, asked as `accountId` (the Browse account). */

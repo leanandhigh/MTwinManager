@@ -58,6 +58,8 @@ pub const GAME_VOTES: &str = "https://games.roblox.com/v1/games/votes?universeId
 pub const GAME_PASSES: &str = "https://apis.roblox.com/game-passes/v1/universes/{}/game-passes?passView=Full&pageSize=100";
 pub const PASS_ICONS: &str = "https://thumbnails.roblox.com/v1/game-passes?gamePassIds={}&size=150x150&format=Png";
 pub const GAME_BADGES: &str = "https://badges.roblox.com/v1/universes/{}/badges?limit=100&sortOrder=Asc";
+/// Progress: any asset's picture (a decal or image id the in-game script or the Catalog gives).
+pub const ASSET_ICONS: &str = "https://thumbnails.roblox.com/v1/assets?assetIds={}&returnPolicy=PlaceHolder&size=150x150&format=Png&isCircular=false";
 pub const BADGE_ICONS: &str = "https://thumbnails.roblox.com/v1/badges/icons?badgeIds={}&size=150x150&format=Png";
 /// An account's limiteds, one row per copy, with their RAP (`recentAveragePrice`). Sent with the
 /// account's own cookie: it sees a private inventory, and the limit is per user, not per address.

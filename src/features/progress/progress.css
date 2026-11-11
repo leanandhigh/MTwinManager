@@ -1,0 +1,453 @@
+/* Progress: what each alt has in game. Cards and tables in the app's own surfaces; rarity tints
+   items (--rc). */
+@layer views {
+  .pg-page {
+    max-width: 1280px;
+    margin-inline: auto;
+  }
+  .pg-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px 24px;
+    margin-bottom: 24px;
+  }
+  .pg-head-tools,
+  .pg-bar-tools,
+  .pg-chips,
+  .pg-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+  .pg-title {
+    flex-wrap: nowrap;
+    min-width: 0;
+  }
+  .pg-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: var(--fs-small);
+  }
+  .pg-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px 16px;
+    margin-bottom: 14px;
+  }
+  .pg-search {
+    width: 220px;
+    max-width: 100%;
+  }
+  .pg-lead {
+    max-width: 70ch;
+  }
+  .pg-none {
+    padding: 28px 0;
+    color: var(--fg-3);
+    text-align: center;
+  }
+  .pg-code {
+    margin: 0;
+    padding: 14px 16px;
+    border-radius: var(--r-md);
+    background: var(--surface-2);
+    box-shadow: inset 0 0 0 1px var(--line);
+    font: 12.5px/1.65 var(--font-code);
+    white-space: pre;
+    overflow-x: auto;
+    user-select: text;
+  }
+
+  /* Pictures: a decal, or initials on the rarity's tint. */
+  .pg-decal {
+    flex: none;
+    border-radius: var(--r-sm);
+    object-fit: contain;
+  }
+  .pg-initials {
+    display: inline-grid;
+    place-items: center;
+    background: color-mix(in srgb, var(--rc, var(--fg-3)) 18%, var(--surface-2));
+    color: var(--rc, var(--fg-2));
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+  .pg-badge {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: var(--r-xs);
+    background: color-mix(in srgb, var(--rc) 16%, transparent);
+    color: var(--rc);
+    font-size: var(--fs-micro);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  /* Games. */
+  .pg-chips {
+    margin-bottom: 14px;
+  }
+  .pg-bar .pg-chips,
+  .pg-bar-tools .pg-chips {
+    margin-bottom: 0;
+  }
+  .pg-games {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 12px;
+  }
+  .pg-game {
+    position: relative;
+    transition: box-shadow var(--dur-fast) var(--ease-out);
+  }
+  .pg-game[data-running] {
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ok) 45%, var(--line));
+  }
+  .pg-game:hover {
+    box-shadow: inset 0 0 0 1px var(--edge);
+  }
+  .pg-game-open {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    text-align: start;
+    border-radius: inherit;
+  }
+  .pg-game-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 44px 12px 14px;
+    min-width: 0;
+  }
+  .pg-game-name {
+    font-weight: 600;
+    line-height: 1.3;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+  .pg-game-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    border-top: 1px solid var(--line);
+  }
+  .pg-game-stats > span {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 9px 4px;
+    color: var(--fg-3);
+    font-size: var(--fs-micro);
+    text-align: center;
+  }
+  .pg-game-stats > span + span {
+    border-inline-start: 1px solid var(--line);
+  }
+  .pg-game-stats b {
+    color: var(--fg);
+    font-size: var(--fs-body);
+    font-variant-numeric: tabular-nums;
+  }
+  .pg-game-stats b[data-on],
+  .pg-tile-v[data-on],
+  .pg-machine-n b[data-on] {
+    color: var(--ok);
+  }
+  .pg-fav {
+    position: absolute;
+    top: 10px;
+    inset-inline-end: 10px;
+  }
+  .pg-fav[aria-pressed="true"],
+  .pg-idle-row .wc[aria-pressed="true"] {
+    color: var(--warn);
+  }
+  .pg-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 40px 24px;
+    text-align: center;
+  }
+  .pg-empty p {
+    max-width: 52ch;
+  }
+  .pg-idle,
+  .pg-suggest {
+    margin-top: 28px;
+  }
+  .pg-idle-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+  .pg-idle-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .pg-idle-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-inline-end: 8px;
+  }
+  .pg-idle-open {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px;
+    text-align: start;
+    border-radius: inherit;
+  }
+  .pg-suggest .pg-chips {
+    margin-top: 10px;
+  }
+
+  /* A game. */
+  .pg-tiles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .pg-tile {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 170px;
+    padding: 12px 16px;
+  }
+  .pg-tile-k {
+    color: var(--fg-3);
+    font-size: var(--fs-meta);
+  }
+  .pg-tile-v {
+    display: block;
+    font-size: var(--fs-section);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .pg-tabs {
+    margin-bottom: 16px;
+  }
+  .pg-items {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+  }
+  .pg-item {
+    --rc: var(--fg-3);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 10px 12px;
+    border-radius: var(--r-lg);
+    background: var(--surface-1);
+    box-shadow: inset 0 0 0 1px var(--line);
+    text-align: center;
+    min-width: 0;
+  }
+  .pg-item:has(.pg-badge) {
+    background: linear-gradient(180deg, color-mix(in srgb, var(--rc) 12%, var(--surface-1)), var(--surface-1) 70%);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--rc) 35%, var(--line));
+  }
+  .pg-item-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    align-self: stretch;
+    gap: 6px;
+    min-height: 18px;
+  }
+  .pg-item-count {
+    margin-inline-start: auto;
+    color: var(--fg-2);
+    font-size: var(--fs-meta);
+    font-weight: 600;
+  }
+  .pg-item-name {
+    max-width: 100%;
+    font-weight: 600;
+    font-size: var(--fs-small);
+  }
+  .pg-item-cat {
+    color: var(--fg-3);
+    font-size: var(--fs-micro);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  /* Tables. */
+  .pg-table-wrap {
+    overflow-x: auto;
+  }
+  .pg-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    min-width: 720px;
+  }
+  .pg-table th {
+    position: static;
+    padding-inline: 10px;
+    white-space: nowrap;
+  }
+  .pg-th {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: inherit;
+    font: inherit;
+  }
+  .pg-th:hover,
+  .pg-table th[aria-sort] {
+    color: var(--fg);
+  }
+  .pg-table td {
+    height: var(--row-h, 48px);
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+  }
+  .pg-row {
+    cursor: pointer;
+  }
+  .pg-row:hover > td {
+    background: var(--hover);
+  }
+  .pg-row[data-selected] > td {
+    background: var(--sel);
+  }
+  .pg-cb {
+    width: 36px;
+  }
+  .pg-pc,
+  .pg-lvl,
+  .pg-val {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .pg-pc {
+    padding: 2px 8px;
+    border-radius: var(--r-pill);
+    background: var(--surface-2);
+    font-size: var(--fs-meta);
+  }
+  .pg-lvl {
+    color: var(--ok);
+    font-weight: 600;
+  }
+  .pg-acc {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    max-width: 260px;
+  }
+  .pg-stack {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .pg-stack-imgs {
+    display: flex;
+  }
+  .pg-stack-imgs > * {
+    border-radius: 50%;
+    box-shadow: 0 0 0 2px var(--ground);
+  }
+  .pg-stack-imgs > * + * {
+    margin-inline-start: -6px;
+  }
+  .pg-sans {
+    font-family: var(--font-ui);
+  }
+  .pg-actions {
+    width: 1%;
+    text-align: end;
+  }
+  .pg-actions > * {
+    display: inline-grid;
+  }
+  .pg-src {
+    max-width: 280px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Machines. */
+  .pg-machines {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 10px;
+  }
+  .pg-machine {
+    position: relative;
+  }
+  .pg-machine[data-selected] {
+    box-shadow: inset 0 0 0 1.5px var(--accent);
+  }
+  .pg-machine-open {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    padding: 14px;
+    text-align: start;
+    border-radius: inherit;
+  }
+  .pg-machine-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-inline-end: 30px;
+    min-width: 0;
+  }
+  .pg-machine-n {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    color: var(--fg-3);
+    font-variant-numeric: tabular-nums;
+  }
+  .pg-machine-n b {
+    color: var(--fg-2);
+    font-size: var(--fs-section);
+  }
+  .pg-machine-del {
+    position: absolute;
+    top: 10px;
+    inset-inline-end: 10px;
+  }
+
+  /* The Catalog's editor. */
+  .pg-form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  @media (max-width: 640px) {
+    .pg-form-row {
+      grid-template-columns: 1fr;
+    }
+  }
+}

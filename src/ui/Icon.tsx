@@ -40,6 +40,8 @@ const paths = {
   news: <><path d="M3 3.5h8.5v8.9A1.6 1.6 0 0 0 13.1 14H4.6A1.6 1.6 0 0 1 3 12.4z" /><path d="M11.5 6.5H13v5.9a1.6 1.6 0 0 1-1.5 1.6M5.4 6.2h3.7M5.4 8.7h3.7M5.4 11.2h2.2" /></>,
   home: <path d="M2.5 7.2 8 2.6l5.5 4.6M4 6v6.4A1.1 1.1 0 0 0 5.1 13.5h5.8a1.1 1.1 0 0 0 1.1-1.1V6M6.6 13.5V10h2.8v3.5" />,
   grid: <><rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1.3" /><rect x="9" y="2.5" width="4.5" height="4.5" rx="1.3" /><rect x="2.5" y="9" width="4.5" height="4.5" rx="1.3" /><rect x="9" y="9" width="4.5" height="4.5" rx="1.3" /></>,
+  pc: <><rect x="2" y="2.75" width="12" height="8.5" rx="1.5" /><path d="M6 14h4M8 11.25V14" /></>,
+  progress: <><path d="M2.5 13.5h11" /><path d="M4.5 13.5V9.5M8 13.5V6M11.5 13.5V3" /></>,
   gauge: <><path d="M2.7 10.65a5.3 5.3 0 1 1 10.6 0" /><path d="M8 10.65l2.6-3.4" /></>,
   servers: <><rect x="2.5" y="2.5" width="11" height="4.5" rx="1.3" /><rect x="2.5" y="9" width="11" height="4.5" rx="1.3" /><path d="M5 4.75h.01M5 11.25h.01" /></>,
   dots: (

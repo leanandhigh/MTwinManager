@@ -36,6 +36,7 @@ const DebugView = lazyView(() => import("../features/debug/DebugView"), (m) => m
 const DiscordView = lazyView(() => import("../features/discord/DiscordView"), (m) => m.DiscordView);
 const LaunchView = lazyView(() => import("../features/launch/LaunchView"), (m) => m.LaunchView);
 const MonitorView = lazyView(() => import("../features/monitor/MonitorView"), (m) => m.MonitorView);
+const ProgressView = lazyView(() => import("../features/progress/ProgressView"), (m) => m.ProgressView);
 const PerformanceView = lazyView(() => import("../features/performance/PerformanceView"), (m) => m.PerformanceView);
 const ServersView = lazyView(() => import("../features/servers/ServersView"), (m) => m.ServersView);
 const SettingsView = lazyView(() => import("../features/settings/SettingsView"), (m) => m.SettingsView);
@@ -351,6 +352,8 @@ export function Shell({ vault, settings, islandSlot }: { vault: VaultStatus; set
             <DiscordView />
           ) : view === "debug" ? (
             <DebugView />
+          ) : view === "progress" ? (
+            <ProgressView accounts={accounts.data} />
           ) : view === "performance" ? (
             <PerformanceView />
           ) : (
