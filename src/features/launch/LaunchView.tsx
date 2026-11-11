@@ -260,7 +260,10 @@ export function LaunchView({ accounts, picked, setPicked, sameServer, setSameSer
   return (
     <main className="scroll flex-1 min-w-0 page pb-0">
       <div ref={root} className="play" data-wide={wide || undefined}>
-        <h1 className="page-title">{t("app.nav.launch")}</h1>
+        <header className="mb-5">
+          <h1 className="page-title">{t("app.nav.launch")}</h1>
+          <p className="page-sub">{t("play.sub")}</p>
+        </header>
         <div className="play-grid">
           <section aria-labelledby="play-who" className="panel play-col play-who">
             <div className="play-head">

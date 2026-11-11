@@ -302,6 +302,7 @@ export function ServerBrowser({ accounts, asker, place, setPlace, onChoice, vari
               <>
                 {waiting && <GameHeadGhost drawer={drawer} />}
                 {!drawer && <h1 className={waiting ? "sr-only" : "page-title"}>{t("servers.title")}</h1>}
+                {!drawer && !waiting && <p className="page-sub">{t("servers.sub")}</p>}
               </>
             )}
           </FadeIn>

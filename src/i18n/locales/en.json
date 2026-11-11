@@ -1783,5 +1783,8 @@
   "app.runningWord": "running",
   "app.updateWord": "Update {version}",
   "app.updatingWord": "Downloading…",
-  "app.publicWord": "Public network"
+  "app.publicWord": "Public network",
+  "play.sub": "Pick who plays and where, then launch.",
+  "monitor.sub": "CPU, memory and state of every client you launched, live.",
+  "servers.sub": "See a game's servers, then join one with any of your accounts."
 }

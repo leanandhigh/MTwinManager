@@ -378,11 +378,14 @@ export function MonitorView({ accounts }: { accounts: AccountSummary[] }) {
 
   return (
     <main className="mon scroll flex-1 min-w-0 min-h-0 page pb-6 flex flex-col gap-6">
-      <header className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <h1 className="page-title">{t("monitor.title")}</h1>
-        <AnimatePresence initial={false}>
-          {running.length > 0 && <LivePill key="live" running={running} beat={metrics.dataUpdatedAt} />}
-        </AnimatePresence>
+      <header>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <h1 className="page-title">{t("monitor.title")}</h1>
+          <AnimatePresence initial={false}>
+            {running.length > 0 && <LivePill key="live" running={running} beat={metrics.dataUpdatedAt} />}
+          </AnimatePresence>
+        </div>
+        <p className="page-sub">{t("monitor.sub")}</p>
       </header>
 
       <AnimatePresence mode="wait" initial={false}>

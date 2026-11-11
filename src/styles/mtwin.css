@@ -590,4 +590,22 @@
     border-radius: var(--r-md);
     box-shadow: inset 0 0 0 1px var(--line), 0 10px 30px -12px rgb(0 0 0 / 0.7);
   }
+
+  /* Every page starts at the same spot, so the title doesn't jump between tabs: left-aligned,
+     forms (Settings, Discord, Performance) one width, data pages one wider one. */
+  .set-page,
+  .dc-page,
+  .perf-page {
+    max-width: 920px;
+    margin-inline: 0;
+  }
+  .up-page,
+  .pg-page {
+    max-width: 1280px;
+    margin-inline: 0;
+  }
+  .page-sub {
+    margin-top: 6px;
+    max-width: 80ch;
+  }
 }
