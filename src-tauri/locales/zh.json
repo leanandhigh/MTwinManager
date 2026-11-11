@@ -258,12 +258,6 @@
   "timed out": "超时",
   "could not connect": "无法连接",
   "connection failed": "连接失败",
-  "Managing Roblox alts": "正在管理 Roblox 小号",
-  "Idling": "闲置中",
-  "Playing {game}": "正在玩 {game}",
-  "Playing a Roblox game": "正在玩 Roblox 游戏",
-  "Get MTwin Hub": "获取 MTwin Hub",
-  "Join Discord": "加入 Discord",
   "GitHub's answer couldn't be read.": "无法读取 GitHub 的响应。",
   "MTwin Hub {version} is out, but without a signed installer. Get it from GitHub Releases.": "MTwin Hub {version} 已发布，但没有已签名的安装程序。请从 GitHub Releases 获取。",
   "The downloaded MTwin Hub installer was not run: its signature didn't check out.": "下载的 MTwin Hub 安装程序未运行：签名校验未通过。",
@@ -333,15 +327,6 @@
   },
   "No server had room for all {n} accounts": {
     "other": "没有服务器能容纳全部 {n} 个账号"
-  },
-  "{n} alts open": {
-    "other": "已打开 {n} 个小号"
-  },
-  "Running {n} alts": {
-    "other": "正在运行 {n} 个小号"
-  },
-  "{n} alts · {games} games": {
-    "other": "{n} 个小号 · {games} 个游戏"
   },
   "Make friends takes up to {max} accounts at a time.": "互加好友一次最多 {max} 个账号。",
   "Pick Fit or Tiny to see where the windows go.": "请选择“适应”或“迷你”来查看窗口的位置。",

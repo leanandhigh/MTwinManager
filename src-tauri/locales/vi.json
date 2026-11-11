@@ -258,12 +258,6 @@
   "timed out": "hết thời gian chờ",
   "could not connect": "không kết nối được",
   "connection failed": "kết nối thất bại",
-  "Managing Roblox alts": "Đang quản lý acc phụ Roblox",
-  "Idling": "Đang rảnh",
-  "Playing {game}": "Đang chơi {game}",
-  "Playing a Roblox game": "Đang chơi game Roblox",
-  "Get MTwin Hub": "Tải MTwin Hub",
-  "Join Discord": "Vào Discord",
   "GitHub's answer couldn't be read.": "Không đọc được phản hồi của GitHub.",
   "MTwin Hub {version} is out, but without a signed installer. Get it from GitHub Releases.": "Đã có MTwin Hub {version}, nhưng không có trình cài đặt được ký. Hãy tải từ GitHub Releases.",
   "The downloaded MTwin Hub installer was not run: its signature didn't check out.": "Trình cài đặt MTwin Hub đã tải không được chạy: chữ ký không hợp lệ.",
@@ -333,15 +327,6 @@
   },
   "No server had room for all {n} accounts": {
     "other": "Không có server nào đủ chỗ cho cả {n} tài khoản"
-  },
-  "{n} alts open": {
-    "other": "{n} acc phụ đang mở"
-  },
-  "Running {n} alts": {
-    "other": "Đang chạy {n} acc phụ"
-  },
-  "{n} alts · {games} games": {
-    "other": "{n} acc phụ · {games} game"
   },
   "Make friends takes up to {max} accounts at a time.": "Kết bạn nhận tối đa {max} tài khoản mỗi lần.",
   "Pick Fit or Tiny to see where the windows go.": "Hãy chọn Vừa hoặc Nhỏ để xem cửa sổ sẽ nằm ở đâu.",

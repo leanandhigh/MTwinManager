@@ -14,7 +14,7 @@ import { Icon } from "../../ui/Icon";
 import { SPRING, Swap, TWEEN, useReducedMotionFlag } from "../../ui/motion";
 import { MenuRadioItem, Popover, useAnchor } from "../../ui/Popover";
 import { Divider, usePanelWidth } from "../../ui/Resizer";
-import { toast } from "../../ui/Toast";
+import { toast, toastError } from "../../ui/Toast";
 import { isLive } from "../launch/Running";
 import { AccountMenu, type MenuAt } from "./AccountMenu";
 import { AccountsTable } from "./AccountsTable";
@@ -82,6 +82,7 @@ export function AccountsView({ accounts, groups, density, vaultMode, clipboardSe
   const [narrow, setNarrow] = useState(false);
   const [sheet, setSheet] = useState(false);
   const [befriendOpen, setBefriendOpen] = useState(false);
+  const [killing, setKilling] = useState(false);
   // Accounts whose cookies "Export cookies" writes: null for all, undefined while closed.
   const [exportIds, setExportIds] = useState<number[] | null | undefined>(undefined);
   const [order, setOrder] = useState<number[] | null>(null);
@@ -409,6 +410,8 @@ export function AccountsView({ accounts, groups, density, vaultMode, clipboardSe
             mainSkipped={mainSkipped}
             checking={checking !== undefined}
             befriending={befriend.isPending}
+            running={checkedIds.filter((id) => live.has(id)).length}
+            onKill={() => setKilling(true)}
             onCheckAll={() => runValidate()}
             onCheck={() => runValidate(checkedIds)}
             onExport={setExportIds}
@@ -593,6 +596,25 @@ export function AccountsView({ accounts, groups, density, vaultMode, clipboardSe
           </>
         }
         confirmLabel={t("accounts.befriend")}
+      />
+      <ConfirmDialog
+        open={killing}
+        onClose={() => setKilling(false)}
+        onConfirm={() => {
+          setKilling(false);
+          const targets = checkedIds.flatMap((id) => {
+            const i = live.get(id);
+            return i ? [i] : [];
+          });
+          void Promise.allSettled(targets.map((i) => api.instanceClose(i.id, true))).then((r) => {
+            const failed = r.find((x) => x.status === "rejected");
+            if (failed) toastError((failed as PromiseRejectedResult).reason);
+            else toast(t("accounts.killed", { n: targets.length }));
+          });
+        }}
+        title={t("accounts.killTitle", { n: checkedIds.filter((id) => live.has(id)).length })}
+        text={t("accounts.killText")}
+        confirmLabel={t("accounts.killSelected")}
       />
       <ExportCookies ids={exportIds} accounts={accounts} vaultMode={vaultMode} onClose={() => setExportIds(undefined)} />
     </>

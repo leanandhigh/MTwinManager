@@ -258,12 +258,6 @@
   "timed out": "انتهت المهلة",
   "could not connect": "تعذّر الاتصال",
   "connection failed": "فشل الاتصال",
-  "Managing Roblox alts": "إدارة حسابات Roblox الثانوية",
-  "Idling": "خامل",
-  "Playing {game}": "يلعب {game}",
-  "Playing a Roblox game": "يلعب لعبة Roblox",
-  "Get MTwin Hub": "احصل على MTwin Hub",
-  "Join Discord": "انضم إلى Discord",
   "GitHub's answer couldn't be read.": "تعذّرت قراءة إجابة GitHub.",
   "MTwin Hub {version} is out, but without a signed installer. Get it from GitHub Releases.": "صدر MTwin Hub {version}، لكن دون مثبّت موقَّع. احصل عليه من GitHub Releases.",
   "The downloaded MTwin Hub installer was not run: its signature didn't check out.": "لم يُشغَّل مثبّت MTwin Hub الذي تم تنزيله: فشل التحقق من توقيعه.",
@@ -373,30 +367,6 @@
     "few": "لا خادم فيه مكان لكل الحسابات الـ {n}",
     "many": "لا خادم فيه مكان لكل الحسابات الـ {n}",
     "other": "لا خادم فيه مكان لكل الحسابات الـ {n}"
-  },
-  "{n} alts open": {
-    "zero": "لا حسابات ثانوية مفتوحة",
-    "one": "حساب ثانوي واحد مفتوح",
-    "two": "حسابان ثانويان مفتوحان",
-    "few": "{n} حسابات ثانوية مفتوحة",
-    "many": "{n} حسابًا ثانويًا مفتوحًا",
-    "other": "{n} حساب ثانوي مفتوح"
-  },
-  "Running {n} alts": {
-    "zero": "لا حسابات ثانوية قيد التشغيل",
-    "one": "تشغيل حساب ثانوي واحد",
-    "two": "تشغيل حسابين ثانويين",
-    "few": "تشغيل {n} حسابات ثانوية",
-    "many": "تشغيل {n} حسابًا ثانويًا",
-    "other": "تشغيل {n} حساب ثانوي"
-  },
-  "{n} alts · {games} games": {
-    "zero": "لا حسابات ثانوية · {games} ألعاب",
-    "one": "حساب ثانوي واحد · {games} ألعاب",
-    "two": "حسابان ثانويان · {games} ألعاب",
-    "few": "{n} حسابات ثانوية · {games} ألعاب",
-    "many": "{n} حسابًا ثانويًا · {games} ألعاب",
-    "other": "{n} حساب ثانوي · {games} ألعاب"
   },
   "Make friends takes up to {max} accounts at a time.": "تكوين الصداقات يقبل {max} حسابًا كحد أقصى في كل مرة.",
   "Pick Fit or Tiny to see where the windows go.": "اختر ملاءمة أو صغير لترى أين ستذهب النوافذ.",

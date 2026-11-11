@@ -258,12 +258,6 @@
   "timed out": "タイムアウトしました",
   "could not connect": "接続できませんでした",
   "connection failed": "接続に失敗しました",
-  "Managing Roblox alts": "Roblox のサブ垢を管理中",
-  "Idling": "待機中",
-  "Playing {game}": "{game} をプレイ中",
-  "Playing a Roblox game": "Roblox のゲームをプレイ中",
-  "Get MTwin Hub": "MTwin Hub を入手",
-  "Join Discord": "Discord に参加",
   "GitHub's answer couldn't be read.": "GitHub の応答を読み取れませんでした。",
   "MTwin Hub {version} is out, but without a signed installer. Get it from GitHub Releases.": "MTwin Hub {version} が公開されましたが、署名付きインストーラーがありません。GitHub Releases から入手してください。",
   "The downloaded MTwin Hub installer was not run: its signature didn't check out.": "ダウンロードした MTwin Hub のインストーラーは実行しませんでした: 署名を検証できませんでした。",
@@ -333,15 +327,6 @@
   },
   "No server had room for all {n} accounts": {
     "other": "{n} 件のアカウントすべてが入れるサーバーはありませんでした"
-  },
-  "{n} alts open": {
-    "other": "サブ垢 {n} 個を起動中"
-  },
-  "Running {n} alts": {
-    "other": "サブ垢 {n} 個を実行中"
-  },
-  "{n} alts · {games} games": {
-    "other": "サブ垢 {n} 個・{games} ゲーム"
   },
   "Make friends takes up to {max} accounts at a time.": "フレンド登録は一度に最大 {max} アカウントまでです。",
   "Pick Fit or Tiny to see where the windows go.": "ウィンドウの位置を見るには、フィットか極小を選んでください。",

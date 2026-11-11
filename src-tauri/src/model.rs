@@ -298,7 +298,7 @@ pub struct Settings {
     /// Ask GitHub for a newer RoALT at start and every 6 hours (`self_update`); it is offered,
     /// never installed without a click.
     pub self_update: bool,
-    /// Discord rich presence through the Discord app on this PC (`rpc`): "Playing RoALT" with
+    /// Unused: Discord rich presence was removed. Kept so older settings still read. Was:
     /// the game and how many alts run.
     pub discord_presence: bool,
     /// Ping RoALT's online counter every 2 minutes with a random id made once per launch, and

@@ -921,7 +921,7 @@
   "discord.statusSummaryHint": "运行中的客户端数量及其 RAM 和 CPU。",
   "discord.minutesUnit": "分钟，0 表示关闭",
   "discord.min": "分钟",
-  "discord.lead": "你的 Discord 状态，以及频道中的提醒。",
+  "discord.lead": "Alerts in a Discord channel.",
   "discord.presenceShort": "在你的 Discord 资料中显示“正在玩 MTwin Hub”。",
   "discord.removeWebhook": "移除 Webhook",
   "monitor.gb": "{n} GB",
@@ -1703,5 +1703,10 @@
   "executor.robloxLive": "Roblox live",
   "executor.thisPc": "This PC",
   "executor.yours": "Your executor",
-  "executor.yoursHint": "Chosen in Settings, Launching: Roblox is kept on the version it supports."
+  "executor.yoursHint": "Chosen in Settings, Launching: Roblox is kept on the version it supports.",
+  "accounts.killSelected": "Kill selected",
+  "accounts.killNone": "None of the selected accounts has a Roblox client running.",
+  "accounts.killTitle": "Kill {n} Roblox client(s)?",
+  "accounts.killText": "Only the selected accounts' clients are ended, at once; the others keep running.",
+  "accounts.killed": "Killed {n} client(s)"
 }

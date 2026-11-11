@@ -29,7 +29,7 @@ export function Counted({ k, n }: { k: Key; n: number }) {
 
 /** The header's one pill. At rest: check, export, add. With rows ticked it morphs into what applies to
  * them; reasons for what won't work show in the line under it, never in a tooltip alone. */
-export function AccountsToolbar({ total, selected, groups, playable, friendable, mainSkipped, checking, befriending, onCheckAll, onCheck, onExport, onAdd, onPlay, onBefriend, onAddToGroup, onRemove, onClear }: {
+export function AccountsToolbar({ total, selected, groups, playable, friendable, mainSkipped, checking, befriending, running, onKill, onCheckAll, onCheck, onExport, onAdd, onPlay, onBefriend, onAddToGroup, onRemove, onClear }: {
   total: number;
   /** Ticked account ids. */
   selected: number[];
@@ -42,6 +42,9 @@ export function AccountsToolbar({ total, selected, groups, playable, friendable,
   /** A sign-in check runs (one at a time: the others wait for it). */
   checking: boolean;
   befriending: boolean;
+  /** How many of the ticked have a Roblox client running (Kill selected). */
+  running: number;
+  onKill: () => void;
   onCheckAll: () => void;
   onCheck: () => void;
   onExport: (ids: number[] | null) => void;
@@ -177,6 +180,17 @@ export function AccountsToolbar({ total, selected, groups, playable, friendable,
         </>
       )}
       <PillSeparator />
+      <Button
+        variant="ghost"
+        size="md"
+        icon="stop"
+        className="acc-danger"
+        aria-disabled={running === 0 || undefined}
+        data-tip={running === 0 ? t("accounts.killNone") : undefined}
+        onClick={() => running > 0 && onKill()}
+      >
+        {t("accounts.killSelected")}
+      </Button>
       <Button variant="ghost" size="md" icon="trash" className="acc-danger" onClick={onRemove}>
         {t("common.removeEllipsis")}
       </Button>

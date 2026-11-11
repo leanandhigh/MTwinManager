@@ -243,12 +243,6 @@
   "timed out": "isteklo vrijeme",
   "could not connect": "povezivanje nije uspjelo",
   "connection failed": "veza nije uspjela",
-  "Managing Roblox alts": "Upravlja Roblox altovima",
-  "Idling": "Neaktivan",
-  "Playing {game}": "Igra {game}",
-  "Playing a Roblox game": "Igra Roblox igru",
-  "Get MTwin Hub": "Preuzmi MTwin Hub",
-  "Join Discord": "Pridruži se Discordu",
   "GitHub's answer couldn't be read.": "GitHubov odgovor se nije mogao pročitati.",
   "MTwin Hub {version} is out, but without a signed installer. Get it from GitHub Releases.": "Izašao je MTwin Hub {version}, ali bez potpisanog instalatera. Preuzmite ga s GitHub Releases.",
   "The downloaded MTwin Hub installer was not run: its signature didn't check out.": "Preuzeti MTwin Hub instalater nije pokrenut: njegov potpis nije prošao provjeru.",
@@ -335,21 +329,6 @@
     "one": "Nijedan server nije imao mjesta za svih {n} račun",
     "few": "Nijedan server nije imao mjesta za sva {n} računa",
     "other": "Nijedan server nije imao mjesta za svih {n} računa"
-  },
-  "{n} alts open": {
-    "one": "{n} alt otvoren",
-    "few": "{n} alta otvorena",
-    "other": "{n} altova otvoreno"
-  },
-  "Running {n} alts": {
-    "one": "Pokrenut {n} alt",
-    "few": "Pokrenuta {n} alta",
-    "other": "Pokrenuto {n} altova"
-  },
-  "{n} alts · {games} games": {
-    "one": "{n} alt · igara: {games}",
-    "few": "{n} alta · igara: {games}",
-    "other": "{n} altova · igara: {games}"
   },
   "Roblox has an update, and your bootstrapper (e.g. Bloxstrap) would close every running client to install it. Close your clients first, then launch.": "Roblox ima ažuriranje, a vaš bootstrapper (npr. Bloxstrap) bi zatvorio sve pokrenute klijente da ga instalira. Prvo zatvorite klijente, pa onda pokrenite.",
   "Roblox has an update, and installing it would close every running client. Close your clients first, then launch.": "Roblox ima ažuriranje, a njegova instalacija bi zatvorila sve pokrenute klijente. Prvo zatvorite klijente, pa onda pokrenite.",

@@ -921,7 +921,7 @@
   "discord.statusSummaryHint": "Berapa banyak klien yang berjalan, beserta RAM dan CPU-nya.",
   "discord.minutesUnit": "menit, 0 untuk mati",
   "discord.min": "mnt",
-  "discord.lead": "Status Discord Anda, dan peringatan di channel.",
+  "discord.lead": "Alerts in a Discord channel.",
   "discord.presenceShort": "“Bermain MTwin Hub” di profil Discord Anda.",
   "discord.removeWebhook": "Hapus webhook",
   "monitor.gb": "{n} GB",
@@ -1703,5 +1703,10 @@
   "executor.robloxLive": "Roblox live",
   "executor.thisPc": "This PC",
   "executor.yours": "Your executor",
-  "executor.yoursHint": "Chosen in Settings, Launching: Roblox is kept on the version it supports."
+  "executor.yoursHint": "Chosen in Settings, Launching: Roblox is kept on the version it supports.",
+  "accounts.killSelected": "Kill selected",
+  "accounts.killNone": "None of the selected accounts has a Roblox client running.",
+  "accounts.killTitle": "Kill {n} Roblox client(s)?",
+  "accounts.killText": "Only the selected accounts' clients are ended, at once; the others keep running.",
+  "accounts.killed": "Killed {n} client(s)"
 }

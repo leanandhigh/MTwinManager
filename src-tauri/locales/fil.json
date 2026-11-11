@@ -258,12 +258,6 @@
   "timed out": "nag-time out",
   "could not connect": "hindi makakonekta",
   "connection failed": "pumalya ang connection",
-  "Managing Roblox alts": "Nagma-manage ng Roblox alts",
-  "Idling": "Idle",
-  "Playing {game}": "Naglalaro ng {game}",
-  "Playing a Roblox game": "Naglalaro ng Roblox game",
-  "Get MTwin Hub": "Kunin ang MTwin Hub",
-  "Join Discord": "Sumali sa Discord",
   "GitHub's answer couldn't be read.": "Hindi mabasa ang sagot ng GitHub.",
   "MTwin Hub {version} is out, but without a signed installer. Get it from GitHub Releases.": "Labas na ang MTwin Hub {version}, pero walang signed installer. Kunin ito sa GitHub Releases.",
   "The downloaded MTwin Hub installer was not run: its signature didn't check out.": "Hindi pinatakbo ang na-download na MTwin Hub installer: hindi pumasa ang signature nito.",
@@ -341,18 +335,6 @@
   "No server had room for all {n} accounts": {
     "one": "Walang server na may puwang para sa lahat ng {n} account",
     "other": "Walang server na may puwang para sa lahat ng {n} account"
-  },
-  "{n} alts open": {
-    "one": "{n} alt ang bukas",
-    "other": "{n} alts ang bukas"
-  },
-  "Running {n} alts": {
-    "one": "Nagpapatakbo ng {n} alt",
-    "other": "Nagpapatakbo ng {n} alts"
-  },
-  "{n} alts · {games} games": {
-    "one": "{n} alt · {games} laro",
-    "other": "{n} alts · {games} laro"
   },
   "Make friends takes up to {max} accounts at a time.": "Hanggang {max} account lang ang kaya ng Gawing magkaibigan bawat takbo.",
   "Pick Fit or Tiny to see where the windows go.": "Piliin ang Fit o Tiny para makita kung saan mapupunta ang mga window.",

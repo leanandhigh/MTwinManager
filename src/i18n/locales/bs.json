@@ -1013,7 +1013,7 @@
   "discord.statusSummaryHint": "Koliko klijenata radi, uz njihov RAM i CPU.",
   "discord.minutesUnit": "minuta, 0 za isključeno",
   "discord.min": "min",
-  "discord.lead": "Vaš Discord status i obavještenja u kanalu.",
+  "discord.lead": "Alerts in a Discord channel.",
   "discord.presenceShort": "„Igra MTwin Hub” na vašem Discord profilu.",
   "discord.removeWebhook": "Ukloni webhook",
   "monitor.gb": "{n} GB",
@@ -1817,5 +1817,10 @@
   "executor.robloxLive": "Roblox live",
   "executor.thisPc": "This PC",
   "executor.yours": "Your executor",
-  "executor.yoursHint": "Chosen in Settings, Launching: Roblox is kept on the version it supports."
+  "executor.yoursHint": "Chosen in Settings, Launching: Roblox is kept on the version it supports.",
+  "accounts.killSelected": "Kill selected",
+  "accounts.killNone": "None of the selected accounts has a Roblox client running.",
+  "accounts.killTitle": "Kill {n} Roblox client(s)?",
+  "accounts.killText": "Only the selected accounts' clients are ended, at once; the others keep running.",
+  "accounts.killed": "Killed {n} client(s)"
 }

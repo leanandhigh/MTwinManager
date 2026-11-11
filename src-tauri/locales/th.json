@@ -258,12 +258,6 @@
   "timed out": "หมดเวลา",
   "could not connect": "เชื่อมต่อไม่ได้",
   "connection failed": "การเชื่อมต่อล้มเหลว",
-  "Managing Roblox alts": "กำลังจัดการบัญชีรอง Roblox",
-  "Idling": "ว่างอยู่",
-  "Playing {game}": "กำลังเล่น {game}",
-  "Playing a Roblox game": "กำลังเล่นเกม Roblox",
-  "Get MTwin Hub": "รับ MTwin Hub",
-  "Join Discord": "เข้าร่วม Discord",
   "GitHub's answer couldn't be read.": "อ่านการตอบกลับของ GitHub ไม่ได้",
   "MTwin Hub {version} is out, but without a signed installer. Get it from GitHub Releases.": "MTwin Hub {version} ออกแล้ว แต่ไม่มีตัวติดตั้งที่ลงลายเซ็น ดาวน์โหลดจาก GitHub Releases",
   "The downloaded MTwin Hub installer was not run: its signature didn't check out.": "ไม่ได้เรียกใช้ตัวติดตั้ง MTwin Hub ที่ดาวน์โหลด: ลายเซ็นตรวจสอบไม่ผ่าน",
@@ -333,15 +327,6 @@
   },
   "No server had room for all {n} accounts": {
     "other": "ไม่มีเซิร์ฟเวอร์ที่ว่างพอสำหรับทั้ง {n} บัญชี"
-  },
-  "{n} alts open": {
-    "other": "เปิดบัญชีรอง {n} บัญชี"
-  },
-  "Running {n} alts": {
-    "other": "กำลังรันบัญชีรอง {n} บัญชี"
-  },
-  "{n} alts · {games} games": {
-    "other": "บัญชีรอง {n} · {games} เกม"
   },
   "Make friends takes up to {max} accounts at a time.": "เป็นเพื่อนกันได้ครั้งละไม่เกิน {max} บัญชี",
   "Pick Fit or Tiny to see where the windows go.": "เลือก พอดี หรือ จิ๋ว เพื่อดูว่าหน้าต่างจะไปอยู่ตรงไหน",

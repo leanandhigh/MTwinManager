@@ -258,12 +258,6 @@
   "timed out": "시간 초과",
   "could not connect": "연결할 수 없음",
   "connection failed": "연결 실패",
-  "Managing Roblox alts": "Roblox 부계정 관리 중",
-  "Idling": "대기 중",
-  "Playing {game}": "{game} 플레이 중",
-  "Playing a Roblox game": "Roblox 게임 플레이 중",
-  "Get MTwin Hub": "MTwin Hub 받기",
-  "Join Discord": "Discord 참가",
   "GitHub's answer couldn't be read.": "GitHub 응답을 읽을 수 없어요.",
   "MTwin Hub {version} is out, but without a signed installer. Get it from GitHub Releases.": "MTwin Hub {version}이(가) 나왔지만 서명된 설치 프로그램이 없어요. GitHub Releases에서 받으세요.",
   "The downloaded MTwin Hub installer was not run: its signature didn't check out.": "다운로드한 MTwin Hub 설치 프로그램을 실행하지 않았어요. 서명 확인에 실패했어요.",
@@ -333,15 +327,6 @@
   },
   "No server had room for all {n} accounts": {
     "other": "계정 {n}개가 모두 들어갈 자리가 있는 서버가 없어요"
-  },
-  "{n} alts open": {
-    "other": "부계정 {n}개 실행 중"
-  },
-  "Running {n} alts": {
-    "other": "부계정 {n}개 실행 중"
-  },
-  "{n} alts · {games} games": {
-    "other": "부계정 {n}개 · 게임 {games}개"
   },
   "Make friends takes up to {max} accounts at a time.": "친구 맺기는 한 번에 최대 {max}개 계정까지예요.",
   "Pick Fit or Tiny to see where the windows go.": "창이 어디에 놓일지 보려면 맞춤이나 작게를 고르세요.",

@@ -243,12 +243,6 @@
   "timed out": "время ожидания истекло",
   "could not connect": "не удалось подключиться",
   "connection failed": "ошибка подключения",
-  "Managing Roblox alts": "Управляет альтами Roblox",
-  "Idling": "Бездействует",
-  "Playing {game}": "Играет в {game}",
-  "Playing a Roblox game": "Играет в игру Roblox",
-  "Get MTwin Hub": "Скачать MTwin Hub",
-  "Join Discord": "Зайти в Discord",
   "GitHub's answer couldn't be read.": "Не удалось прочитать ответ GitHub.",
   "MTwin Hub {version} is out, but without a signed installer. Get it from GitHub Releases.": "Вышел MTwin Hub {version}, но без подписанного установщика. Скачайте его с GitHub Releases.",
   "The downloaded MTwin Hub installer was not run: its signature didn't check out.": "Загруженный установщик MTwin Hub не запущен: его подпись не прошла проверку.",
@@ -335,21 +329,6 @@
     "one": "Ни на одном сервере не было места для всех {n} аккаунта",
     "few": "Ни на одном сервере не было места для всех {n} аккаунтов",
     "many": "Ни на одном сервере не было места для всех {n} аккаунтов"
-  },
-  "{n} alts open": {
-    "one": "Открыт {n} альт",
-    "few": "Открыто {n} альта",
-    "many": "Открыто {n} альтов"
-  },
-  "Running {n} alts": {
-    "one": "Запущен {n} альт",
-    "few": "Запущено {n} альта",
-    "many": "Запущено {n} альтов"
-  },
-  "{n} alts · {games} games": {
-    "one": "{n} альт · игр: {games}",
-    "few": "{n} альта · игр: {games}",
-    "many": "{n} альтов · игр: {games}"
   },
   "Roblox has an update, and your bootstrapper (e.g. Bloxstrap) would close every running client to install it. Close your clients first, then launch.": "У Roblox есть обновление, и ваш бутстраппер (например, Bloxstrap) закроет все запущенные клиенты, чтобы его установить. Сначала закройте клиенты, затем запускайте.",
   "Roblox has an update, and installing it would close every running client. Close your clients first, then launch.": "У Roblox есть обновление, и его установка закроет все запущенные клиенты. Сначала закройте клиенты, затем запускайте.",

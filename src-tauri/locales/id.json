@@ -243,12 +243,6 @@
   "timed out": "waktu habis",
   "could not connect": "tidak dapat terhubung",
   "connection failed": "koneksi gagal",
-  "Managing Roblox alts": "Mengelola alt Roblox",
-  "Idling": "Menganggur",
-  "Playing {game}": "Bermain {game}",
-  "Playing a Roblox game": "Bermain game Roblox",
-  "Get MTwin Hub": "Dapatkan MTwin Hub",
-  "Join Discord": "Gabung Discord",
   "GitHub's answer couldn't be read.": "Jawaban GitHub tidak dapat dibaca.",
   "MTwin Hub {version} is out, but without a signed installer. Get it from GitHub Releases.": "MTwin Hub {version} sudah rilis, tetapi tanpa penginstal bertanda tangan. Unduh dari GitHub Releases.",
   "The downloaded MTwin Hub installer was not run: its signature didn't check out.": "Penginstal MTwin Hub yang diunduh tidak dijalankan: tanda tangannya tidak lolos pemeriksaan.",
@@ -319,15 +313,6 @@
   },
   "No server had room for all {n} accounts": {
     "other": "Tidak ada server yang muat untuk semua {n} akun"
-  },
-  "{n} alts open": {
-    "other": "{n} alt terbuka"
-  },
-  "Running {n} alts": {
-    "other": "Menjalankan {n} alt"
-  },
-  "{n} alts · {games} games": {
-    "other": "{n} alt · {games} game"
   },
   "Roblox has an update, and your bootstrapper (e.g. Bloxstrap) would close every running client to install it. Close your clients first, then launch.": "Roblox punya pembaruan, dan bootstrapper Anda (mis. Bloxstrap) akan menutup semua klien yang berjalan untuk memasangnya. Tutup klien Anda dulu, lalu luncurkan.",
   "Roblox has an update, and installing it would close every running client. Close your clients first, then launch.": "Roblox punya pembaruan, dan memasangnya akan menutup semua klien yang berjalan. Tutup klien Anda dulu, lalu luncurkan.",

@@ -1516,17 +1516,6 @@ pub fn bulk_current(s: State<'_, App>) -> Option<BulkProgress> {
 // ---------- servers ----------
 
 /// The game behind a place: name, creator, players, icon, whether it sells private servers.
-/// The game's name from what the app cached (`game_info`), however old; never asks Roblox.
-pub(crate) fn cached_game_name(s: &App, place_id: i64) -> Option<String> {
-    s.db.cache_get(&format!("game:{place_id}"), i64::MAX / 2, now_ms())
-        .ok()
-        .flatten()
-        .and_then(|(json, _)| {
-            serde_json::from_str::<GameInfo>(&json).inspect_err(|e| log::debug!("cached game {place_id} unreadable: {e}")).ok()
-        })
-        .map(|g| g.name)
-}
-
 /// Cached for `settings.cache_minutes` (key `game:<place_id>`, JSON of `GameInfo`). No cookie.
 /// `NotFound` when Roblox knows no such place (no universe) or no such game.
 #[tauri::command]

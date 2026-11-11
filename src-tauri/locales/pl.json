@@ -243,12 +243,6 @@
   "timed out": "przekroczono limit czasu",
   "could not connect": "nie udało się połączyć",
   "connection failed": "połączenie nie powiodło się",
-  "Managing Roblox alts": "Zarządza altami Roblox",
-  "Idling": "Bezczynny",
-  "Playing {game}": "Gra w {game}",
-  "Playing a Roblox game": "Gra w grę Roblox",
-  "Get MTwin Hub": "Pobierz MTwin Hub",
-  "Join Discord": "Dołącz do Discorda",
   "GitHub's answer couldn't be read.": "Nie udało się odczytać odpowiedzi GitHub.",
   "MTwin Hub {version} is out, but without a signed installer. Get it from GitHub Releases.": "Wyszedł MTwin Hub {version}, ale bez podpisanego instalatora. Pobierz go z GitHub Releases.",
   "The downloaded MTwin Hub installer was not run: its signature didn't check out.": "Pobrany instalator MTwin Hub nie został uruchomiony: jego podpis nie przeszedł weryfikacji.",
@@ -335,21 +329,6 @@
     "one": "Żaden serwer nie miał miejsca dla {n} konta",
     "few": "Żaden serwer nie miał miejsca dla wszystkich {n} kont",
     "many": "Żaden serwer nie miał miejsca dla wszystkich {n} kont"
-  },
-  "{n} alts open": {
-    "one": "Otwarty {n} alt",
-    "few": "Otwarte {n} alty",
-    "many": "Otwartych {n} altów"
-  },
-  "Running {n} alts": {
-    "one": "Działa {n} alt",
-    "few": "Działają {n} alty",
-    "many": "Działa {n} altów"
-  },
-  "{n} alts · {games} games": {
-    "one": "{n} alt · gry: {games}",
-    "few": "{n} alty · gry: {games}",
-    "many": "{n} altów · gry: {games}"
   },
   "Roblox has an update, and your bootstrapper (e.g. Bloxstrap) would close every running client to install it. Close your clients first, then launch.": "Roblox ma aktualizację, a twój bootstrapper (np. Bloxstrap) zamknąłby wszystkich działających klientów, aby ją zainstalować. Najpierw zamknij klientów, potem uruchamiaj.",
   "Roblox has an update, and installing it would close every running client. Close your clients first, then launch.": "Roblox ma aktualizację, a jej instalacja zamknęłaby wszystkich działających klientów. Najpierw zamknij klientów, potem uruchamiaj.",

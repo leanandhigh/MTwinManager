@@ -258,12 +258,6 @@
   "timed out": "se agotó el tiempo",
   "could not connect": "no se pudo conectar",
   "connection failed": "falló la conexión",
-  "Managing Roblox alts": "Gestionando alts de Roblox",
-  "Idling": "Inactivo",
-  "Playing {game}": "Jugando a {game}",
-  "Playing a Roblox game": "Jugando a un juego de Roblox",
-  "Get MTwin Hub": "Obtener MTwin Hub",
-  "Join Discord": "Unirse a Discord",
   "GitHub's answer couldn't be read.": "No se pudo leer la respuesta de GitHub.",
   "MTwin Hub {version} is out, but without a signed installer. Get it from GitHub Releases.": "Ya salió MTwin Hub {version}, pero sin instalador firmado. Descárgalo de GitHub Releases.",
   "The downloaded MTwin Hub installer was not run: its signature didn't check out.": "El instalador de MTwin Hub descargado no se ejecutó: su firma no es válida.",
@@ -341,18 +335,6 @@
   "No server had room for all {n} accounts": {
     "one": "Ningún servidor tenía espacio para {n} cuenta",
     "other": "Ningún servidor tenía espacio para las {n} cuentas"
-  },
-  "{n} alts open": {
-    "one": "{n} alt abierto",
-    "other": "{n} alts abiertos"
-  },
-  "Running {n} alts": {
-    "one": "Ejecutando {n} alt",
-    "other": "Ejecutando {n} alts"
-  },
-  "{n} alts · {games} games": {
-    "one": "{n} alt · {games} juegos",
-    "other": "{n} alts · {games} juegos"
   },
   "Make friends takes up to {max} accounts at a time.": "Hacer amigos acepta hasta {max} cuentas a la vez.",
   "Pick Fit or Tiny to see where the windows go.": "Elige Ajustar o Diminuto para ver dónde irán las ventanas.",

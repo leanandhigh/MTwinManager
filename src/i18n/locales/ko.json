@@ -921,7 +921,7 @@
   "discord.statusSummaryHint": "실행 중인 클라이언트 수와 RAM, CPU예요.",
   "discord.minutesUnit": "분, 0이면 끔",
   "discord.min": "분",
-  "discord.lead": "내 Discord 상태와 채널 알림.",
+  "discord.lead": "Alerts in a Discord channel.",
   "discord.presenceShort": "Discord 프로필에 “MTwin Hub 플레이 중”을 표시해요.",
   "discord.removeWebhook": "웹훅 제거",
   "monitor.gb": "{n} GB",
@@ -1703,5 +1703,10 @@
   "executor.robloxLive": "Roblox live",
   "executor.thisPc": "This PC",
   "executor.yours": "Your executor",
-  "executor.yoursHint": "Chosen in Settings, Launching: Roblox is kept on the version it supports."
+  "executor.yoursHint": "Chosen in Settings, Launching: Roblox is kept on the version it supports.",
+  "accounts.killSelected": "Kill selected",
+  "accounts.killNone": "None of the selected accounts has a Roblox client running.",
+  "accounts.killTitle": "Kill {n} Roblox client(s)?",
+  "accounts.killText": "Only the selected accounts' clients are ended, at once; the others keep running.",
+  "accounts.killed": "Killed {n} client(s)"
 }

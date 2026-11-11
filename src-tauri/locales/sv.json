@@ -243,12 +243,6 @@
   "timed out": "tidsgränsen överskreds",
   "could not connect": "kunde inte ansluta",
   "connection failed": "anslutningen misslyckades",
-  "Managing Roblox alts": "Hanterar Roblox-alts",
-  "Idling": "Inaktiv",
-  "Playing {game}": "Spelar {game}",
-  "Playing a Roblox game": "Spelar ett Roblox-spel",
-  "Get MTwin Hub": "Skaffa MTwin Hub",
-  "Join Discord": "Gå med i Discord",
   "GitHub's answer couldn't be read.": "GitHubs svar kunde inte läsas.",
   "MTwin Hub {version} is out, but without a signed installer. Get it from GitHub Releases.": "MTwin Hub {version} har släppts, men utan ett signerat installationsprogram. Hämta det från GitHub Releases.",
   "The downloaded MTwin Hub installer was not run: its signature didn't check out.": "Det nedladdade installationsprogrammet för MTwin Hub kördes inte: dess signatur godkändes inte.",
@@ -327,18 +321,6 @@
   "No server had room for all {n} accounts": {
     "one": "Ingen server hade plats för alla {n} konton",
     "other": "Ingen server hade plats för alla {n} konton"
-  },
-  "{n} alts open": {
-    "one": "{n} alt öppen",
-    "other": "{n} alts öppna"
-  },
-  "Running {n} alts": {
-    "one": "Kör {n} alt",
-    "other": "Kör {n} alts"
-  },
-  "{n} alts · {games} games": {
-    "one": "{n} alt · {games} spel",
-    "other": "{n} alts · {games} spel"
   },
   "Roblox has an update, and your bootstrapper (e.g. Bloxstrap) would close every running client to install it. Close your clients first, then launch.": "Roblox har en uppdatering, och din bootstrapper (t.ex. Bloxstrap) skulle stänga alla klienter som körs för att installera den. Stäng dina klienter först och starta sedan.",
   "Roblox has an update, and installing it would close every running client. Close your clients first, then launch.": "Roblox har en uppdatering, och att installera den skulle stänga alla klienter som körs. Stäng dina klienter först och starta sedan.",

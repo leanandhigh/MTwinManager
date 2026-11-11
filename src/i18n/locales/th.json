@@ -921,7 +921,7 @@
   "discord.statusSummaryHint": "จำนวนไคลเอนต์ที่รันอยู่ พร้อม RAM และ CPU",
   "discord.minutesUnit": "นาที, 0 คือปิด",
   "discord.min": "นาที",
-  "discord.lead": "สถานะ Discord ของคุณ และการแจ้งเตือนในช่อง",
+  "discord.lead": "การแจ้งเตือนในช่อง Discord",
   "discord.presenceShort": "“Playing MTwin Hub” บนโปรไฟล์ Discord ของคุณ",
   "discord.removeWebhook": "ลบ webhook",
   "monitor.gb": "{n} GB",
@@ -1703,5 +1703,10 @@
   "executor.robloxLive": "Roblox ปัจจุบัน",
   "executor.thisPc": "เครื่องนี้",
   "executor.yours": "Executor ของคุณ",
-  "executor.yoursHint": "เลือกไว้ใน ตั้งค่า > การเปิดเกม: Roblox จะอยู่ในเวอร์ชันที่ executor รองรับ"
+  "executor.yoursHint": "เลือกไว้ใน ตั้งค่า > การเปิดเกม: Roblox จะอยู่ในเวอร์ชันที่ executor รองรับ",
+  "accounts.killSelected": "ปิดที่เลือก",
+  "accounts.killNone": "ไม่มีบัญชีที่เลือกที่กำลังเปิด Roblox อยู่",
+  "accounts.killTitle": "ปิด Roblox {n} ไคลเอนต์?",
+  "accounts.killText": "จะปิดเฉพาะไคลเอนต์ของบัญชีที่เลือกทันที ไคลเอนต์อื่นยังทำงานต่อ",
+  "accounts.killed": "ปิดแล้ว {n} ไคลเอนต์"
 }

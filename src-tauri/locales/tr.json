@@ -243,12 +243,6 @@
   "timed out": "zaman aşımı",
   "could not connect": "bağlanılamadı",
   "connection failed": "bağlantı başarısız",
-  "Managing Roblox alts": "Roblox alt'larını yönetiyor",
-  "Idling": "Boşta",
-  "Playing {game}": "{game} oynuyor",
-  "Playing a Roblox game": "Bir Roblox oyunu oynuyor",
-  "Get MTwin Hub": "MTwin Hub'ı edin",
-  "Join Discord": "Discord'a katıl",
   "GitHub's answer couldn't be read.": "GitHub'ın yanıtı okunamadı.",
   "MTwin Hub {version} is out, but without a signed installer. Get it from GitHub Releases.": "MTwin Hub {version} çıktı, ancak imzalı bir yükleyicisi yok. GitHub Releases'tan edinin.",
   "The downloaded MTwin Hub installer was not run: its signature didn't check out.": "İndirilen MTwin Hub yükleyicisi çalıştırılmadı: imzası doğrulanamadı.",
@@ -327,18 +321,6 @@
   "No server had room for all {n} accounts": {
     "one": "Hiçbir sunucuda {n} hesabın tümü için yer yoktu",
     "other": "Hiçbir sunucuda {n} hesabın tümü için yer yoktu"
-  },
-  "{n} alts open": {
-    "one": "{n} alt açık",
-    "other": "{n} alt açık"
-  },
-  "Running {n} alts": {
-    "one": "{n} alt çalışıyor",
-    "other": "{n} alt çalışıyor"
-  },
-  "{n} alts · {games} games": {
-    "one": "{n} alt · {games} oyun",
-    "other": "{n} alt · {games} oyun"
   },
   "Roblox has an update, and your bootstrapper (e.g. Bloxstrap) would close every running client to install it. Close your clients first, then launch.": "Roblox için bir güncelleme var ve bootstrapper'ınız (ör. Bloxstrap) bunu kurmak için çalışan tüm istemcileri kapatır. Önce istemcilerinizi kapatın, sonra başlatın.",
   "Roblox has an update, and installing it would close every running client. Close your clients first, then launch.": "Roblox için bir güncelleme var ve kurulumu çalışan tüm istemcileri kapatır. Önce istemcilerinizi kapatın, sonra başlatın.",

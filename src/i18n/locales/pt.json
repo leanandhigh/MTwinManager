@@ -967,7 +967,7 @@
   "discord.statusSummaryHint": "Quantos clientes estão rodando, com a RAM e a CPU deles.",
   "discord.minutesUnit": "minutos, 0 para desligar",
   "discord.min": "min",
-  "discord.lead": "Seu status do Discord e alertas em um canal.",
+  "discord.lead": "Alerts in a Discord channel.",
   "discord.presenceShort": "“Jogando MTwin Hub” no seu perfil do Discord.",
   "discord.removeWebhook": "Remover webhook",
   "monitor.gb": "{n} GB",
@@ -1760,5 +1760,10 @@
   "executor.robloxLive": "Roblox live",
   "executor.thisPc": "This PC",
   "executor.yours": "Your executor",
-  "executor.yoursHint": "Chosen in Settings, Launching: Roblox is kept on the version it supports."
+  "executor.yoursHint": "Chosen in Settings, Launching: Roblox is kept on the version it supports.",
+  "accounts.killSelected": "Kill selected",
+  "accounts.killNone": "None of the selected accounts has a Roblox client running.",
+  "accounts.killTitle": "Kill {n} Roblox client(s)?",
+  "accounts.killText": "Only the selected accounts' clients are ended, at once; the others keep running.",
+  "accounts.killed": "Killed {n} client(s)"
 }

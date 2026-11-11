@@ -49,16 +49,18 @@ Name: desktopicon; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm
 Source: "{#AppExe}"; DestDir: "{app}"; DestName: "RoALT.exe"; Flags: ignoreversion
 
 [InstallDelete]
-; Shortcuts from before the rename to MTwin Hub.
+; Shortcuts under earlier names (RoALT, then MTwin Hub).
 Type: files; Name: "{autoprograms}\RoALT.lnk"
 Type: files; Name: "{autodesktop}\RoALT.lnk"
+Type: files; Name: "{autoprograms}\MTwin Hub.lnk"
+Type: files; Name: "{autodesktop}\MTwin Hub.lnk"
 
 [Icons]
-Name: "{autoprograms}\MTwin Hub"; Filename: "{app}\RoALT.exe"
-Name: "{autodesktop}\MTwin Hub"; Filename: "{app}\RoALT.exe"; Tasks: desktopicon
+Name: "{autoprograms}\MTwin Manager"; Filename: "{app}\RoALT.exe"
+Name: "{autodesktop}\MTwin Manager"; Filename: "{app}\RoALT.exe"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\RoALT.exe"; Description: "{cm:LaunchProgram,MTwin Hub}"; Flags: nowait postinstall skipifsilent; Check: WebView2Installed
+Filename: "{app}\RoALT.exe"; Description: "{cm:LaunchProgram,MTwin Manager}"; Flags: nowait postinstall skipifsilent; Check: WebView2Installed
 ; RoALT's self-updater runs Setup with /VERYSILENT ... /RELAUNCH and quits: start it again.
 Filename: "{app}\RoALT.exe"; Flags: nowait; Check: Relaunch
 
