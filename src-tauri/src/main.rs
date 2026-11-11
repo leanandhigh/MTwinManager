@@ -138,7 +138,7 @@ fn chosen_dir(default: PathBuf, json: Option<&str>) -> std::result::Result<(Path
                 Ok((default, None))
             } else {
                 Err(tr!(
-                    "RoALT's data folder {folder} isn't available (no {db}). Connect that drive and start RoALT again, \
+                    "MTwin Hub's data folder {folder} isn't available (no {db}). Connect that drive and start MTwin Hub again, \
                      or delete {location} to start fresh in the default folder.",
                     folder = l.data_dir.display(),
                     db = DB_FILE,
@@ -184,17 +184,17 @@ pub fn move_target(current: &Path, path: &str) -> Result<PathBuf> {
     let refuse = |why: String| Err(AppError::Invalid(why));
     let path = Path::new(path.trim());
     if !path.is_absolute() {
-        return refuse(tr!("Pick a full folder path, like D:\\RoALT."));
+        return refuse(tr!("Pick a full folder path, like D:\\MTwin Hub."));
     }
     let target = std::path::absolute(path)?;
     if same_dir(&target, current) {
-        return refuse(tr!("RoALT already keeps its data there."));
+        return refuse(tr!("MTwin Hub already keeps its data there."));
     }
     if path_key(&target).starts_with(&path_key(current)) {
         return refuse(tr!("Pick a folder outside the current data folder."));
     }
     if DB_FILES.iter().any(|f| target.join(f).exists()) {
-        return refuse(tr!("That folder already has a RoALT database. Pick another one."));
+        return refuse(tr!("That folder already has a MTwin Hub database. Pick another one."));
     }
     Ok(target)
 }
@@ -236,7 +236,7 @@ fn main_window(app: &TauriApp, data_dir: &Path, skip_splash: bool) -> tauri::Res
     let bg = Color(10, 10, 10, 255);
 
     let mut builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
-        .title("RoALT")
+        .title("MTwin Hub")
         .inner_size(splash::DEFAULT.0, splash::DEFAULT.1)
         // The minimum size is set once the splash has grown (`splash`); shown by it too.
         .visible(false)
@@ -356,7 +356,7 @@ fn fatal(message: &str) -> ! {
         let _ = writeln!(f, "[fatal] {message}");
     }
     // SAFETY: a plain modal message box with no owner window.
-    unsafe { MessageBoxW(None, &windows::core::HSTRING::from(message), windows::core::w!("RoALT"), MB_ICONERROR | MB_OK) };
+    unsafe { MessageBoxW(None, &windows::core::HSTRING::from(message), windows::core::w!("MTwin Hub"), MB_ICONERROR | MB_OK) };
     std::process::exit(1)
 }
 
@@ -386,13 +386,13 @@ fn set_aside_unreadable(data_dir: &Path) -> bool {
     let secs = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs());
     let aside = data_dir.join(format!("unreadable-{secs}"));
     let text = tr!(
-        "Windows can't unlock RoALT's database on this account. This happens after a Windows password \
+        "Windows can't unlock MTwin Hub's database on this account. This happens after a Windows password \
          reset or reinstall, or with a data folder copied from another PC.\n\nStart with an empty \
          database? The old files are kept in {path}.",
         path = aside.display()
     );
     // SAFETY: a plain modal message box with no owner window.
-    let answer = unsafe { MessageBoxW(None, &windows::core::HSTRING::from(text), windows::core::w!("RoALT"), MB_ICONWARNING | MB_YESNO) };
+    let answer = unsafe { MessageBoxW(None, &windows::core::HSTRING::from(text), windows::core::w!("MTwin Hub"), MB_ICONWARNING | MB_YESNO) };
     if answer != IDYES {
         return false;
     }
@@ -415,7 +415,7 @@ fn init(app: &TauriApp, data_dir: &Path, moved_from: Option<&Path>) -> std::resu
         Err(AppError::Crypto) if set_aside_unreadable(data_dir) => storage::Db::open(&db_path),
         r => r,
     }
-    .map_err(|e| tr!("RoALT can't open its database {path}: {why}", path = db_path.display(), why = e.message()))?;
+    .map_err(|e| tr!("MTwin Hub can't open its database {path}: {why}", path = db_path.display(), why = e.message()))?;
     // Not on a read error: every profile would look orphaned.
     if let Ok(accounts) = db.accounts() {
         webview::sweep_orphan_profiles(data_dir, &accounts.iter().map(|a| a.id).collect::<Vec<_>>());
@@ -426,7 +426,7 @@ fn init(app: &TauriApp, data_dir: &Path, moved_from: Option<&Path>) -> std::resu
     let vault = match record {
         Some(rec) => vault::Vault::open(&rec).map_err(|e| {
             tr!(
-                "RoALT can't open its vault on this Windows account ({why}).\n\nIf this data folder came from another PC or \
+                "MTwin Hub can't open its vault on this Windows account ({why}).\n\nIf this data folder came from another PC or \
                  Windows account, rename {path} and import a .roalt backup.",
                 why = e.message(),
                 path = db_path.display()
@@ -496,7 +496,7 @@ fn init(app: &TauriApp, data_dir: &Path, moved_from: Option<&Path>) -> std::resu
     app.manage(splash::Pending::default());
     main_window(app, data_dir, settings.skip_splash).map_err(|e| {
         tr!(
-            "RoALT can't open its window ({why}).\n\nIf this PC was very busy, start RoALT again. Otherwise it needs the Microsoft Edge WebView2 Runtime: \
+            "MTwin Hub can't open its window ({why}).\n\nIf this PC was very busy, start MTwin Hub again. Otherwise it needs the Microsoft Edge WebView2 Runtime: \
              https://go.microsoft.com/fwlink/p/?LinkId=2124703",
             why = e
         )
@@ -604,7 +604,7 @@ fn main() {
     i18n::set("");
     let (data_dir, moved_from) = data_dir().unwrap_or_else(|e| fatal(&e));
     if let Err(e) = std::fs::create_dir_all(&data_dir) {
-        fatal(&tr!("RoALT can't create its data folder {path}: {why}", path = data_dir.display(), why = e));
+        fatal(&tr!("MTwin Hub can't create its data folder {path}: {why}", path = data_dir.display(), why = e));
     }
     let log_dir = data_dir.join("logs");
     let _ = std::fs::create_dir_all(&log_dir);
@@ -743,6 +743,7 @@ fn main() {
             commands::roblox_install,
             commands::news,
             commands::online_ping,
+            commands::client_bootstrappers,
             progress::progress_state,
             progress::progress_remove,
             progress::progress_catalog_save,
@@ -789,7 +790,7 @@ fn main() {
             commands::network_status,
         ]))
         .build(tauri::generate_context!())
-        .unwrap_or_else(|e| fatal(&tr!("RoALT failed to start: {why}", why = e)))
+        .unwrap_or_else(|e| fatal(&tr!("MTwin Hub failed to start: {why}", why = e)))
         .run(|app, event| {
             // Before the Exit event: the clipboard plugin has cleaned up by then.
             if let tauri::RunEvent::ExitRequested { code, api, .. } = &event {

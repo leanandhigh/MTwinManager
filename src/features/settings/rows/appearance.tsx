@@ -49,7 +49,6 @@ function AccentPicker() {
       onKeyDown={(e) => rovingKeys(e.target instanceof HTMLInputElement ? Object.create(e, { target: { value: e.currentTarget } }) : e, ".swatch:is(button), .set-custom input")}
     >
       <button type="button" className="swatch set-mono" tabIndex={stop(!value)} aria-pressed={!value} aria-label={t("settings.accent.mono")} data-tip={t("settings.accent.mono")} onClick={() => pick("")}>
-        <span aria-hidden="true" className="set-mono-half" />
         {mark(!value)}
       </button>
       {ACCENTS.map(([v, name]) => (

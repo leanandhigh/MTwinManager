@@ -427,7 +427,7 @@ fn close_in(pid: u32, table: &[Handle], suffix: &str) -> Result<usize> {
             if e.code() == ERROR_ACCESS_DENIED.to_hresult() {
                 AppError::Invalid(elevated())
             } else {
-                AppError::Invalid(tr!("Windows wouldn't let RoALT into Roblox (process {pid}): {why}", pid = pid, why = e.message()))
+                AppError::Invalid(tr!("Windows wouldn't let MTwin Hub into Roblox (process {pid}): {why}", pid = pid, why = e.message()))
             }
         })?;
     let mut closed = 0;

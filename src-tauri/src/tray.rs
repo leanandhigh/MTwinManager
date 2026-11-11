@@ -39,7 +39,7 @@ fn shown() -> MutexGuard<'static, Option<View>> {
 pub fn setup(app: &AppHandle) -> tauri::Result<()> {
     let view = view(app);
     let mut tray = TrayIconBuilder::with_id(TRAY)
-        .tooltip("RoALT")
+        .tooltip("MTwin Hub")
         .menu(&menu(app, &view)?)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, e| on_menu(app, e.id().as_ref()))
@@ -109,7 +109,7 @@ fn menu(app: &AppHandle, v: &View) -> tauri::Result<Menu<Wry>> {
     if v.favourites.is_empty() {
         favourites.append(&MenuItem::new(app, tr!("No favourites"), false, None::<&str>)?)?;
     } else if v.locked {
-        favourites.append(&MenuItem::new(app, tr!("Unlock RoALT to launch"), false, None::<&str>)?)?;
+        favourites.append(&MenuItem::new(app, tr!("Unlock MTwin Hub to launch"), false, None::<&str>)?)?;
     } else {
         for (id, name) in &v.favourites {
             // A single `&` would mark a shortcut key in a Windows menu.
@@ -119,7 +119,7 @@ fn menu(app: &AppHandle, v: &View) -> tauri::Result<Menu<Wry>> {
     let menu = Menu::with_items(
         app,
         &[
-            &item("show", &tr!("Show RoALT"), true)?,
+            &item("show", &tr!("Show MTwin Hub"), true)?,
             &favourites,
             &item("close-all", &tr!("Close all clients"), v.running)?,
             &item("kill-all", &tr!("Stop all Roblox"), true)?,
@@ -129,7 +129,7 @@ fn menu(app: &AppHandle, v: &View) -> tauri::Result<Menu<Wry>> {
         menu.append(&item("lock", &tr!("Lock vault"), !v.locked)?)?;
     }
     menu.append(&PredefinedMenuItem::separator(app)?)?;
-    menu.append(&item("quit", &tr!("Quit RoALT"), true)?)?;
+    menu.append(&item("quit", &tr!("Quit MTwin Hub"), true)?)?;
     Ok(menu)
 }
 
@@ -217,7 +217,7 @@ async fn launch(app: &AppHandle, id: i64) -> Result<()> {
     match ids.len() {
         0 => {
             show_main(app);
-            notice(app, false, tr!("No account of \"{name}\" can launch. Pick accounts for it in RoALT.", name = fav.name));
+            notice(app, false, tr!("No account of \"{name}\" can launch. Pick accounts for it in MTwin Hub.", name = fav.name));
         }
         1 => {
             // Without the multi-instance lock it would end the client that runs.

@@ -18,10 +18,10 @@
 
 [Setup]
 AppId={{F65209C5-78F5-4735-AE83-9F83EF9FCD83}
-AppName=RoALT
+AppName=MTwin Hub
 AppVersion={#AppVersion}
-AppPublisher=inspectsoftware
-AppPublisherURL=https://github.com/inspectsoftware/RoALT
+AppPublisher=MTwin Hub
+AppPublisherURL=https://github.com/leanandhigh/RoALT
 VersionInfoVersion={#AppNumVersion}
 ; Per-user: {autopf} is %LOCALAPPDATA%\Programs.
 DefaultDirName={autopf}\RoALT
@@ -34,7 +34,7 @@ MinVersion=10.0.17763
 WizardStyle=modern dynamic windows11
 SetupIconFile=..\src-tauri\icons\icon.ico
 UninstallDisplayIcon={app}\RoALT.exe
-UninstallDisplayName=RoALT
+UninstallDisplayName=MTwin Hub
 ; Restart Manager closes a running RoALT before its exe is replaced.
 CloseApplications=force
 OutputDir=..\dist-installer
@@ -48,12 +48,17 @@ Name: desktopicon; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm
 [Files]
 Source: "{#AppExe}"; DestDir: "{app}"; DestName: "RoALT.exe"; Flags: ignoreversion
 
+[InstallDelete]
+; Shortcuts from before the rename to MTwin Hub.
+Type: files; Name: "{autoprograms}\RoALT.lnk"
+Type: files; Name: "{autodesktop}\RoALT.lnk"
+
 [Icons]
-Name: "{autoprograms}\RoALT"; Filename: "{app}\RoALT.exe"
-Name: "{autodesktop}\RoALT"; Filename: "{app}\RoALT.exe"; Tasks: desktopicon
+Name: "{autoprograms}\MTwin Hub"; Filename: "{app}\RoALT.exe"
+Name: "{autodesktop}\MTwin Hub"; Filename: "{app}\RoALT.exe"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\RoALT.exe"; Description: "{cm:LaunchProgram,RoALT}"; Flags: nowait postinstall skipifsilent; Check: WebView2Installed
+Filename: "{app}\RoALT.exe"; Description: "{cm:LaunchProgram,MTwin Hub}"; Flags: nowait postinstall skipifsilent; Check: WebView2Installed
 ; RoALT's self-updater runs Setup with /VERYSILENT ... /RELAUNCH and quits: start it again.
 Filename: "{app}\RoALT.exe"; Flags: nowait; Check: Relaunch
 
@@ -83,8 +88,8 @@ var
   Code: Integer;
 begin
   if not WebView2Installed and (SuppressibleMsgBox(
-      'RoALT draws its window with the Microsoft Edge WebView2 Runtime, which is not installed.' #13#10#13#10 +
-      'Setup will continue, but RoALT will not open until the runtime is installed.' #13#10#13#10 +
+      'MTwin Hub draws its window with the Microsoft Edge WebView2 Runtime, which is not installed.' #13#10#13#10 +
+      'Setup will continue, but MTwin Hub will not open until the runtime is installed.' #13#10#13#10 +
       'Download Microsoft''s WebView2 installer in your browser now?',
       mbConfirmation, MB_YESNO, IDNO) = IDYES) then
     ShellExecAsOriginalUser('open', WebView2Download, '', '', SW_SHOWNORMAL, ewNoWait, Code);
@@ -108,7 +113,7 @@ function InitializeUninstall: Boolean;
 begin
   Result := True;
   while Result and CheckForMutexes(RunningMutex) do
-    Result := SuppressibleMsgBox('RoALT is running. Close it, then click OK.', mbError, MB_OKCANCEL, IDCANCEL) = IDOK;
+    Result := SuppressibleMsgBox('MTwin Hub is running. Close it, then click OK.', mbError, MB_OKCANCEL, IDCANCEL) = IDOK;
 end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
@@ -119,9 +124,9 @@ begin
   if (CurUninstallStep <> usPostUninstall) or UninstallSilent or not DirExists(Data) then
     exit;
   { Keep is the first button, so the default: TaskDialogMsgBox has no default-button flag. }
-  if TaskDialogMsgBox('Also delete your RoALT accounts and settings?',
+  if TaskDialogMsgBox('Also delete your MTwin Hub accounts and settings?',
       'They are in ' + Data + '. Your Roblox accounts themselves are not affected.',
-      mbConfirmation, MB_YESNO, ['&Keep them' #13#10 'They are there again if you reinstall RoALT.',
+      mbConfirmation, MB_YESNO, ['&Keep them' #13#10 'They are there again if you reinstall MTwin Hub.',
       '&Delete them' #13#10 'Saved accounts, cookies, groups and settings. This cannot be undone.'], 0) = IDNO then begin
     DelTree(Data, True, True, True);
     { The window position tauri-plugin-window-state keeps. }

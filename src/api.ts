@@ -110,6 +110,8 @@ import type { PlayerValue } from "./bindings/PlayerValue";
 export type { PlayerStats, PlayerValue };
 import type { PageCard } from "./bindings/PageCard";
 import type { CatalogEntry } from "./bindings/CatalogEntry";
+import type { DetectedBootstrapper } from "./bindings/DetectedBootstrapper";
+export type { DetectedBootstrapper };
 import type { ProgressGame } from "./bindings/ProgressGame";
 import type { ProgressState } from "./bindings/ProgressState";
 export type { CatalogEntry, ProgressGame, ProgressState };
@@ -296,6 +298,8 @@ export const api = {
 
   /** Progress: what alts have in game, as the in-game reporter sends it to RoALT's local port. */
   progressState: () => invoke<ProgressState>("progress_state"),
+  /** Bootstrappers installed on this PC (Bloxstrap, Fishstrap, ExploitStrap...). */
+  clientBootstrappers: () => invoke<DetectedBootstrapper[]>("client_bootstrappers"),
   /** Removes these accounts (`key`s) until they report again; how many went. */
   progressRemove: (keys: string[]) => invoke<number>("progress_remove", { keys }),
   /** Replaces a game's Catalog (values and items added by hand); the entries as kept. */

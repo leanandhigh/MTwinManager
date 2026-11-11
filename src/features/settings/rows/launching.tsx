@@ -6,8 +6,8 @@ import { qk, useMultiStatus } from "../../../data";
 import { fmtDate, t } from "../../../i18n";
 import { Skeleton } from "../../../ui/Bits";
 import { Button } from "../../../ui/Button";
-import { NumberField, Switch } from "../../../ui/controls";
-import { Checkbox, Field } from "../../../ui/Field";
+import { NumberField, Switch, TextField } from "../../../ui/controls";
+import { Checkbox, Field, Select } from "../../../ui/Field";
 import { Meter } from "../../../ui/Meter";
 import { Morph, Swap } from "../../../ui/motion";
 import { Popover, useAnchor } from "../../../ui/Popover";
@@ -322,6 +322,64 @@ export function MultiRow() {
   return (
     <SettingRow id="multi" below={<MultiNotice wanted={false} className="mt-3" />}>
       <MultiSwitch />
+    </SettingRow>
+  );
+}
+
+const AUTO = "";
+const OTHER = "\u0000other";
+
+/** "Launch with": Automatic (whatever opens roblox-player links), a bootstrapper found installed
+ * (Bloxstrap, Fishstrap, ExploitStrap...), or any .exe pasted under Other. */
+function ClientPathControl() {
+  const qc = useQueryClient();
+  const { entry, ctx, write, describedBy } = useRow();
+  const found = useQuery({ queryKey: ["bootstrappers"], queryFn: api.clientBootstrappers, staleTime: 0 }).data ?? [];
+  const current = ctx.s.clientPath;
+  const known = found.some((b) => b.path.toLowerCase() === current.toLowerCase());
+  const [other, setOther] = useState(!!current && !known);
+  useEffect(() => {
+    if (current && found.length && !known) setOther(true);
+  }, [current, known, found.length]);
+  const registered = found.find((b) => b.registered);
+  const save = (clientPath: string) => write({ clientPath }).then(() => qc.invalidateQueries({ queryKey: qk.client }));
+  const value = other ? OTHER : known ? found.find((b) => b.path.toLowerCase() === current.toLowerCase())!.path : AUTO;
+  return (
+    <span className="flex flex-wrap items-center justify-end gap-2">
+      <Select
+        value={value}
+        aria-label={t(entry.label)}
+        aria-describedby={describedBy}
+        className="min-w-[220px]"
+        options={[
+          { value: AUTO, label: registered ? t("settings.clientPathAutoNamed", { name: registered.name }) : t("settings.clientPathAuto") },
+          ...found.map((b) => ({ value: b.path, label: b.name })),
+          { value: OTHER, label: t("settings.clientPathOther") },
+        ]}
+        onChange={(v) => {
+          if (v === OTHER) return setOther(true);
+          setOther(false);
+          void save(v);
+        }}
+      />
+      {other && (
+        <TextField
+          label={t("settings.clientPathOther")}
+          value={known ? "" : current}
+          placeholder="C:\\…\\Fishstrap.exe"
+          className="w-[300px]"
+          describedBy={describedBy}
+          onCommit={(text) => save(text)}
+        />
+      )}
+    </span>
+  );
+}
+
+export function ClientPathRow() {
+  return (
+    <SettingRow id="clientPath">
+      <ClientPathControl />
     </SettingRow>
   );
 }

@@ -1424,6 +1424,12 @@ async function handle(cmd: string, args: Args): Promise<unknown> {
         failed: [],
       };
     }
+    case "client_bootstrappers":
+      return [
+        { name: "Fishstrap", path: "C:\\Users\\you\\AppData\\Local\\Fishstrap\\Fishstrap.exe", registered: true },
+        { name: "Bloxstrap", path: "C:\\Users\\you\\AppData\\Local\\Bloxstrap\\Bloxstrap.exe", registered: false },
+        { name: "ExploitStrap", path: "C:\\Users\\you\\AppData\\Local\\ExploitStrap\\ExploitStrap.exe", registered: false },
+      ];
     case "progress_state":
       return progressState();
     case "progress_remove": {

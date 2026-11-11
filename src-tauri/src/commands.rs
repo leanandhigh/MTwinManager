@@ -82,7 +82,7 @@ pub async fn vault_recovery_create(s: State<'_, App>, current_password: String) 
 fn recovery_file_text(code: &str) -> Result<String> {
     let code = crate::vault::master::normalize_code(code).ok_or_else(not_a_code)?;
     Ok(tr!(
-        "RoALT recovery code: {code}\n\nIf you forget your master password, press Forgot password? on the unlock screen and enter this code. \
+        "MTwin Hub recovery code: {code}\n\nIf you forget your master password, press Forgot password? on the unlock screen and enter this code. \
          It works once, for this Windows user on this PC.\n\nAnyone who finds this file on this PC can open your vault. Keep it on a USB stick, \
          a phone or paper.\n",
         code = code.expose()
@@ -344,14 +344,14 @@ pub async fn accounts_import_ram(app: AppHandle, s: State<'_, App>, path: String
     }
     let meta = std::fs::metadata(&path).map_err(|e| {
         log::warn!("could not read RAM file metadata: {e}");
-        AppError::Invalid(tr!("RoALT couldn't read that file."))
+        AppError::Invalid(tr!("MTwin Hub couldn't read that file."))
     })?;
     if meta.len() > 32 * 1024 * 1024 {
         return Err(AppError::Invalid(tr!("That file is too big to be an AccountData.json.")));
     }
     let data = zeroize::Zeroizing::new(std::fs::read(&path).map_err(|e| {
         log::warn!("could not read RAM file: {e}");
-        AppError::Invalid(tr!("RoALT couldn't read that file."))
+        AppError::Invalid(tr!("MTwin Hub couldn't read that file."))
     })?);
     if data.starts_with(RAM_HEADER) {
         return Err(AppError::Invalid(tr!(
@@ -363,7 +363,7 @@ pub async fn accounts_import_ram(app: AppHandle, s: State<'_, App>, path: String
         Err(_) if data.trim_ascii_start().starts_with(b"[") || data.starts_with(b"\xEF\xBB\xBF") => ram_accounts(&data)?,
         Err(_) => {
             return Err(AppError::Invalid(tr!(
-                "RoALT couldn't decrypt this file. It must come from Roblox Account Manager on this PC, signed in as the same Windows user."
+                "MTwin Hub couldn't decrypt this file. It must come from Roblox Account Manager on this PC, signed in as the same Windows user."
             )));
         }
     };
@@ -2443,7 +2443,7 @@ pub async fn layout_preview(app: AppHandle, s: State<'_, App>, account_ids: Vec<
     }
     let w = builder
         .initialization_script(format!("window.__ROALT_LAYOUT_PREVIEW__ = {data};"))
-        .title("RoALT")
+        .title("MTwin Hub")
         // The main window's WebView2 profile: none of its own outside RoALT's data folder.
         .data_directory(s.data_dir.join("webview"))
         .decorations(false)
@@ -2686,7 +2686,7 @@ pub fn set_panic_hotkey(app: &AppHandle, old: &str, key: &str) -> Result<()> {
             log::warn!("could not re-register the old panic hotkey; none is bound: {e}");
         }
         log::warn!("could not register the panic hotkey {key}: {e}");
-        return Err(AppError::Invalid(tr!("Windows wouldn't give RoALT {key}: another app probably uses it. Pick another.", key = key)));
+        return Err(AppError::Invalid(tr!("Windows wouldn't give MTwin Hub {key}: another app probably uses it. Pick another.", key = key)));
     }
     Ok(())
 }
@@ -2741,7 +2741,7 @@ fn diagnostics_sources(s: &App) -> Result<crate::diagnostics::Sources> {
     // Whether the lock is held and, when it isn't, why: what multi-instance reports turn on.
     let multi = s.multi.status(v.multi_instance, v.protect_shared_login);
     let head = format!(
-        "RoALT {} on {} {} (build {})\nMulti-instance: {}, lock held: {}{}\nPerformance: {}\n",
+        "MTwin Hub {} on {} {} (build {})\nMulti-instance: {}, lock held: {}{}\nPerformance: {}\n",
         env!("CARGO_PKG_VERSION"),
         reg("ProductName"),
         reg("DisplayVersion"),
@@ -2782,6 +2782,20 @@ pub async fn diagnostics_save(s: State<'_, App>, path: String) -> Result<()> {
 #[tauri::command(async)]
 pub fn server_history(s: State<'_, App>, account_id: i64) -> Result<Vec<crate::model::ServerVisit>> {
     s.db.servers(account_id)
+}
+
+/// Bootstrappers installed on this PC (Bloxstrap, Fishstrap, ExploitStrap...), for "Launch with".
+#[tauri::command(async)]
+pub fn client_bootstrappers() -> Vec<crate::model::DetectedBootstrapper> {
+    let handler = crate::launcher::client::handler();
+    crate::launcher::client::bootstrappers()
+        .into_iter()
+        .map(|b| crate::model::DetectedBootstrapper {
+            registered: handler.as_ref().is_some_and(|h| h.as_os_str().eq_ignore_ascii_case(b.path.as_os_str())),
+            name: b.name,
+            path: b.path.display().to_string(),
+        })
+        .collect()
 }
 
 #[tauri::command(async)]
@@ -3064,7 +3078,7 @@ fn check_backup(p: &backup::BackupPayload) -> Result<()> {
         || p.groups.iter().any(|g| bad(&g.name))
         || p.favourites.iter().any(|f| f.name.is_empty() || bad(&f.name));
     if wrong {
-        return Err(AppError::Invalid(tr!("This isn't a RoALT backup.")));
+        return Err(AppError::Invalid(tr!("This isn't a MTwin Hub backup.")));
     }
     for a in &p.accounts {
         if let Some(args) = &a.launch_args {
@@ -3181,7 +3195,7 @@ pub async fn performance_export(s: State<'_, App>, path: String, preview_fps: Op
 /// through `settings_set`).
 #[tauri::command]
 pub async fn performance_read(s: State<'_, App>, path: String) -> Result<crate::performance::Profile> {
-    let refused = || AppError::Invalid(tr!("This isn't a RoALT performance profile."));
+    let refused = || AppError::Invalid(tr!("This isn't a MTwin Hub performance profile."));
     if std::fs::metadata(&path)?.len() > crate::performance::MAX_BYTES as u64 {
         return Err(refused());
     }

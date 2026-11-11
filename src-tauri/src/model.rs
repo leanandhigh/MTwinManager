@@ -207,6 +207,17 @@ pub enum Density {
     Compact,
 }
 
+/// A bootstrapper found installed (`client_bootstrappers`), for Settings' "Launch with".
+#[derive(Serialize, TS, Clone, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct DetectedBootstrapper {
+    pub name: String,
+    pub path: String,
+    /// It opens roblox-player links now (what Automatic uses).
+    pub registered: bool,
+}
+
 /// App settings, stored as one JSON value. New fields need `#[serde(default)]` semantics,
 /// which the struct-level default gives.
 #[derive(Serialize, Deserialize, TS, Clone, Debug, PartialEq)]

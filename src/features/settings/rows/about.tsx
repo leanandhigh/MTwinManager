@@ -65,7 +65,7 @@ function Releases() {
 export function VersionRow() {
   const version = import.meta.env.APP_VERSION;
   return (
-    <SettingRow id="version" name={`RoALT ${version}`} title={<span className="set-label">RoALT <span className="mono">{version}</span></span>}>
+    <SettingRow id="version" name={`MTwin Hub ${version}`} title={<span className="set-label">MTwin Hub <span className="mono">{version}</span></span>}>
       <Releases />
     </SettingRow>
   );

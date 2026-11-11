@@ -13,6 +13,9 @@ export const ACCENT_KEY = "roalt.accent";
  * what floats keep most, so their text stays readable over any picture. */
 const SEE_THROUGH: Record<string, number> = { "--ground": 50, "--surface-1": 72, "--surface-2": 84, "--surface-3": 88, "--island": 86, "--float": 92 };
 
+/** MTwin Hub's purple: the accent while none is chosen ("" in Settings). */
+export const BRAND_ACCENT = "#7c5cff";
+
 /** The grounds an accent is checked against: the CSS values (tokens.css), per theme. */
 const GROUND = { dark: "#0a0a0a", light: "#f3f3f3" } as const;
 const ISLAND = { dark: "#141414", light: "#ffffff" } as const;
@@ -75,8 +78,7 @@ export function useTheme(s: Settings | undefined) {
       const t = theme === "system" ? (mq.matches ? "dark" : "light") : theme;
       root.dataset.theme = t;
       setDark(t !== "light");
-      if (accent) applyAccent(accent, t);
-      else delete root.dataset.accent;
+      applyAccent(accent || BRAND_ACCENT, t);
       // The window's colour covers the picture by `dim`; surfaces on top are partly see-through.
       for (const v of Object.keys(SEE_THROUGH)) root.style.removeProperty(v);
       if (image) {

@@ -162,7 +162,7 @@ pub fn pick(body: &[u8], current: &str) -> Result<Option<Release>> {
     };
     match (url(format!("RoALT-Setup-{version}.exe")), url(format!("RoALT-Setup-{version}.exe.sig"))) {
         (Some(exe), Some(sig)) => Ok(Some(Release { version, exe, sig })),
-        _ => Err(failed(tr!("RoALT {version} is out, but without a signed installer. Get it from GitHub Releases.", version = version))),
+        _ => Err(failed(tr!("MTwin Hub {version} is out, but without a signed installer. Get it from GitHub Releases.", version = version))),
     }
 }
 
@@ -259,7 +259,7 @@ fn write_verified(path: &Path, version: &str, bytes: &[u8], sig: &[u8], key: &[u
     signed.reserve(bytes.len());
     pinned.read_to_end(&mut signed)?;
     if !verify(key, &signed, sig) {
-        return Err(AppError::Invalid(tr!("The downloaded RoALT installer was not run: its signature didn't check out.")));
+        return Err(AppError::Invalid(tr!("The downloaded MTwin Hub installer was not run: its signature didn't check out.")));
     }
     Ok(pinned)
 }
@@ -299,7 +299,7 @@ fn http() -> Result<reqwest::Client> {
         .build()
         .map_err(|e| {
             log::warn!("update: http client unavailable: {}", e.without_url());
-            failed(tr!("RoALT's HTTP client couldn't start."))
+            failed(tr!("MTwin Hub's HTTP client couldn't start."))
         })
 }
 
@@ -413,7 +413,7 @@ pub async fn install(app: &AppHandle) -> Result<()> {
     s.self_update
         .installing
         .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
-        .map_err(|_| AppError::Invalid(tr!("RoALT is already being updated.")))?;
+        .map_err(|_| AppError::Invalid(tr!("MTwin Hub is already being updated.")))?;
     let result = run_install(&s).await;
     match &result {
         Ok(()) => app.exit(0),
@@ -428,10 +428,10 @@ pub async fn install(app: &AppHandle) -> Result<()> {
 /// Refused while a launch, batch, auto-rejoin or Roblox install runs: RoALT quits for the installer.
 fn idle(s: &App) -> Result<()> {
     if s.bulk.any_busy() {
-        return Err(AppError::Invalid(tr!("Wait for the running launch, batch or auto-rejoin to finish, then update RoALT.")));
+        return Err(AppError::Invalid(tr!("Wait for the running launch, batch or auto-rejoin to finish, then update MTwin Hub.")));
     }
     if s.update.installing() {
-        return Err(AppError::Invalid(tr!("Wait for Roblox's installer to finish, then update RoALT.")));
+        return Err(AppError::Invalid(tr!("Wait for Roblox's installer to finish, then update MTwin Hub.")));
     }
     Ok(())
 }
@@ -439,9 +439,9 @@ fn idle(s: &App) -> Result<()> {
 async fn run_install(s: &App) -> Result<()> {
     idle(s)?;
     let http = http()?;
-    let release = latest(&http).await?.ok_or_else(|| AppError::Invalid(tr!("RoALT is up to date.")))?;
+    let release = latest(&http).await?.ok_or_else(|| AppError::Invalid(tr!("MTwin Hub is up to date.")))?;
     *lock(&s.self_update.available) = Some(release.version.clone());
-    let refused = || AppError::Invalid(tr!("The downloaded RoALT installer was not run: its signature file is malformed."));
+    let refused = || AppError::Invalid(tr!("The downloaded MTwin Hub installer was not run: its signature file is malformed."));
     let sig = get(&http, &release.sig, "application/octet-stream", MAX_SIG, Duration::from_secs(30)).await?;
     let sig = std::str::from_utf8(&sig).ok().and_then(base64).filter(|s| s.len() == 64).ok_or_else(refused)?;
     let bytes = get(&http, &release.exe, "application/octet-stream", MAX_INSTALLER, Duration::from_secs(600)).await?;
@@ -460,7 +460,7 @@ async fn run_install(s: &App) -> Result<()> {
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
-        .map_err(|e| AppError::Internal(tr!("Could not start RoALT's installer: {why}", why = e)))?;
+        .map_err(|e| AppError::Internal(tr!("Could not start MTwin Hub's installer: {why}", why = e)))?;
     // The installer runs from the folder: kept (write-locked until RoALT exits) for the next start
     // to delete.
     std::mem::forget((pinned, dir));

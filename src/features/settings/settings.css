@@ -218,7 +218,7 @@
   }
   /* Monochrome: half white, half ink, in either theme. */
   .set-mono {
-    background: var(--fg);
+    background: #7c5cff;
   }
   .set-mono-half {
     position: absolute;

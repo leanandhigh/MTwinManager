@@ -131,7 +131,7 @@ fn activity((details, state): &(String, String), since_ms: i64) -> Value {
         "timestamps": { "start": since_ms / 1000 },
         "assets": { "large_image": "roalt", "large_text": format!("RoALT · {}", tr!("Managing Roblox alts")) },
         "buttons": [
-            { "label": tr!("Get RoALT"), "url": DOWNLOAD },
+            { "label": tr!("Get MTwin Hub"), "url": DOWNLOAD },
             { "label": tr!("Join Discord"), "url": INVITE },
         ],
     })

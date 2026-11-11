@@ -113,7 +113,7 @@ const SETTINGS_ENTRIES: readonly Entry[] = [
   },
   {
     id: "clientPath", place: launching, label: "settings.clientPath", hint: "settings.clientPathShort", more: "settings.clientPathHint", field: "clientPath",
-    control: { kind: "text", placeholder: "settings.clientPathAuto", size: "lg" }, invalidates: ["client"],
+    control: CUSTOM, invalidates: ["client"],
     aliases: ["bootstrapper", "bloxstrap", "fishstrap", "froststrap", "voidstrap", "exe", "path", "launch with"],
   },
   { id: "protectMain", place: launching, label: "settings.protectMain", more: "settings.protectMainHint", field: "protectMain", control: SWITCH, aliases: ["select all"] },

@@ -5,7 +5,7 @@ import "@fontsource-variable/geist";
 import "@fontsource-variable/geist-mono";
 import "./theme.css";
 import App from "./App";
-import { accentTokens, ACCENT_KEY, applyAccent, THEME_KEY } from "./app/theme";
+import { ACCENT_KEY, BRAND_ACCENT, THEME_KEY, accentTokens, applyAccent } from "./app/theme";
 import { debugLog } from "./api";
 import { loadLastLang, t } from "./i18n";
 import { LayoutPreview, type PreviewData } from "./features/launch/LayoutPreview";
@@ -61,12 +61,11 @@ try {
   const theme = localStorage.getItem(THEME_KEY) === "light" ? "light" : "dark";
   const root = document.documentElement;
   if (theme === "light") root.dataset.theme = theme;
-  const accent = localStorage.getItem(ACCENT_KEY);
-  if (accent && /^#[0-9a-f]{6}$/i.test(accent)) {
-    applyAccent(accent, theme);
-    // The splash is always dark: its cube takes the dark-theme shade.
-    root.style.setProperty("--splash-accent", accentTokens(accent, "dark").text);
-  }
+  const stored = localStorage.getItem(ACCENT_KEY);
+  const accent = stored && /^#[0-9a-f]{6}$/i.test(stored) ? stored : BRAND_ACCENT;
+  applyAccent(accent, theme);
+  // The splash is always dark: its glow takes the dark-theme shade.
+  root.style.setProperty("--splash-accent", accentTokens(accent, "dark").text);
 } catch {
   // No storage: the defaults (dark, monochrome) apply until settings load.
 }

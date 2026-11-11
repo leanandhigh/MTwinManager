@@ -31,9 +31,9 @@ export function AppMenu({ unlocked, vaultMode, onRefresh, onDonate }: {
   const id = "app-menu";
   return (
     <>
-      <button type="button" className="app-menu-btn" popoverTarget={id} style={anchor.style} aria-label="RoALT" aria-haspopup="menu" aria-expanded={open}>
+      <button type="button" className="app-menu-btn" popoverTarget={id} style={anchor.style} aria-label="MTwin Hub" aria-haspopup="menu" aria-expanded={open}>
         <Logo />
-        <span className="wordmark">RoALT</span>
+        <span className="wordmark">MTwin Hub</span>
         <Icon name="chevron" size={12} className="app-menu-chevron" />
       </button>
       {/* RoALT's own counts, beside its logo and apart from Discord, so they don't read as Discord's. */}
@@ -55,7 +55,7 @@ export function AppMenu({ unlocked, vaultMode, onRefresh, onDonate }: {
       <button type="button" className="wc" aria-label={t("app.joinDiscord")} data-tip={t("app.joinDiscord")} onClick={() => openUrl(DISCORD_INVITE).catch(toastError)}>
         <Icon name="discord" size={16} />
       </button>
-      <Popover id={id} anchor={anchor.name} placement="below-start" role="menu" label="RoALT" onToggle={setOpen} className="w-[260px]">
+      <Popover id={id} anchor={anchor.name} placement="below-start" role="menu" label="MTwin Hub" onToggle={setOpen} className="w-[260px]">
         <div className="flex items-center gap-2 px-2.5 pt-1.5 pb-2 text-[13px] text-fg-3" title={!unlocked ? t("vault.title") : vaultMode === "master" ? t("app.vaultUnlockedMaster") : t("app.vaultUnlockedDpapi")}>
           <Icon name="lock" size={14} />
           {t("app.encrypted")}

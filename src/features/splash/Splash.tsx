@@ -2,23 +2,12 @@ import { useEffect, useState } from "react";
 import { api } from "../../api";
 import { setSplashPhase, type SplashPhase } from "./phase";
 import "./splash.css";
+import logo from "../../assets/mtwin-logo.png";
 
 /** When the window grows: the animation settles at 3 s (79% of 3.8 s), then holds 2 s. */
 const GROW_MS = 3000 + 2000;
 /** Set once the splash has run: a webview reload doesn't play it again. */
 const KEY = "roalt.splash";
-
-/** The RoALT tile (`Logo` in ui/Icon), with its hole as an evenodd cut-out. */
-const TILE =
-  "M8.5 7.5h6a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-6a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1z M10.7 10.3h1.6a.4.4 0 0 1 .4.4v1.6a.4.4 0 0 1-.4.4h-1.6a.4.4 0 0 1-.4-.4v-1.6a.4.4 0 0 1 .4-.4z";
-
-function Tile({ className, fill }: { className: string; fill: string }) {
-  return (
-    <svg className={className} width="120" height="120" viewBox="0 0 18 18" aria-hidden="true">
-      <path transform="rotate(15 11.5 11.5)" fillRule="evenodd" fill={fill} d={TILE} />
-    </svg>
-  );
-}
 
 function seen() {
   // A dev preview with ?splash=1 plays it again.
@@ -69,19 +58,12 @@ export function Splash() {
     >
       <div className="mark" data-tauri-drag-region>
         <div className="logo">
-          <div className="cube" />
-          <div className="tile">
-            <Tile className="red" fill="#ff2a4d" />
-            <Tile className="cyan" fill="#22e8ff" />
-            <Tile className="core" fill="#949494" />
-            <Tile className="slice-a" fill="#ededed" />
-            <Tile className="slice-b" fill="#22e8ff" />
-          </div>
+          <img className="mt-mark" src={logo} alt="" draggable={false} />
         </div>
       </div>
       <div className="mark">
         <div className="word">
-          <b>ROALT</b>
+          <b>MTWIN HUB</b>
           <span>v{import.meta.env.APP_VERSION}</span>
         </div>
       </div>

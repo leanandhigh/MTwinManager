@@ -593,7 +593,7 @@ async fn serve(handle: &AppHandle, mut stream: TcpStream) {
             let game = req.query.get("game").map(String::as_str).unwrap_or_default();
             respond(&mut stream, "200 OK", JSON, &progress.catalog_for_script(game)).await;
         }
-        ("GET", "/") => respond(&mut stream, "200 OK", TEXT, "RoALT Progress is running. Load /script.luau from your executor.").await,
+        ("GET", "/") => respond(&mut stream, "200 OK", TEXT, "MTwin Hub Progress is running. Load /script.luau from your executor.").await,
         _ => respond(&mut stream, "404 Not Found", TEXT, "not found").await,
     }
 }

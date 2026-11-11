@@ -5,7 +5,9 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::SystemTime;
 
-use windows::Win32::System::Registry::{HKEY, HKEY_CLASSES_ROOT, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, RRF_RT_REG_SZ, RegGetValueW};
+use windows::Win32::System::Registry::{
+    HKEY, HKEY_CLASSES_ROOT, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, KEY_READ, RRF_RT_REG_SZ, RegCloseKey, RegEnumKeyExW, RegGetValueW, RegOpenKeyExW,
+};
 use windows::core::{HSTRING, PCWSTR};
 
 use crate::error::{AppError, Result};
@@ -181,7 +183,12 @@ pub(super) fn versions_dirs() -> Vec<PathBuf> {
         .flatten()
         .filter_map(|e| e.ok().map(|e| e.path()))
         .filter(|d| !d.file_name().is_some_and(|n| n.eq_ignore_ascii_case("Roblox")) && d.join("Versions").is_dir());
-    let beside = custom().into_iter().chain(handlers()).filter(|p| !is_player(p)).filter_map(|p| p.parent().map(Path::to_path_buf));
+    let beside = custom()
+        .into_iter()
+        .chain(handlers())
+        .chain(bootstrappers().into_iter().map(|b| b.path))
+        .filter(|p| !is_player(p))
+        .filter_map(|p| p.parent().map(Path::to_path_buf));
     let mut out: Vec<PathBuf> = Vec::new();
     for d in roblox.chain(strap).chain(beside).map(|d| d.join("Versions")) {
         if !out.iter().any(|o| o.as_os_str().eq_ignore_ascii_case(d.as_os_str())) {
@@ -334,6 +341,80 @@ pub(crate) fn reg_string(root: HKEY, key: &str, value: Option<&str>) -> Option<S
     buf.truncate(len as usize / 2);
     let s = String::from_utf16_lossy(&buf);
     Some(s.trim_end_matches('\0').to_owned()).filter(|s| !s.is_empty())
+}
+
+/// The names of a registry key's subkeys (none when it can't be opened).
+fn subkeys(root: HKEY, key: &str) -> Vec<String> {
+    let key = HSTRING::from(key);
+    let mut h = HKEY::default();
+    // SAFETY: `key` is a live NUL-terminated string; on success `h` is closed below.
+    if unsafe { RegOpenKeyExW(root, &key, None, KEY_READ, &mut h) }.is_err() {
+        return Vec::new();
+    }
+    let mut out = Vec::new();
+    for i in 0.. {
+        let mut name = [0u16; 256];
+        let mut len = name.len() as u32;
+        // SAFETY: `name` holds `len` UTF-16 units, the most the call writes.
+        let found = unsafe { RegEnumKeyExW(h, i, Some(windows::core::PWSTR(name.as_mut_ptr())), &mut len, None, None, None, None) };
+        if found.is_err() {
+            break;
+        }
+        out.push(String::from_utf16_lossy(&name[..len as usize]));
+    }
+    // SAFETY: `h` was opened above and isn't used after this.
+    let _ = unsafe { RegCloseKey(h) };
+    out
+}
+
+/// A bootstrapper installed on this PC (`bootstrappers`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Bootstrapper {
+    pub name: String,
+    pub path: PathBuf,
+}
+
+const UNINSTALL: &str = r"Software\Microsoft\Windows\CurrentVersion\Uninstall";
+
+/// Every bootstrapper installed for this user, found the way Bloxstrap and its forks (Fishstrap,
+/// Froststrap, Voidstrap, ExploitStrap...) install themselves: an `Uninstall\<Name>` entry whose
+/// `InstallLocation` holds `<Name>.exe` (or the program its `DisplayIcon` names) and a `Versions`
+/// folder; then any `%LOCALAPPDATA%\<Name>\<Name>.exe` beside a `Versions` folder (portable or
+/// older installs); then the `roblox-player` handler when it isn't Roblox's. Deduplicated by path.
+pub fn bootstrappers() -> Vec<Bootstrapper> {
+    let mut found: Vec<Bootstrapper> = Vec::new();
+    let mut add = |name: String, path: PathBuf| {
+        if path.is_file() && !is_player(&path) && !is_roblox_launcher(&path) && !found.iter().any(|b| b.path.as_os_str().eq_ignore_ascii_case(path.as_os_str())) {
+            found.push(Bootstrapper { name, path });
+        }
+    };
+    for name in subkeys(HKEY_CURRENT_USER, UNINSTALL) {
+        let key = format!(r"{UNINSTALL}\{name}");
+        let Some(location) = reg_string(HKEY_CURRENT_USER, &key, Some("InstallLocation")).map(unquote) else { continue };
+        if !location.join("Versions").is_dir() && !name.to_ascii_lowercase().ends_with("strap") {
+            continue;
+        }
+        let icon = reg_string(HKEY_CURRENT_USER, &key, Some("DisplayIcon")).map(|i| unquote(i.rsplit_once(',').map_or(i.clone(), |(p, _)| p.to_owned())));
+        let exe = Some(location.join(format!("{name}.exe"))).filter(|p| p.is_file()).or(icon.filter(|p| p.is_file()));
+        if let Some(exe) = exe {
+            let shown = reg_string(HKEY_CURRENT_USER, &key, Some("DisplayName")).unwrap_or(name);
+            add(shown, exe);
+        }
+    }
+    if let Some(local) = std::env::var_os("LOCALAPPDATA").map(PathBuf::from) {
+        for dir in std::fs::read_dir(&local).into_iter().flatten().filter_map(|e| e.ok().map(|e| e.path())) {
+            let Some(name) = dir.file_name().map(|n| n.to_string_lossy().into_owned()) else { continue };
+            if name.eq_ignore_ascii_case("Roblox") || !dir.join("Versions").is_dir() {
+                continue;
+            }
+            add(name.clone(), dir.join(format!("{name}.exe")));
+        }
+    }
+    if let Some(h) = handler().filter(|h| !is_player(h)) {
+        let name = h.file_stem().map_or_else(|| "Bootstrapper".to_owned(), |n| n.to_string_lossy().into_owned());
+        add(name, h);
+    }
+    found
 }
 
 #[cfg(test)]

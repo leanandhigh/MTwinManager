@@ -397,7 +397,7 @@ pub fn show(pid: u32, what: Show) -> Result<()> {
             let hwnd = window_to_change(pid)?;
             unhide(pid, hwnd);
             if !afk::to_front(hwnd) {
-                return Err(AppError::Invalid(tr!("Windows didn't let RoALT bring that client to the front.")));
+                return Err(AppError::Invalid(tr!("Windows didn't let MTwin Hub bring that client to the front.")));
             }
         }
     }

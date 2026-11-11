@@ -108,7 +108,7 @@ fn parse_releases(body: &str) -> Option<Vec<NewsItem>> {
                     id: format!("roalt:{version}"),
                     source: NewsSource::Roalt,
                     // By the tag, as the update offer names it (a release's name can differ: v0.9.2 is "RoALT 0.9.1a").
-                    title: format!("RoALT {version}"),
+                    title: format!("MTwin Hub {version}"),
                     summary: r.body.unwrap_or_default().chars().take(MAX_NOTES).collect(),
                     url: format!("https://github.com/leanandhigh/RoALT/releases/tag/v{version}"),
                     published: r.published_at?,
@@ -287,7 +287,7 @@ mod tests {
         ]"###;
         let items = parse_releases(body).unwrap();
         assert_eq!(items.len(), 2, "drafts, prereleases, odd tags and undated ones are left out");
-        assert_eq!(items[0].title, "RoALT 0.10.0", "by the tag, not the release's name");
+        assert_eq!(items[0].title, "MTwin Hub 0.10.0", "by the tag, not the release's name");
         assert_eq!(items[0].summary, "## New\n- Macros");
         assert_eq!(items[0].url, "https://github.com/leanandhigh/RoALT/releases/tag/v0.10.0");
         assert_eq!(items[0].version.as_deref(), Some("0.10.0"));
