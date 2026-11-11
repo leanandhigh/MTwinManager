@@ -1222,6 +1222,10 @@ async function handle(cmd: string, args: Args): Promise<unknown> {
       await sleep(600);
       endInstance(args.id, "Closed");
       return null;
+    case "instances_kill":
+      await sleep(400);
+      for (const id of args.ids as string[]) endInstance(id, "Closed");
+      return (args.ids as string[]).length;
     case "instance_move": {
       // As commands::instance_move: close the playing client, then launch again.
       const i = instances.find((x) => x.id === args.id);

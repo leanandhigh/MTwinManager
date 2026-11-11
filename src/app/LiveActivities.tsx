@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { api, type AccountSummary, type BulkStage, type Instance, type Settings } from "../api";
-import { useInstances } from "../data";
+import { qk, useInstances } from "../data";
 import { TONE_COLOR, TONE_SHAPE } from "../ui/Status";
 import { t, type Key } from "../i18n";
 import { accountName, Avatar } from "../features/accounts/shared";
@@ -126,6 +127,7 @@ function RunningSheet({ running, byId, tools, close }: {
 }) {
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [killing, setKilling] = useState(false);
+  const qc = useQueryClient();
   const chosen = running.filter((i) => picked.has(i.id));
   const toggle = (id: string) =>
     setPicked((p) => {
@@ -137,13 +139,17 @@ function RunningSheet({ running, byId, tools, close }: {
   const kill = () => {
     if (!chosen.length || killing) return;
     setKilling(true);
-    void Promise.allSettled(chosen.map((i) => api.instanceClose(i.id, true))).then((r) => {
-      setKilling(false);
-      setPicked(new Set());
-      const failed = r.find((x) => x.status === "rejected");
-      if (failed) toastError((failed as PromiseRejectedResult).reason);
-      else toast(t("accounts.killed", { n: chosen.length }));
-    });
+    // As Hold to stop all, for the ticked ones: force-ended, found even behind a bootstrapper.
+    api
+      .instancesKill(chosen.map((i) => i.id))
+      .then(() => {
+        void qc.invalidateQueries({ queryKey: qk.instances });
+        toast(t("accounts.killed", { n: chosen.length }));
+      }, toastError)
+      .finally(() => {
+        setKilling(false);
+        setPicked(new Set());
+      });
   };
   return (
         <div className="flex flex-col">

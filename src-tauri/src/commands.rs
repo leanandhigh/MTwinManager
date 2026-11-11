@@ -2059,6 +2059,41 @@ pub async fn instance_close(s: State<'_, App>, id: String, force: bool) -> Resul
     r
 }
 
+/// Kill selected: force-ends the clients of `ids`, as Kill all does but for these only. Each is
+/// ended by the process it follows and, as that can be a bootstrapper whose client was never told
+/// apart (no log to go by), also by the client whose launch carries its browser tracker id.
+/// Returns how many processes were ended.
+#[tauri::command]
+pub async fn instances_kill(s: State<'_, App>, ids: Vec<String>) -> Result<u32> {
+    let picked = s.tracker.kill_targets(&ids);
+    log::info!("kill selected: {} client(s)", picked.len());
+    let mut targets: Vec<(u32, Option<u64>)> = picked.iter().filter_map(|k| k.process).collect();
+    let unresolved: Vec<i64> = picked.iter().filter(|k| !k.adopted).map(|k| k.btid).collect();
+    if !unresolved.is_empty() {
+        for p in crate::instances::process::roblox_processes() {
+            let line = crate::instances::process::command_line(p.pid).unwrap_or_default();
+            if unresolved.iter().any(|b| crate::instances::process::is_launch(&line, *b)) && !targets.iter().any(|t| t.0 == p.pid) {
+                targets.push((p.pid, Some(p.start_time)));
+            }
+        }
+    }
+    let mut ended = 0;
+    let mut failed = None;
+    for r in close_all(targets, true, Duration::ZERO).await? {
+        match r {
+            Ok(()) => ended += 1,
+            Err(e) => {
+                log::warn!("kill selected: {e}");
+                failed.get_or_insert(e);
+            }
+        }
+    }
+    match failed {
+        Some(e) if ended == 0 => Err(e),
+        _ => Ok(ended),
+    }
+}
+
 /// Moves a playing account's client to `target` (asked first in the UI): its client is closed, then
 /// the account launches again. Into the same game it was in (no particular server), it hops to the
 /// smallest other public server (`bulk::smallest_other`), or as Roblox matches it when there is

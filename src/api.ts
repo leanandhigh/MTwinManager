@@ -221,6 +221,8 @@ export const api = {
   instancesList: () => invoke<Instance[]>("instances_list"),
   /** Graceful unless `force`; not counted as an unexpected exit. */
   instanceClose: (id: string, force: boolean) => invoke<void>("instance_close", { id, force }),
+  /** Kill selected: force-ends these clients, as Kill all does; how many processes ended. */
+  instancesKill: (ids: string[]) => invoke<number>("instances_kill", { ids }),
   /** Browse: www.roblox.com/`path` as the account, at `rect` (the main window's CSS pixels). */
   browseOpen: (accountId: number, path: string, rect: PaneRect) => invoke<void>("browse_open", { accountId, path, rect }),
   browseBounds: (rect: PaneRect, shown: boolean) => invoke<void>("browse_bounds", { rect, shown }),

@@ -602,15 +602,13 @@ export function AccountsView({ accounts, groups, density, vaultMode, clipboardSe
         onClose={() => setKilling(false)}
         onConfirm={() => {
           setKilling(false);
-          const targets = checkedIds.flatMap((id) => {
-            const i = live.get(id);
-            return i ? [i] : [];
-          });
-          void Promise.allSettled(targets.map((i) => api.instanceClose(i.id, true))).then((r) => {
-            const failed = r.find((x) => x.status === "rejected");
-            if (failed) toastError((failed as PromiseRejectedResult).reason);
-            else toast(t("accounts.killed", { n: targets.length }));
-          });
+          // Every running client of the ticked accounts (an account can have more than one).
+          const picked = new Set(checkedIds);
+          const targets = (instances ?? []).filter((i) => isLive(i) && picked.has(i.accountId));
+          api.instancesKill(targets.map((i) => i.id)).then(() => {
+            void qc.invalidateQueries({ queryKey: qk.instances });
+            toast(t("accounts.killed", { n: targets.length }));
+          }, toastError);
         }}
         title={t("accounts.killTitle", { n: checkedIds.filter((id) => live.has(id)).length })}
         text={t("accounts.killText")}

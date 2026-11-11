@@ -695,6 +695,7 @@ fn main() {
             commands::join_candidates,
             commands::instances_list,
             commands::instance_close,
+            commands::instances_kill,
             commands::instance_move,
             commands::account_login_cancel,
             commands::instances_close_all,

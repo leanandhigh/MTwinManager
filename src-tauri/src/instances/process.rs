@@ -35,6 +35,40 @@ pub struct ProcInfo {
     pub start_time: u64,
 }
 
+/// A process's command line (`ProcessCommandLineInformation`, with limited rights only); None when
+/// it can't be read.
+pub fn command_line(pid: u32) -> Option<String> {
+    use windows::Wdk::System::Threading::{NtQueryInformationProcess, PROCESSINFOCLASS};
+    use windows::Win32::Foundation::UNICODE_STRING;
+    const PROCESS_COMMAND_LINE_INFORMATION: PROCESSINFOCLASS = PROCESSINFOCLASS(60);
+    let h = open(pid, PROCESS_QUERY_LIMITED_INFORMATION)?;
+    let mut len = 0u32;
+    // SAFETY: a size query (no buffer); `len` is a local.
+    let _ = unsafe { NtQueryInformationProcess(*h, PROCESS_COMMAND_LINE_INFORMATION, std::ptr::null_mut(), 0, &mut len) };
+    if len < size_of::<UNICODE_STRING>() as u32 || len > 1 << 20 {
+        return None;
+    }
+    // u64s: aligned for the UNICODE_STRING at its start.
+    let mut buf = vec![0u64; (len as usize).div_ceil(8)];
+    // SAFETY: `buf` holds `len` bytes; the call writes a UNICODE_STRING whose text lies in `buf`.
+    unsafe { NtQueryInformationProcess(*h, PROCESS_COMMAND_LINE_INFORMATION, buf.as_mut_ptr().cast(), len, &mut len) }.ok().ok()?;
+    // SAFETY: as above; Length is in bytes, and the text is inside `buf`, which lives past this read.
+    let text = unsafe {
+        let us = &*(buf.as_ptr() as *const UNICODE_STRING);
+        if us.Buffer.is_null() || us.Length as u32 > len {
+            return None;
+        }
+        std::slice::from_raw_parts(us.Buffer.0, us.Length as usize / 2)
+    };
+    Some(String::from_utf16_lossy(text))
+}
+
+/// Whether a client's command line is the launch with this browser tracker id (`uri::player_uri`).
+pub fn is_launch(command_line: &str, btid: i64) -> bool {
+    let key = format!("browsertrackerid:{btid}");
+    command_line.match_indices(&key).any(|(i, _)| !command_line[i + key.len()..].starts_with(|c: char| c.is_ascii_digit()))
+}
+
 /// Running `RobloxPlayerBeta.exe` processes.
 pub fn roblox_processes() -> Vec<ProcInfo> {
     named(CLIENT_EXE)

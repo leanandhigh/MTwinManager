@@ -235,6 +235,16 @@ impl Drop for Claim<'_> {
     }
 }
 
+/// What Kill selected ends for one client (`Tracker::kill_targets`).
+pub struct KillTarget {
+    /// The process it follows, while alive: (pid, start time).
+    pub process: Option<(u32, Option<u64>)>,
+    /// That process is the client itself, not a bootstrapper standing in for it.
+    pub adopted: bool,
+    /// Its launch's browser tracker id, on the client's command line.
+    pub btid: i64,
+}
+
 /// One launch: what the UI sees plus what following it needs.
 #[derive(Clone)]
 struct Entry {
@@ -555,6 +565,21 @@ impl Tracker {
     /// Launches still in a bootstrapper's hands, whose client hasn't appeared: for the panic button.
     pub fn bootstrappers(&self) -> Vec<(u32, Option<u64>)> {
         self.entries().iter().filter(|e| !e.adopted && e.alive && e.inst.state != InstanceState::Exited).map(|e| (e.inst.pid, e.start_time)).collect()
+    }
+
+    /// Kill selected: marks each of `ids` closed by the user (no rejoin, no restart) and gives what
+    /// to end for it. One still behind its bootstrapper is found by `btid` too.
+    pub fn kill_targets(&self, ids: &[String]) -> Vec<KillTarget> {
+        let mut entries = self.entries();
+        entries
+            .iter_mut()
+            .filter(|e| ids.contains(&e.inst.id) && e.inst.state != InstanceState::Exited)
+            .map(|e| {
+                e.stop_relaunch();
+                e.closing = true;
+                KillTarget { process: e.alive.then_some((e.inst.pid, e.start_time)), adopted: e.adopted, btid: e.btid }
+            })
+            .collect()
     }
 
     /// Panic button: every entry, ended ones too, counts as closed by the user, so no rejoin or
