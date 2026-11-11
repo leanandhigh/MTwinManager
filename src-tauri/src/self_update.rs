@@ -1,6 +1,6 @@
 //! RoALT's own updates (Roblox's are `launcher::update`).
 //!
-//! - Check: `GET api.github.com/repos/inspectsoftware/RoALT/releases/latest` (published releases
+//! - Check: `GET api.github.com/repos/leanandhigh/RoALT/releases/latest` (published releases
 //!   only, never a draft or prerelease) at start and every 6 h while `self_update` is on,
 //!   or on Check now. A `vX.Y.Z` tag newer than this build (`newer`: never the same or older)
 //!   with the assets `RoALT-Setup-X.Y.Z.exe` and `.exe.sig` is an update; `app://update` says so.
@@ -42,7 +42,7 @@ use crate::model::AppUpdate;
 
 pub const UPDATE_EVENT: &str = "app://update";
 const CURRENT: &str = env!("CARGO_PKG_VERSION");
-const LATEST: &str = "https://api.github.com/repos/inspectsoftware/RoALT/releases/latest";
+const LATEST: &str = "https://api.github.com/repos/leanandhigh/RoALT/releases/latest";
 const CHECK_EVERY: Duration = Duration::from_secs(6 * 60 * 60);
 const MAX_JSON: u64 = 1_000_000;
 const MAX_INSTALLER: u64 = 200_000_000;
@@ -53,7 +53,9 @@ const TEMP_PREFIX: &str = "roalt-update-";
 /// Inno Setup's silent install; `/RELAUNCH` is RoALT.iss's own: start RoALT when done.
 const INSTALLER_ARGS: [&str; 5] = ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS", "/RELAUNCH"];
 /// The release signing key (P-256, uncompressed X‖Y): its private half is the `ROALT_UPDATE_KEY`
-/// secret of the release workflow, never in this repository.
+/// secret of the release workflow, never in this repository. The release workflow puts the public
+/// half of that secret here before it builds (`scripts/make-update-key.mjs` makes the pair), so
+/// released builds always match it.
 const PUBLIC_KEY: &str = "75e2530761806230914528bcedce3565121808e8576bf27eb82864485f7e5cc3031aecb007e08d37cb04bd67809c9b06c901ce058794e536ea6b71a406908623";
 
 #[derive(Default)]

@@ -10,7 +10,7 @@ use serde::Deserialize;
 
 use crate::model::{News, NewsItem, NewsSource};
 
-const RELEASES: &str = "https://api.github.com/repos/inspectsoftware/RoALT/releases?per_page=5";
+const RELEASES: &str = "https://api.github.com/repos/leanandhigh/RoALT/releases?per_page=5";
 const ANNOUNCEMENTS: &str = "https://devforum.roblox.com/c/updates/announcements/36.json";
 const RELEASE_NOTES: &str = "https://devforum.roblox.com/c/updates/release-notes/62.json";
 /// No feed: the page's article cards are read (`newsroom`).
@@ -110,7 +110,7 @@ fn parse_releases(body: &str) -> Option<Vec<NewsItem>> {
                     // By the tag, as the update offer names it (a release's name can differ: v0.9.2 is "RoALT 0.9.1a").
                     title: format!("RoALT {version}"),
                     summary: r.body.unwrap_or_default().chars().take(MAX_NOTES).collect(),
-                    url: format!("https://github.com/inspectsoftware/RoALT/releases/tag/v{version}"),
+                    url: format!("https://github.com/leanandhigh/RoALT/releases/tag/v{version}"),
                     published: r.published_at?,
                     version: Some(version),
                 })
@@ -289,7 +289,7 @@ mod tests {
         assert_eq!(items.len(), 2, "drafts, prereleases, odd tags and undated ones are left out");
         assert_eq!(items[0].title, "RoALT 0.10.0", "by the tag, not the release's name");
         assert_eq!(items[0].summary, "## New\n- Macros");
-        assert_eq!(items[0].url, "https://github.com/inspectsoftware/RoALT/releases/tag/v0.10.0");
+        assert_eq!(items[0].url, "https://github.com/leanandhigh/RoALT/releases/tag/v0.10.0");
         assert_eq!(items[0].version.as_deref(), Some("0.10.0"));
         assert_eq!(items[1].id, "roalt:0.9.4");
         assert!(parse_releases("<html>").is_none());

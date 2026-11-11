@@ -704,11 +704,14 @@ Bug reports, ideas and pull requests are welcome.
 <summary><b>Steps</b></summary>
 <br>
 
-1. Set the same version in `src-tauri/tauri.conf.json`, `package.json` and `src-tauri/Cargo.toml`,
-   then run `cargo update -p roalt --offline` in `src-tauri` so `Cargo.lock` matches (CI builds `--locked`).
-2. Commit all four files, then tag and push the tag: `git tag vX.Y.Z && git push origin vX.Y.Z`.
-3. The Release workflow builds the installer and puts it with `SHA256SUMS.txt` on a draft release.
-   Check it, then publish the draft.
+**Once:** run `node scripts/make-update-key.mjs`, put the whole text of `update-key-PRIVATE.pem` into the
+repository secret `ROALT_UPDATE_KEY` (Settings > Secrets and variables > Actions), and keep the file safe.
+Released builds carry its public half and only run installers it signed.
+
+**Each release:** Actions > Release > Run workflow, pick the branch, type a version newer than the
+current one (like `1.2.0`). The workflow builds and signs the installer and puts it on a draft
+release; publish the draft. Every RoALT built from a release offers it within 6 hours (or at
+Settings > About > Check now).
 
 </details>
 

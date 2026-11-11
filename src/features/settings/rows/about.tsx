@@ -13,7 +13,7 @@ import { useRow } from "../kit/rowError";
 import { SettingRow } from "../kit/SettingRow";
 import { unhideUpdate } from "../UpdateBanner";
 
-const RELEASES = "https://github.com/inspectsoftware/RoALT/releases";
+const RELEASES = "https://github.com/leanandhigh/RoALT/releases";
 
 /** Check now (and what it found) beside the switch for the background checks. A found update shows
  * in the island again, even one Later hid. */

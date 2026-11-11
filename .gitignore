@@ -21,3 +21,4 @@ installers/
 /docs/research/*
 !/docs/research/fixtures/
 /RoALT.exe
+/update-key-PRIVATE.pem

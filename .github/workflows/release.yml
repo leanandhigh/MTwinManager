@@ -8,6 +8,11 @@ on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, like 1.2.0 (empty: the one in tauri.conf.json). Must be newer than what you run."
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -30,6 +35,25 @@ jobs:
       HAS_SIGNPATH: ${{ secrets.SIGNPATH_API_TOKEN != '' }}
     steps:
       - uses: actions/checkout@v7
+      - name: Set the version asked for
+        if: github.event_name == 'workflow_dispatch' && inputs.version != ''
+        env:
+          WANT: ${{ inputs.version }}
+        run: |
+          if ($env:WANT -notmatch '^\d+\.\d+\.\d+$') { echo "::error::version '$env:WANT' isn't like 1.2.0"; exit 1 }
+          $files = @{
+            'src-tauri\tauri.conf.json' = '("version"\s*:\s*)"[^"]+"'
+            'package.json'              = '("version"\s*:\s*)"[^"]+"'
+            'src-tauri\Cargo.toml'      = '(?m)^(version\s*=\s*)"[^"]+"'
+            'src-tauri\Cargo.lock'      = '(name = "roalt"\r?\nversion = )"[^"]+"'
+          }
+          foreach ($f in $files.Keys) {
+            $text = [IO.File]::ReadAllText($f)
+            $new = ([regex]$files[$f]).Replace($text, ('$1"' + $env:WANT + '"'), 1)
+            if ($new -eq $text) { echo "::error::could not set the version in $f"; exit 1 }
+            [IO.File]::WriteAllText($f, $new)
+          }
+          echo "version set to $env:WANT"
       - id: v
         run: |
           $version = (Get-Content -Raw src-tauri\tauri.conf.json | ConvertFrom-Json).version
@@ -43,6 +67,25 @@ jobs:
         with:
           node-version: 24
       - uses: dtolnay/rust-toolchain@stable
+      - name: Build with the update key's public half
+        # RoALT only runs installers signed by the key whose public half it carries: put the public
+        # half of ROALT_UPDATE_KEY into self_update.rs before building, so they always match.
+        env:
+          ROALT_UPDATE_KEY: ${{ secrets.ROALT_UPDATE_KEY }}
+        run: |
+          node -e '
+            const crypto = require("crypto"), fs = require("fs");
+            const key = process.env.ROALT_UPDATE_KEY;
+            if (!key) { console.log("::error::the ROALT_UPDATE_KEY secret is not set (scripts/make-update-key.mjs makes one)"); process.exit(1); }
+            const jwk = crypto.createPublicKey(key).export({ format: "jwk" });
+            if (jwk.crv !== "P-256") { console.log("::error::ROALT_UPDATE_KEY is not a P-256 key"); process.exit(1); }
+            const hex = Buffer.concat([Buffer.from(jwk.x, "base64url"), Buffer.from(jwk.y, "base64url")]).toString("hex");
+            const file = "src-tauri/src/self_update.rs";
+            const src = fs.readFileSync(file, "utf8").replace(/const PUBLIC_KEY: &str = "[0-9a-f]{128}"/, `const PUBLIC_KEY: &str = "${hex}"`);
+            fs.writeFileSync(file, src);
+            console.log("update key: " + hex);
+          '
+        shell: bash
       - name: Inno Setup 6.6+
         # Installs it, or upgrades a preinstalled older 6.x (the .iss needs 6.6).
         run: choco upgrade innosetup --no-progress -y
