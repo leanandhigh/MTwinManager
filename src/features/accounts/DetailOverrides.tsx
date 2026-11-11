@@ -1,6 +1,5 @@
 import { useState } from "react";
 import type { AccountPatch, AccountSummary } from "../../api";
-import { requestNavigation } from "../../app/navigation";
 import { useSettings, useUpdateAccount } from "../../data";
 import { t } from "../../i18n";
 import { Disclosure } from "../../ui/Bits";
@@ -38,9 +37,6 @@ export function DetailOverrides({ account: a }: { account: AccountSummary }) {
         {nothingBrings && (
           <div className="flex flex-col items-start gap-2">
             <p className="alert text-[13px]">{t("accounts.detail.bringBackOff")}</p>
-            <Button size="sm" variant="ghost" icon="settings" onClick={() => requestNavigation("settings", "launching")}>
-              {t("app.nav.settings")}
-            </Button>
           </div>
         )}
       </Section>

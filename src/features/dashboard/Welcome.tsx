@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import type { AccountSummary, Favourite } from "../../api";
-import { requestNavigation } from "../../app/navigation";
 import { publicBlock, useBulk, useFavourites, useInstances, useMultiStatus, useNetwork, useSettings } from "../../data";
 import { fmtList, t, type Key } from "../../i18n";
 import { Button } from "../../ui/Button";
@@ -88,14 +87,13 @@ function QuickPlay({ accounts, onPick }: { accounts: AccountSummary[]; onPick?: 
 /** Home with nothing running: three steps to a first game (no accounts), the way back in (all signed
  * out), or the way to a game and the favourites (idle). `toolbar` and `extra` go in the header,
  * `notice` under it. */
-export function Welcome({ accounts, toolbar, extra, notice, onAdd, onImport, onAccounts, onPickFavourite }: {
+export function Welcome({ accounts, toolbar, extra, notice, onAdd, onImport, onPickFavourite }: {
   accounts: AccountSummary[];
   toolbar: ReactNode;
   extra: ReactNode;
   notice: ReactNode;
   onAdd: () => void;
   onImport: () => void;
-  onAccounts: () => void;
   onPickFavourite?: (f: Favourite) => void;
 }) {
   const head = (title: string, lead: string, end?: ReactNode) => (
@@ -144,22 +142,12 @@ export function Welcome({ accounts, toolbar, extra, notice, onAdd, onImport, onA
     return (
       <>
         {head(t("home.signedOutTitle"), t("home.signedOutLead"), <>{toolbar}{extra}</>)}
-        <div>
-          <Button variant="primary" icon="accounts" onClick={onAccounts}>
-            {t("app.nav.accounts")}
-          </Button>
-        </div>
       </>
     );
 
   return (
     <>
       {head(t("home.idle"), t("home.idleLead"), <>{toolbar}{extra}</>)}
-      <div>
-        <Button variant="primary" icon="play" onClick={() => requestNavigation("launch")}>
-          {t("home.chooseGame")}
-        </Button>
-      </div>
       <QuickPlay accounts={accounts} onPick={onPickFavourite} />
     </>
   );

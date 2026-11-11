@@ -85,7 +85,7 @@ const PAGE = 120;
 
 /** Play's grid. Shift picks a range (click or Space), Ctrl+A and Select all take what's shown (the MAIN
  * account left out while Settings protects it, and the note says so). One Tab stop; arrows move. */
-function Tiles({ accounts, picked, onPicked, label, onAdd, onAccounts, className = "" }: Picks & { onAdd: () => void; onAccounts: () => void; className?: string }) {
+function Tiles({ accounts, picked, onPicked, label, onAdd, className = "" }: Picks & { onAdd: () => void; className?: string }) {
   const groups = useGroups().data ?? [];
   const protect = useSettings().data?.protectMain !== false;
   const live = useLive();
@@ -205,7 +205,6 @@ function Tiles({ accounts, picked, onPicked, label, onAdd, onAccounts, className
       {accounts.every((a) => a.status !== "valid") && (
         <div className="notice">
           <p className="flex-[1_1_240px] min-w-0 text-fg-2">{t("home.signedOutLead")}</p>
-          <Button size="md" onClick={onAccounts}>{t("app.nav.accounts")}</Button>
         </div>
       )}
       <Search value={q} onChange={setQ} find />
@@ -413,7 +412,7 @@ function List({ accounts, picked, onPicked, label }: Picks) {
 }
 
 export type AccountPickerProps =
-  | ({ variant: "tiles"; onAdd: () => void; onAccounts: () => void; className?: string } & Picks)
+  | ({ variant: "tiles"; onAdd: () => void; className?: string } & Picks)
   | ({ variant: "chips" } & Picks)
   | ({ variant: "list" } & Picks)
   | { variant: "menu"; accounts: AccountSummary[]; label: string; onPick: (id: number) => void; onAdd: () => void };

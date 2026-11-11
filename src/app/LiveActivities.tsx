@@ -9,7 +9,6 @@ import { useWindowTools } from "../features/dashboard/windowTools";
 import { useLaunchActivity } from "../features/launch/launchQueue";
 import { LaunchProgress } from "../features/launch/LaunchProgress";
 import { isRunning, STATES } from "../features/launch/Running";
-import { jumpTo } from "../features/settings/jumpTo";
 import { usePublicBlock } from "../features/settings/PublicNetworkBanner";
 import { UpdateText, useUpdateInstall, useUpdateOffer } from "../features/settings/UpdateBanner";
 import { announce } from "../ui/a11y";
@@ -19,7 +18,6 @@ import { Icon } from "../ui/Icon";
 import { Capsule, Ring } from "../ui/island/Capsule";
 import { LAYOUT_IDS, Swap } from "../ui/motion";
 import { KillAllButton } from "./KillAll";
-import { requestNavigation } from "./navigation";
 
 /** What a batch item is doing now, in a few words. */
 const NOTE: Partial<Record<BulkStage["kind"], Key>> = {
@@ -174,7 +172,6 @@ function RunningSheet({ running, byId, tools, close }: {
             })}
           </ul>
           <div className="flex flex-wrap gap-2 px-3 pb-3">
-            <Button size="md" icon="home" onClick={() => (close(), requestNavigation("dashboard"))}>{t("app.nav.dashboard")}</Button>
             <Button size="md" icon="minimize" disabled={tools.busy} onClick={() => void tools.minimizeAll()}>{t("dashboard.minimizeAll")}</Button>
             <Button size="md" icon="grid" disabled={tools.busy} onClick={() => void tools.tile(false)}>{t("dashboard.tile")}</Button>
           </div>
@@ -218,9 +215,6 @@ function NoticeCapsule({ settings }: { settings: Settings }) {
           ) : (
             <div className="flex flex-col gap-3 p-4">
               <p>{t("settings.publicBannerBlocked")}</p>
-              <div>
-                <Button size="md" icon="shield" onClick={() => (close(), jumpTo("publicNetworks"))}>{t("app.nav.settings")}</Button>
-              </div>
             </div>
           )
         }

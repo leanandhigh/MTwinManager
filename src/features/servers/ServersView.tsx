@@ -1,10 +1,8 @@
 import { useId, useState, type Dispatch, type SetStateAction } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { AccountSummary } from "../../api";
-import { requestNavigation } from "../../app/navigation";
 import { publicBlock, useBulk, useInstances, useMultiStatus, useNetwork, useRobloxClient, useSettings } from "../../data";
 import { t } from "../../i18n";
-import { Button } from "../../ui/Button";
 import { Icon } from "../../ui/Icon";
 import { Collapse, Morph, SPRING, Swap, TWEEN } from "../../ui/motion";
 import { MenuLabel, MenuRadioItem, MenuSeparator, Popover, useAnchor } from "../../ui/Popover";
@@ -115,7 +113,6 @@ export function ServersView({ accounts, picked, setPicked, place, setPlace }: {
               ) : (
                 <p className="flex flex-wrap items-center gap-x-3 gap-y-2 min-h-7 text-[13px] text-fg-2">
                   {t("servers.noValidAccount")}
-                  <Button size="sm" onClick={() => requestNavigation("accounts")}>{t("app.nav.accounts")}</Button>
                 </p>
               )}
             </div>

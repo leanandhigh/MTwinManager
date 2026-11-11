@@ -14,7 +14,6 @@ import { lastLaunchAccount } from "../features/launch/launchQueue";
 import { isLive } from "../features/launch/Running";
 import { draftFor, EMPTY_DRAFT, type Draft } from "../features/launch/target";
 import { AREAS, type SettingsArea } from "../features/settings/areas";
-import { jumpTo } from "../features/settings/jumpTo";
 import { useSplashPhase } from "../features/splash/phase";
 import { overlayOpen } from "../ui/a11y";
 import type { IslandLeaf, IslandModel } from "../ui/island/model";
@@ -313,7 +312,6 @@ export function Shell({ vault, settings, islandSlot }: { vault: VaultStatus; set
               home={homeTabs}
               onAdd={() => openAdd()}
               onImport={() => openAdd("many")}
-              onAccounts={showAll}
               onPickFavourite={pickFavourite}
             />
           ) : view === "accounts" ? (
@@ -340,11 +338,7 @@ export function Shell({ vault, settings, islandSlot }: { vault: VaultStatus; set
               draft={draft}
               setDraft={setDraft}
               onAdd={() => openAdd()}
-              onServers={openServers}
               onPickFavourite={pickFavourite}
-              onHome={() => go("dashboard")}
-              onAccounts={showAll}
-              onSettings={() => jumpTo("client")}
             />
           ) : view === "browse" ? (
             <BrowseView accounts={accounts.data} ask={browseAsk} />

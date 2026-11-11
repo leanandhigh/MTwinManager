@@ -2,7 +2,6 @@ import "./monitor.css";
 import { useEffect, useLayoutEffect, useRef, useState, type FocusEvent, type ReactNode, type RefObject } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { asError, type AccountSummary, type ClientMetrics, type Instance } from "../../api";
-import { requestNavigation } from "../../app/navigation";
 import { useInstances, useMetrics } from "../../data";
 import { fmtNum, t, type Key } from "../../i18n";
 import { Skeleton } from "../../ui/Bits";
@@ -403,7 +402,6 @@ export function MonitorView({ accounts }: { accounts: AccountSummary[] }) {
           ) : view === "empty" ? (
             <div className="empty">
               <p>{t("monitor.empty")}</p>
-              <Button variant="primary" icon="play" onClick={() => requestNavigation("launch")}>{t("common.launch")}</Button>
             </div>
           ) : (
             <>

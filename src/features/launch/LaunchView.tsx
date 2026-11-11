@@ -22,7 +22,6 @@ import { LaunchProgress } from "./LaunchProgress";
 import { MultiNotice } from "./MultiNotice";
 import { useMoveConfirm } from "./MoveDialog";
 import { isRunning } from "./Running";
-import { ServerDrawer } from "./ServerDrawer";
 import { TargetField } from "./TargetField";
 import { draftFor, draftForUser, readDraft, resolveTarget, type Draft } from "./target";
 import "./launch.css";
@@ -88,7 +87,7 @@ function Option({ id, label, hint, more, children, below }: { id: string; label:
 type Chip = { key: string; text: string; edit?: string };
 
 /** Play: who plays (left), where and the launch (right). Two columns when there is room, else stacked. */
-export function LaunchView({ accounts, picked, setPicked, sameServer, setSameServer, draft, setDraft, onAdd, onServers, onPickFavourite, onHome, onAccounts, onSettings }: {
+export function LaunchView({ accounts, picked, setPicked, sameServer, setSameServer, draft, setDraft, onAdd, onPickFavourite }: {
   accounts: AccountSummary[];
   picked: number[];
   setPicked: Dispatch<SetStateAction<number[]>>;
@@ -97,12 +96,7 @@ export function LaunchView({ accounts, picked, setPicked, sameServer, setSameSer
   draft: Draft;
   setDraft: Dispatch<SetStateAction<Draft>>;
   onAdd: () => void;
-  /** The whole Servers view (the drawer's way there). */
-  onServers: () => void;
   onPickFavourite: (f: Favourite) => void;
-  onHome: () => void;
-  onAccounts: () => void;
-  onSettings: () => void;
 }) {
   const favourites = useFavourites();
   const multi = useMultiStatus().data;
@@ -116,7 +110,6 @@ export function LaunchView({ accounts, picked, setPicked, sameServer, setSameSer
   const activity = useLaunchActivity();
   const [joinOpen, setJoinOpen] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
   const [fps, setFps] = useSessionFps();
   // Open when one of them is set: it applies to the next launch, so it stays in sight.
   const [optionsOpen, setOptionsOpen] = useState(() => fps > 0 || sameServer !== "off");
@@ -163,7 +156,7 @@ export function LaunchView({ accounts, picked, setPicked, sameServer, setSameSer
   }, [folded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // A parse that hasn't caught up yet is launchable.
-  const { parsed, look, usable: usableTarget, pending } = readDraft(draft);
+  const { look, usable: usableTarget, pending } = readDraft(draft);
   const fav = draft.favId === null ? undefined : favourites.data?.find((f) => f.id === draft.favId);
   const pub = publicBlock(network, settings);
   // Turned on but held up by a Roblox already running: another client would still replace it.
@@ -254,7 +247,6 @@ export function LaunchView({ accounts, picked, setPicked, sameServer, setSameSer
     if (details && selector !== "#launch-target") details.open = true;
     document.querySelector<HTMLElement>(selector)?.focus();
   };
-  const seed = parsed?.kind === "target" && "placeId" in parsed.target ? parsed.target.placeId : null;
   const names = chosen.slice(0, 2).map(accountName).join(", ") + (chosen.length > 2 ? ` +${chosen.length - 2}` : "");
 
   return (
@@ -287,7 +279,7 @@ export function LaunchView({ accounts, picked, setPicked, sameServer, setSameSer
               </button>
             </Collapse>
             <Collapse open={!folded} className="flex flex-col min-h-0">
-              <AccountPicker variant="tiles" accounts={accounts} picked={picked} onPicked={setPicked} label={t("play.who")} onAdd={onAdd} onAccounts={onAccounts} className="play-picker min-h-0" />
+              <AccountPicker variant="tiles" accounts={accounts} picked={picked} onPicked={setPicked} label={t("play.who")} onAdd={onAdd} className="play-picker min-h-0" />
             </Collapse>
           </section>
 
@@ -299,7 +291,6 @@ export function LaunchView({ accounts, picked, setPicked, sameServer, setSameSer
                   <h2 id="play-where" className="section-title flex-[1_1_120px]">{t("play.where")}</h2>
                   <span className="flex flex-wrap gap-1">
                     <Button variant="ghost" size="md" icon="accounts" onClick={() => setJoinOpen(true)}>{t("launch.joinSomeone")}</Button>
-                    <Button variant="ghost" size="md" icon="servers" onClick={() => setDrawerOpen(true)}>{t("play.browse")}</Button>
                   </span>
                 </div>
                 <FavouritesRow accounts={accounts} active={draft.favId} onPick={onPickFavourite} />
@@ -462,13 +453,11 @@ export function LaunchView({ accounts, picked, setPicked, sameServer, setSameSer
                   {client && !client.path && (
                     <div className="notice enter" data-tone="attention">
                       <p className="alert flex-[1_1_240px] min-w-0">{t("settings.robloxMissing")}</p>
-                      <Button size="md" onClick={onSettings}>{t("settings.installRoblox")}</Button>
                     </div>
                   )}
                   {!bulk && account && move.liveOf(account) && (
                     <div className="notice enter">
                       <p className="flex-[1_1_240px] min-w-0 text-fg-2">{t("move.notice", { name: accountName(account) })}</p>
-                      <Button size="md" icon="home" onClick={onHome}>{t("app.nav.dashboard")}</Button>
                     </div>
                   )}
                   {canLaunch && bulk && client?.outdated && (
@@ -498,16 +487,6 @@ export function LaunchView({ accounts, picked, setPicked, sameServer, setSameSer
 
       {move.dialog}
       <JoinDialog open={joinOpen} onClose={() => setJoinOpen(false)} account={asker} accounts={accounts} onPick={join} />
-      <ServerDrawer
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        accounts={accounts}
-        asker={asker}
-        count={chosen.length}
-        seed={seed}
-        onUse={setDraft}
-        onServers={onServers}
-      />
       <FavouriteDialog
         open={saveOpen}
         onClose={() => setSaveOpen(false)}

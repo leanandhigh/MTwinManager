@@ -236,13 +236,12 @@ function Clients({ accounts, home, list, running, detailed, setDetailed, extra }
 
 /** Home without a tab open: the running clients, or with none the way to a first game; how the
  * client list is loading or why it failed; then what recently closed. */
-function Overview({ accounts, home, extra, onAdd, onImport, onAccounts, onPickFavourite }: {
+function Overview({ accounts, home, extra, onAdd, onImport, onPickFavourite }: {
   accounts: AccountSummary[];
   home: HomeTabs;
   extra: ReactNode;
   onAdd: () => void;
   onImport: () => void;
-  onAccounts: () => void;
   onPickFavourite?: (f: Favourite) => void;
 }) {
   const instances = useInstances();
@@ -267,7 +266,6 @@ function Overview({ accounts, home, extra, onAdd, onImport, onAccounts, onPickFa
           notice={<Trouble list={list} byId={new Map(accounts.map((a) => [a.id, a]))} />}
           onAdd={onAdd}
           onImport={onImport}
-          onAccounts={onAccounts}
           onPickFavourite={onPickFavourite}
         />
       )}
@@ -279,19 +277,18 @@ function Overview({ accounts, home, extra, onAdd, onImport, onAccounts, onPickFa
 
 /** Every running client at a glance, with a picture of its window, and the window tools; with
  * nothing running, the way to the first game. Home's tabs (News, Overview, accounts) sit above it. */
-export function DashboardView({ accounts, home, onAdd, onImport, onAccounts, onPickFavourite }: {
+export function DashboardView({ accounts, home, onAdd, onImport, onPickFavourite }: {
   accounts: AccountSummary[];
   home: HomeTabs;
   onAdd: () => void;
   onImport: () => void;
-  onAccounts: () => void;
   /** Opens Play with this favourite's target and accounts. */
   onPickFavourite?: (f: Favourite) => void;
 }) {
   return (
     <main className="scroll flex-1 min-w-0 page flex flex-col gap-6">
       <AccountTabs accounts={accounts} home={home} onAdd={onAdd}>
-        {(extra) => <Overview accounts={accounts} home={home} extra={extra} onAdd={onAdd} onImport={onImport} onAccounts={onAccounts} onPickFavourite={onPickFavourite} />}
+        {(extra) => <Overview accounts={accounts} home={home} extra={extra} onAdd={onAdd} onImport={onImport} onPickFavourite={onPickFavourite} />}
       </AccountTabs>
     </main>
   );
