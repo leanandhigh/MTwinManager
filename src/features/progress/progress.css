@@ -221,6 +221,11 @@
   }
 
   /* A game. */
+  .pg-note {
+    padding: 12px 16px;
+    margin-bottom: 14px;
+    color: var(--fg-2);
+  }
   .pg-tiles {
     display: flex;
     flex-wrap: wrap;

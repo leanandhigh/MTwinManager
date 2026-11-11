@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { api, type AccountSummary, type ProgressAccount, type ProgressState } from "../../api";
 import { qk } from "../../data";
@@ -27,7 +27,10 @@ type Col = { key: string; label: string; val: (a: ProgressAccount) => number | s
 let lastTab: Tab = "items";
 
 export function GamePage({ s, gameId, accounts, onBack }: { s: ProgressState; gameId: string; accounts: AccountSummary[]; onBack: () => void }) {
-  const [tab, setTabState] = useState<Tab>(lastTab);
+  const qc = useQueryClient();
+  const hasReports = s.accounts.some((a) => a.gameId === gameId);
+  // A game nobody has played yet opens on its Catalog: that's what there is to do.
+  const [tab, setTabState] = useState<Tab>(hasReports ? lastTab : "catalog");
   const setTab = (v: Tab) => {
     lastTab = v;
     setTabState(v);
@@ -40,7 +43,15 @@ export function GamePage({ s, gameId, accounts, onBack }: { s: ProgressState; ga
   const picked = pcs.filter((p) => machines.includes(p));
   const scoped = picked.length ? all.filter((a) => picked.includes(a.pc)) : all;
   const decals = useDecals([...all.flatMap((a) => [...a.items.map((i) => i.image), ...a.values.map((v) => v.image)]), ...(catalog ?? []).map((e) => e.image)]);
-  const name = all[0]?.gameName ?? (s.supported.map(String).includes(gameId) && gameId === "66654135" ? "Murder Mystery 2" : t("progress.gameId", { id: gameId }));
+  const numeric = /^\d+$/.test(gameId) ? gameId : "";
+  const meta = useQuery({
+    queryKey: qk.progressGames(numeric),
+    queryFn: () => api.progressGames([Number(numeric)]),
+    enabled: !!numeric,
+    staleTime: 60_000,
+  }).data?.[0];
+  const name = all[0]?.gameName ?? meta?.name ?? t("progress.gameId", { id: gameId });
+  const added = s.games.includes(gameId);
   const online = scoped.filter((a) => isOnline(a, s)).length;
   const levels = scoped.flatMap((a) => (a.level === null ? [] : [a.level]));
 
@@ -50,6 +61,19 @@ export function GamePage({ s, gameId, accounts, onBack }: { s: ProgressState; ga
         <div className="pg-title">
           <IconButton icon="back" label={t("progress.allGames")} onClick={onBack} />
           <h2 className="section-title truncate">{name}</h2>
+          {added && (
+            <IconButton
+              size="sm"
+              icon="trash"
+              label={t("progress.removeGame")}
+              onClick={() =>
+                api.progressGameRemove(gameId).then(() => {
+                  void qc.invalidateQueries({ queryKey: qk.progress });
+                  onBack();
+                }, toastError)
+              }
+            />
+          )}
         </div>
         {machines.length > 1 && (
           <div className="pg-chips" role="group" aria-label={t("progress.machines")}>
@@ -64,6 +88,7 @@ export function GamePage({ s, gameId, accounts, onBack }: { s: ProgressState; ga
         )}
       </div>
 
+      {!hasReports && <p className="pg-note panel">{t("progress.noReportsYet")}</p>}
       <div className="pg-tiles">
         <div className="pg-tile panel">
           <span>

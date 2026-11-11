@@ -748,6 +748,8 @@ fn main() {
             progress::progress_auto_delete,
             progress::progress_images,
             progress::progress_games,
+            progress::progress_game_add,
+            progress::progress_game_remove,
             commands::self_update_status,
             commands::self_update_check,
             commands::self_update_install,

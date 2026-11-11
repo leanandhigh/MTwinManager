@@ -304,6 +304,9 @@ export const api = {
   /** Picture URLs for decal ids (as strings of digits, by id); ids without one are missing. */
   progressImages: (ids: number[]) => invoke<Record<string, string>>("progress_images", { ids }),
   progressGames: (universeIds: number[]) => invoke<ProgressGame[]>("progress_games", { universeIds }),
+  /** Adds a game by link, place id or universe id: its universe id, null when the text isn't a game. */
+  progressGameAdd: (input: string) => invoke<string | null>("progress_game_add", { input }),
+  progressGameRemove: (gameId: string) => invoke<void>("progress_game_remove", { gameId }),
   /** Shows the profile card on Browse's page (null: takes it away). */
   browseCard: (card: PageCard | null) => invoke<void>("browse_card", { card }),
   /** A Roblox player's profile, asked as `accountId` (the Browse account). */

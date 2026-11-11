@@ -1877,5 +1877,11 @@
   "progress.actions": "Actions",
   "progress.catalogEmpty": "Nothing added yet.",
   "progress.reportedTitle": "Reported, not in the Catalog",
-  "progress.reportedLead": "Click one to name it or give it a decal picture."
+  "progress.reportedLead": "Click one to name it or give it a decal picture.",
+  "progress.addGame": "Add game",
+  "progress.addGameLabel": "Game link or ID",
+  "progress.addGameHint": "Paste the game's roblox.com link, or its place or universe ID. Then set up its Catalog before you play it.",
+  "progress.addGameBad": "That isn't a Roblox game link or ID.",
+  "progress.removeGame": "Remove this game from the list",
+  "progress.noReportsYet": "No account has reported from this game yet. Add the values and items to track in the Catalog, then run the script in the game."
 }

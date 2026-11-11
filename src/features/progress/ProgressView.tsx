@@ -1,6 +1,6 @@
 import "./progress.css";
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { api, type AccountSummary, type ProgressState } from "../../api";
 import { qk } from "../../data";
@@ -145,7 +145,8 @@ function GameList({ s, onOpen, onScript }: { s: ProgressState; onOpen: (id: stri
   const [sort, setSort] = useStored<GameSort>("roalt.progressGameSort", (v) => (v === "mine" || v === "playing" || v === "name" ? v : "online"), (v) => v);
   const [search, setSearch] = useState("");
 
-  const ids = useMemo(() => [...new Set([...s.supported.map(String), ...s.accounts.map((a) => a.gameId)])], [s.supported, s.accounts]);
+  const [adding, setAdding] = useState(false);
+  const ids = useMemo(() => [...new Set([...s.supported.map(String), ...s.games, ...s.accounts.map((a) => a.gameId)])], [s.supported, s.games, s.accounts]);
   const numeric = ids.filter((id) => /^\d+$/.test(id)).sort();
   const meta = useQuery({
     queryKey: qk.progressGames(numeric.join(",")),
@@ -171,8 +172,9 @@ function GameList({ s, onOpen, onScript }: { s: ProgressState; onOpen: (id: stri
   const fav = new Set(favs);
   const needle = search.trim().toLowerCase();
   const match = (g: GameCard) => !needle || g.name.toLowerCase().includes(needle);
-  const used = games.filter((g) => g.mine > 0 || fav.has(g.id));
-  const idle = games.filter((g) => g.supported && g.mine === 0 && !fav.has(g.id));
+  const added = new Set(s.games);
+  const used = games.filter((g) => g.mine > 0 || fav.has(g.id) || added.has(g.id));
+  const idle = games.filter((g) => g.supported && g.mine === 0 && !fav.has(g.id) && !added.has(g.id));
   const counts: Record<GameFilter, number> = { all: used.length, favorites: games.filter((g) => fav.has(g.id)).length, running: games.filter((g) => g.online > 0).length };
   const shown = (filter === "favorites" ? games.filter((g) => fav.has(g.id)) : filter === "running" ? games.filter((g) => g.online > 0) : used).filter(match);
   const by: Record<GameSort, (a: GameCard, b: GameCard) => number> = {
@@ -207,6 +209,7 @@ function GameList({ s, onOpen, onScript }: { s: ProgressState; onOpen: (id: stri
               { value: "name", label: t("progress.name") },
             ]}
           />
+          <Button size="md" icon="plus" onClick={() => setAdding(true)}>{t("progress.addGame")}</Button>
         </div>
       </div>
       <div className="pg-chips" role="group" aria-label={t("progress.filter")}>
@@ -277,6 +280,46 @@ function GameList({ s, onOpen, onScript }: { s: ProgressState; onOpen: (id: stri
           </div>
         </div>
       )}
+      <AddGameDialog open={adding} onClose={() => setAdding(false)} onAdded={onOpen} />
     </section>
+  );
+}
+
+/** A game by its link or id, so its Catalog can be set up before any account plays it. */
+function AddGameDialog({ open, onClose, onAdded }: { open: boolean; onClose: () => void; onAdded: (id: string) => void }) {
+  const qc = useQueryClient();
+  const [text, setText] = useState("");
+  const [bad, setBad] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const add = () => {
+    if (!text.trim() || busy) return;
+    setBusy(true);
+    api
+      .progressGameAdd(text)
+      .then((id) => {
+        if (!id) return setBad(true);
+        setText("");
+        onClose();
+        void qc.invalidateQueries({ queryKey: qk.progress });
+        onAdded(id);
+      }, toastError)
+      .finally(() => setBusy(false));
+  };
+  return (
+    <Dialog open={open} onClose={onClose} title={t("progress.addGame")} width={520}>
+      <form onSubmit={(e) => { e.preventDefault(); add(); }}>
+        <div className="dlg-body">
+          <Field label={t("progress.addGameLabel")} hint={t("progress.addGameHint")} error={bad ? t("progress.addGameBad") : undefined}>
+            {({ id, describedBy, invalid }) => (
+              <Input id={id} aria-describedby={describedBy} invalid={invalid} value={text} placeholder="https://www.roblox.com/games/142823291/…" onChange={(e) => { setText(e.target.value); setBad(false); }} />
+            )}
+          </Field>
+        </div>
+        <div className="dlg-foot">
+          <Button size="md" variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
+          <Button size="md" variant="primary" type="submit" busy={busy} disabled={!text.trim()}>{t("progress.addGame")}</Button>
+        </div>
+      </form>
+    </Dialog>
   );
 }

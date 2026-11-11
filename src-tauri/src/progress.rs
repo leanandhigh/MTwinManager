@@ -164,6 +164,8 @@ pub struct ProgressState {
     pub online_ms: i64,
     /// Universe ids of games the script knows by itself.
     pub supported: Vec<i64>,
+    /// Games added by hand (`progress_game_add`), so their Catalog can be set up before anyone plays.
+    pub games: Vec<String>,
 }
 
 /// A game's card: its name, icon and players now (`progress_games`).
@@ -183,6 +185,7 @@ struct Stored {
     accounts: HashMap<String, ProgressAccount>,
     catalog: HashMap<String, Vec<CatalogEntry>>,
     auto_delete_hours: u32,
+    games: Vec<String>,
 }
 
 pub struct Progress {
@@ -267,6 +270,7 @@ impl Progress {
             now: now_ms(),
             online_ms: ONLINE_MS,
             supported: SUPPORTED.to_vec(),
+            games: s.games.clone(),
         }
     }
 
@@ -608,6 +612,54 @@ pub fn progress_auto_delete(s: State<'_, App>, hours: u32) {
     s.progress.auto_delete();
 }
 
+/// The place id in a game link (`roblox.com/games/<id>/...`, `?placeId=<id>`), or the number typed.
+fn game_number(input: &str) -> Option<i64> {
+    let s = input.trim();
+    let digits = |t: &str| t.chars().take_while(char::is_ascii_digit).collect::<String>();
+    let n = if let Some(i) = s.find("/games/") {
+        digits(&s[i + 7..])
+    } else if let Some(i) = s.find("placeId=") {
+        digits(&s[i + 8..])
+    } else if s.chars().all(|c| c.is_ascii_digit()) {
+        s.to_owned()
+    } else {
+        String::new()
+    };
+    n.parse().ok().filter(|n| *n > 0)
+}
+
+/// Adds a game by its link, place id or universe id; its universe id, or None when the text
+/// isn't one (the UI says so).
+#[tauri::command]
+pub async fn progress_game_add(s: State<'_, App>, input: String) -> Result<Option<String>> {
+    let Some(n) = game_number(&input) else { return Ok(None) };
+    // A place id is the usual case (links carry one); a number Roblox knows no place for is taken
+    // as a universe id if Roblox knows that game.
+    let universe = match s.api.place_universe(n).await {
+        Ok(Some(u)) => u,
+        _ => match s.api.games(&[n]).await {
+            Ok(g) if g.iter().any(|g| g.universe_id == n) => n,
+            Ok(_) => return Ok(None),
+            Err(e) => return Err(e),
+        },
+    };
+    let id = universe.to_string();
+    let mut st = s.progress.stored();
+    if !st.games.contains(&id) {
+        st.games.push(id.clone());
+    }
+    drop(st);
+    s.progress.changed();
+    Ok(Some(id))
+}
+
+/// Takes a game added by hand off the list (its Catalog and reports stay).
+#[tauri::command]
+pub fn progress_game_remove(s: State<'_, App>, game_id: String) {
+    s.progress.stored().games.retain(|g| *g != game_id);
+    s.progress.changed();
+}
+
 /// Pictures for decal (or image) ids, from Roblox's thumbnails (cached for the session). Ids
 /// without one are missing.
 #[tauri::command]
@@ -684,6 +736,15 @@ mod tests {
         assert_eq!(a.key, "99:7");
         assert_eq!(a.values[0].amount, 1200.0, "an older reporter's currencies");
         assert_eq!(a.pc, "Unnamed PC");
+    }
+
+    #[test]
+    fn game_numbers() {
+        assert_eq!(game_number("https://www.roblox.com/games/142823291/Murder-Mystery-2"), Some(142823291));
+        assert_eq!(game_number("roblox://experiences/start?placeId=920587237&launchData=x"), Some(920587237));
+        assert_eq!(game_number(" 66654135 "), Some(66654135));
+        assert_eq!(game_number("Murder Mystery"), None);
+        assert_eq!(game_number("0"), None);
     }
 
     #[test]

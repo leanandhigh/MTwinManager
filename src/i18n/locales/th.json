@@ -1592,5 +1592,11 @@
   "progress.actions": "การทำงาน",
   "progress.catalogEmpty": "ยังไม่ได้เพิ่มอะไร",
   "progress.reportedTitle": "รายงานมาแล้ว แต่ยังไม่อยู่ในแคตตาล็อก",
-  "progress.reportedLead": "คลิกเพื่อตั้งชื่อหรือใส่รูปจาก Decal ID"
+  "progress.reportedLead": "คลิกเพื่อตั้งชื่อหรือใส่รูปจาก Decal ID",
+  "progress.addGame": "เพิ่มเกม",
+  "progress.addGameLabel": "ลิงก์เกมหรือ ID",
+  "progress.addGameHint": "วางลิงก์เกมจาก roblox.com หรือ Place ID / Universe ID แล้วตั้งค่าแคตตาล็อกได้ก่อนเข้าเล่น",
+  "progress.addGameBad": "นี่ไม่ใช่ลิงก์หรือ ID ของเกม Roblox",
+  "progress.removeGame": "นำเกมนี้ออกจากรายการ",
+  "progress.noReportsYet": "ยังไม่มีบัญชีรายงานจากเกมนี้ เพิ่มค่าและไอเทมที่จะติดตามในแคตตาล็อก แล้วรันสคริปต์ในเกม"
 }

@@ -22,4 +22,8 @@ now: number, onlineMs: number,
 /**
  * Universe ids of games the script knows by itself.
  */
-supported: Array<number>, };
+supported: Array<number>, 
+/**
+ * Games added by hand (`progress_game_add`), so their Catalog can be set up before anyone plays.
+ */
+games: Array<string>, };

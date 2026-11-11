@@ -812,9 +812,10 @@ const progressCatalog: Record<string, CatalogEntry[]> = {
   ],
 };
 let progressAutoDelete = 0;
+let progressGamesAdded: string[] = [];
 const progressState = (): ProgressState => ({
   accounts: progressAccounts.map((a) => (a.lastSeen > Date.now() - 60 * MIN ? { ...a, lastSeen: Math.max(a.lastSeen, Date.now() - 8000) } : a)),
-  catalog: progressCatalog, autoDeleteHours: progressAutoDelete, server: { port: 16390, running: true, error: null }, now: Date.now(), onlineMs: 30_000, supported: [66654135],
+  catalog: progressCatalog, autoDeleteHours: progressAutoDelete, server: { port: 16390, running: true, error: null }, now: Date.now(), onlineMs: 30_000, supported: [66654135], games: progressGamesAdded,
 });
 
 async function handle(cmd: string, args: Args): Promise<unknown> {
@@ -1425,6 +1426,16 @@ async function handle(cmd: string, args: Args): Promise<unknown> {
     }
     case "progress_auto_delete":
       progressAutoDelete = args.hours as number;
+      return null;
+    case "progress_game_add": {
+      const m = String(args.input).match(/games\/(\d+)|^\s*(\d+)\s*$/);
+      if (!m) return null;
+      const id = m[1] === "142823291" ? "66654135" : (m[1] ?? m[2]);
+      if (!progressGamesAdded.includes(id)) progressGamesAdded = [...progressGamesAdded, id];
+      return id;
+    }
+    case "progress_game_remove":
+      progressGamesAdded = progressGamesAdded.filter((g) => g !== args.gameId);
       return null;
     case "progress_images":
       return {};
