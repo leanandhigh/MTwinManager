@@ -16,9 +16,10 @@ import { toast, toastError } from "../../ui/Toast";
 import { useStored } from "../../ui/stored";
 import { Avatar } from "../accounts/shared";
 import { CatalogTab } from "./CatalogTab";
+import { ScriptTab } from "./ScriptTab";
 import { ago, Decal, isOnline, itemTotals, RarityBadge, rarityColor, rarityRank, useDecals, valueTotals, withCatalog, type ItemTotal } from "./shared";
 
-type Tab = "items" | "accounts" | "machines" | "catalog";
+type Tab = "items" | "accounts" | "machines" | "catalog" | "script";
 type ItemSort = "rarity" | "amount" | "name";
 type Online = "all" | "online" | "offline";
 type Col = { key: string; label: string; val: (a: ProgressAccount) => number | string };
@@ -30,7 +31,7 @@ export function GamePage({ s, gameId, accounts, onBack }: { s: ProgressState; ga
   const qc = useQueryClient();
   const hasReports = s.accounts.some((a) => a.gameId === gameId);
   // A game nobody has played yet opens on its Catalog: that's what there is to do.
-  const [tab, setTabState] = useState<Tab>(hasReports ? lastTab : "catalog");
+  const [tab, setTabState] = useState<Tab>(hasReports ? lastTab : "script");
   const setTab = (v: Tab) => {
     lastTab = v;
     setTabState(v);
@@ -125,6 +126,7 @@ export function GamePage({ s, gameId, accounts, onBack }: { s: ProgressState; ga
           { value: "accounts", label: t("progress.accounts"), icon: "accounts", count: scoped.length },
           { value: "machines", label: t("progress.machines"), icon: "pc", count: machines.length },
           { value: "catalog", label: t("progress.catalog"), icon: "pencil", count: catalog?.length ?? 0 },
+          { value: "script", label: t("progress.script"), icon: "terminal", count: all.filter((a) => a.errors.length > 0).length || undefined },
         ]}
       />
       {tab === "items" ? (
@@ -133,6 +135,8 @@ export function GamePage({ s, gameId, accounts, onBack }: { s: ProgressState; ga
         <AccountsTab s={s} list={scoped} roalt={accounts} decals={decals} />
       ) : tab === "machines" ? (
         <MachinesTab s={s} all={all} picked={picked} onPick={(m) => setPcs(picked.includes(m) ? picked.filter((p) => p !== m) : [...picked, m])} />
+      ) : tab === "script" ? (
+        <ScriptTab s={s} gameId={gameId} accounts={all} />
       ) : (
         <CatalogTab gameId={gameId} catalog={catalog ?? []} reported={all} decals={decals} />
       )}

@@ -8,6 +8,9 @@
 //!   report, every 10 s.
 //! - `GET /catalog?game=<universe id>`: the values and items added by hand in the Catalog that
 //!   have a path to read, so the script reads them too.
+//! - `GET /collector?game=<universe id>`: the Luau the script runs for that game, `{ all, game }`:
+//!   "Every game" (`ALL`, by default `DEFAULT_ALL`) and the game's own, both written in the
+//!   Progress view's Script tab. The reporter knows no game by itself.
 //!
 //! Reports and the Catalog are kept in `progress.json` in the data folder (not the vault: nothing
 //! in them is secret). Nothing here talks to Roblox except the pictures (`images`, decal ids).
@@ -36,8 +39,28 @@ const MAX_HEAD: usize = 16 * 1024;
 const MAX_BODY: usize = 2 * 1024 * 1024;
 const FILE: &str = "progress.json";
 const REPORTER: &str = include_str!("progress.luau");
-/// Games the reporter knows by itself (`collectMM2`), by universe id: listed before anyone plays them.
-pub const SUPPORTED: [i64; 1] = [66_654_135];
+/// The Script key of "Every game".
+pub const ALL: &str = "*";
+const MAX_SCRIPT: usize = 200 * 1024;
+/// "Every game" until it is edited: leaderstats and a Level attribute.
+pub const DEFAULT_ALL: &str = r#"-- Runs in every game, before the game's own script.
+-- leaderstats: numbers become values (Level becomes the level), text becomes stats.
+local stats = P.player:FindFirstChild("leaderstats")
+if stats then
+	for _, v in ipairs(stats:GetChildren()) do
+		if v:IsA("ValueBase") then
+			if v.Name:lower():find("level") then
+				level(v.Value)
+			elseif num(v.Value) then
+				value(v.Name, v.Value)
+			else
+				stat(v.Name, v.Value)
+			end
+		end
+	end
+end
+level(P.player:GetAttribute("Level"))
+"#;
 
 /// A number an account has: coins, candy, a material.
 #[derive(Serialize, Deserialize, TS, Clone, Debug, PartialEq, Default)]
@@ -99,6 +122,9 @@ pub struct ProgressAccount {
     pub values: Vec<ProgressValue>,
     pub stats: Vec<ProgressStat>,
     pub items: Vec<ProgressItem>,
+    /// What went wrong in the Script tab's scripts on its last report.
+    #[serde(default)]
+    pub errors: Vec<String>,
     /// Unix ms.
     pub first_seen: i64,
     /// Unix ms: its last report.
@@ -162,8 +188,9 @@ pub struct ProgressState {
     /// Unix ms, by RoALT's clock (`lastSeen` is too).
     pub now: i64,
     pub online_ms: i64,
-    /// Universe ids of games the script knows by itself.
-    pub supported: Vec<i64>,
+    /// The Script tab's Luau by game id, "*" for every game (missing: `default_all`).
+    pub collectors: HashMap<String, String>,
+    pub default_all: String,
     /// Games added by hand (`progress_game_add`), so their Catalog can be set up before anyone plays.
     pub games: Vec<String>,
 }
@@ -186,6 +213,7 @@ struct Stored {
     catalog: HashMap<String, Vec<CatalogEntry>>,
     auto_delete_hours: u32,
     games: Vec<String>,
+    collectors: HashMap<String, String>,
 }
 
 pub struct Progress {
@@ -269,7 +297,8 @@ impl Progress {
             server: self.server.lock().unwrap_or_else(|e| e.into_inner()).clone(),
             now: now_ms(),
             online_ms: ONLINE_MS,
-            supported: SUPPORTED.to_vec(),
+            collectors: s.collectors.clone(),
+            default_all: DEFAULT_ALL.to_owned(),
             games: s.games.clone(),
         }
     }
@@ -297,6 +326,14 @@ impl Progress {
             .map(|e| serde_json::json!({ "id": e.id, "name": e.name, "kind": e.kind, "source": e.source }))
             .collect();
         serde_json::to_string(&list).unwrap_or_else(|_| "[]".into())
+    }
+
+    /// What the script runs in a game: `{ all, game }`.
+    fn collector_for_script(&self, game_id: &str) -> String {
+        let s = self.stored();
+        let all = s.collectors.get(ALL).map_or(DEFAULT_ALL, String::as_str);
+        let own = s.collectors.get(game_id).map_or("", String::as_str);
+        serde_json::json!({ "all": all, "game": own }).to_string()
     }
 }
 
@@ -389,6 +426,7 @@ fn parse_report(body: &Value, now: i64, first_seen: impl Fn(&str) -> Option<i64>
                 })
             })
             .collect(),
+        errors: body["errors"].as_array().into_iter().flatten().take(5).map(|e| text(e, 400)).filter(|e| !e.is_empty()).collect(),
         last_seen: now,
     })
 }
@@ -541,6 +579,10 @@ async fn serve(handle: &AppHandle, mut stream: TcpStream) {
                 Err(e) => respond(&mut stream, "400 Bad Request", JSON, &serde_json::json!({ "ok": false, "error": e }).to_string()).await,
             }
         }
+        ("GET", "/collector") => {
+            let game = req.query.get("game").map(String::as_str).unwrap_or_default();
+            respond(&mut stream, "200 OK", JSON, &progress.collector_for_script(game)).await;
+        }
         ("GET", "/catalog") => {
             let game = req.query.get("game").map(String::as_str).unwrap_or_default();
             respond(&mut stream, "200 OK", JSON, &progress.catalog_for_script(game)).await;
@@ -602,6 +644,29 @@ pub fn progress_catalog_save(s: State<'_, App>, game_id: String, entries: Vec<Ca
     drop(st);
     s.progress.changed();
     Ok(clean)
+}
+
+/// Saves a game's script (`game_id` "*": every game). Empty removes a game's; "Every game" set
+/// back to `DEFAULT_ALL` (or empty) follows the default again.
+#[tauri::command]
+pub fn progress_collector_save(s: State<'_, App>, game_id: String, source: String) -> Result<()> {
+    let game_id = game_id.trim().to_owned();
+    if game_id.is_empty() || game_id.len() > 40 {
+        return Err(AppError::Invalid("Not a game id.".into()));
+    }
+    if source.len() > MAX_SCRIPT {
+        return Err(AppError::Invalid("The script is too long (200 KB at most).".into()));
+    }
+    let source = source.replace("\r\n", "\n");
+    let mut st = s.progress.stored();
+    if (source.trim().is_empty() && game_id != ALL) || (game_id == ALL && source.trim() == DEFAULT_ALL.trim()) {
+        st.collectors.remove(&game_id);
+    } else {
+        st.collectors.insert(game_id, source);
+    }
+    drop(st);
+    s.progress.changed();
+    Ok(())
 }
 
 /// Accounts that stop reporting are removed after `hours`; 0: never.

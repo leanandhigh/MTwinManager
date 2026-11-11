@@ -19,7 +19,7 @@ import { Decal, isOnline, PORT_HOST, useProgress } from "./shared";
 /** The game open in Progress, kept while RoALT runs. */
 let lastGame: string | null = null;
 
-type GameCard = { id: string; name: string; iconUrl: string | null; playing: number | null; mine: number; online: number; supported: boolean };
+type GameCard = { id: string; name: string; iconUrl: string | null; playing: number | null; mine: number; online: number };
 type GameFilter = "all" | "favorites" | "running";
 type GameSort = "online" | "mine" | "playing" | "name";
 
@@ -146,7 +146,7 @@ function GameList({ s, onOpen, onScript }: { s: ProgressState; onOpen: (id: stri
   const [search, setSearch] = useState("");
 
   const [adding, setAdding] = useState(false);
-  const ids = useMemo(() => [...new Set([...s.supported.map(String), ...s.games, ...s.accounts.map((a) => a.gameId)])], [s.supported, s.games, s.accounts]);
+  const ids = useMemo(() => [...new Set([...s.games, ...s.accounts.map((a) => a.gameId)])], [s.games, s.accounts]);
   const numeric = ids.filter((id) => /^\d+$/.test(id)).sort();
   const meta = useQuery({
     queryKey: qk.progressGames(numeric.join(",")),
@@ -166,7 +166,6 @@ function GameList({ s, onOpen, onScript }: { s: ProgressState; onOpen: (id: stri
       playing: m ? m.playing : null,
       mine: mine.length,
       online: mine.filter((a) => isOnline(a, s)).length,
-      supported: s.supported.map(String).includes(id),
     };
   });
   const fav = new Set(favs);
@@ -174,7 +173,6 @@ function GameList({ s, onOpen, onScript }: { s: ProgressState; onOpen: (id: stri
   const match = (g: GameCard) => !needle || g.name.toLowerCase().includes(needle);
   const added = new Set(s.games);
   const used = games.filter((g) => g.mine > 0 || fav.has(g.id) || added.has(g.id));
-  const idle = games.filter((g) => g.supported && g.mine === 0 && !fav.has(g.id) && !added.has(g.id));
   const counts: Record<GameFilter, number> = { all: used.length, favorites: games.filter((g) => fav.has(g.id)).length, running: games.filter((g) => g.online > 0).length };
   const shown = (filter === "favorites" ? games.filter((g) => fav.has(g.id)) : filter === "running" ? games.filter((g) => g.online > 0) : used).filter(match);
   const by: Record<GameSort, (a: GameCard, b: GameCard) => number> = {
@@ -253,33 +251,6 @@ function GameList({ s, onOpen, onScript }: { s: ProgressState; onOpen: (id: stri
         </div>
       )}
 
-      {filter === "all" && idle.filter(match).length > 0 && (
-        <div className="pg-idle">
-          <h3 className="pg-idle-title">
-            <Icon name="moon" size={14} />
-            {t("progress.idleTitle")}
-            <span className="text-fg-3 tabular-nums">{idle.filter(match).length}</span>
-          </h3>
-          <p className="meta">{t("progress.idleBody")}</p>
-          <div className="pg-idle-list">
-            {idle.filter(match).map((g) => (
-              <div key={g.id} className="pg-idle-row panel">
-                <button type="button" className="pg-idle-open" onClick={() => onOpen(g.id)}>
-                  <Decal url={g.iconUrl ?? undefined} name={g.name} size={36} />
-                  <span className="min-w-0">
-                    <span className="block truncate font-medium">{g.name}</span>
-                    <span className="meta">
-                      <span className="text-ok">{t("progress.supported")}</span>
-                      {g.playing !== null && ` · ${t("progress.playingN", { n: fmtNum(g.playing) })}`}
-                    </span>
-                  </span>
-                </button>
-                <IconButton size="sm" icon="star" pressed={fav.has(g.id)} label={t("progress.favourite")} onClick={() => toggleFav(g.id)} />
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
       <AddGameDialog open={adding} onClose={() => setAdding(false)} onAdded={onOpen} />
     </section>
   );

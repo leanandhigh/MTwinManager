@@ -795,12 +795,12 @@ const progressAccount = (i: number, pc: string, seenAgo: number, level: number, 
     values: [{ key: "Candies2025", name: "Halloween Candy", amount: candy, image: "" }, { key: "Coins", name: "Coins", amount: candy * 7, image: "" }],
     stats: [{ key: "BattlePass", name: "Battle Pass", value: String(level % 30), max: 30 }],
     items: owned.map((n, k) => ({ id: mm2Items[k][0], name: mm2Items[k][1], rarity: mm2Items[k][2], category: mm2Items[k][3], count: n, image: "" })).filter((x) => x.count > 0),
-    firstSeen: now - 3 * DAY, lastSeen: Date.now() - seenAgo,
+    errors: [], firstSeen: now - 3 * DAY, lastSeen: Date.now() - seenAgo,
   };
 };
 let progressAccounts: ProgressAccount[] = [
   progressAccount(0, "Hellowrold", 4000, 53, 235, [3, 1, 4, 3, 1, 0, 0, 0]),
-  progressAccount(1, "Hellowrold", 6000, 12, 40, [0, 0, 2, 1, 0, 0, 1, 2]),
+  { ...progressAccount(1, "Hellowrold", 6000, 12, 40, [0, 0, 2, 1, 0, 0, 1, 2]), errors: ["This game:3: attempt to index nil with 'Owned'"] },
   progressAccount(2, "PC-2", 2000, 88, 1200, [1, 1, 1, 1, 1, 1, 1, 1]),
   progressAccount(4, "PC-2", 3 * 60 * MIN, 20, 75, [0, 2, 0, 0, 3, 0, 0, 0]),
   { ...progressAccount(6, "PC-2", 5000, 0, 0, []), key: `383310974:${accounts[6].userId}`, gameId: "383310974", gameName: "Adopt Me!", level: null, values: [{ key: "Bucks", name: "Bucks", amount: 18250, image: "" }], stats: [] },
@@ -813,9 +813,22 @@ const progressCatalog: Record<string, CatalogEntry[]> = {
 };
 let progressAutoDelete = 0;
 let progressGamesAdded: string[] = [];
+const progressCollectors: Record<string, string> = {
+  [MM2]: `-- Murder Mystery 2: weapons and pets with their names, rarity and pictures.
+local db = require(game.ReplicatedStorage.Database.Sync.Item)
+local profile = require(game.ReplicatedStorage.Modules.ProfileData)
+for _, kind in ipairs({ "Weapons", "Pets" }) do
+\titems(profile[kind].Owned, function(id)
+\t\tlocal info = db[id] or {}
+\t\treturn { name = info.ItemName, rarity = info.Rarity, category = kind, image = P.image(info) }
+\tend)
+end
+`,
+};
+const PROGRESS_DEFAULT_ALL = "-- Runs in every game, before the game's own script.\nlocal stats = P.player:FindFirstChild(\"leaderstats\")\n";
 const progressState = (): ProgressState => ({
   accounts: progressAccounts.map((a) => (a.lastSeen > Date.now() - 60 * MIN ? { ...a, lastSeen: Math.max(a.lastSeen, Date.now() - 8000) } : a)),
-  catalog: progressCatalog, autoDeleteHours: progressAutoDelete, server: { port: 16390, running: true, error: null }, now: Date.now(), onlineMs: 30_000, supported: [66654135], games: progressGamesAdded,
+  catalog: progressCatalog, autoDeleteHours: progressAutoDelete, server: { port: 16390, running: true, error: null }, now: Date.now(), onlineMs: 30_000, collectors: progressCollectors, defaultAll: PROGRESS_DEFAULT_ALL, games: progressGamesAdded,
 });
 
 async function handle(cmd: string, args: Args): Promise<unknown> {
@@ -1437,6 +1450,13 @@ async function handle(cmd: string, args: Args): Promise<unknown> {
     case "progress_game_remove":
       progressGamesAdded = progressGamesAdded.filter((g) => g !== args.gameId);
       return null;
+    case "progress_collector_save": {
+      const id = args.gameId as string;
+      const src = String(args.source);
+      if ((id !== "*" && !src.trim()) || (id === "*" && src.trim() === PROGRESS_DEFAULT_ALL.trim())) delete progressCollectors[id];
+      else progressCollectors[id] = src;
+      return null;
+    }
     case "progress_images":
       return {};
     case "progress_games":

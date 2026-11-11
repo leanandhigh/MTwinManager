@@ -307,6 +307,8 @@ export const api = {
   /** Adds a game by link, place id or universe id: its universe id, null when the text isn't a game. */
   progressGameAdd: (input: string) => invoke<string | null>("progress_game_add", { input }),
   progressGameRemove: (gameId: string) => invoke<void>("progress_game_remove", { gameId }),
+  /** Saves the Luau the reporter runs in a game ("*": every game). */
+  progressCollectorSave: (gameId: string, source: string) => invoke<void>("progress_collector_save", { gameId, source }),
   /** Shows the profile card on Browse's page (null: takes it away). */
   browseCard: (card: PageCard | null) => invoke<void>("browse_card", { card }),
   /** A Roblox player's profile, asked as `accountId` (the Browse account). */

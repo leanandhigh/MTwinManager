@@ -20,6 +20,10 @@ pc: string,
  */
 gameId: string, gameName: string, userId: number, name: string, displayName: string, level: number | null, values: Array<ProgressValue>, stats: Array<ProgressStat>, items: Array<ProgressItem>, 
 /**
+ * What went wrong in the Script tab's scripts on its last report.
+ */
+errors: Array<string>, 
+/**
  * Unix ms.
  */
 firstSeen: number, 

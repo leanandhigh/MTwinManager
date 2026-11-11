@@ -141,7 +141,7 @@ the one you pick. **Details** shows a game's likes, visits, favourites, passes w
 CPU, memory, disk/network and uptime per client, with sparklines and totals, refreshed every 2 seconds.
 
 ### 📊 Progress
-What each alt has in game: level, coins, candy, materials, items with rarity, which PC it runs on and whether it's online. **Get script** gives a loader for your executor's autoexec folder; each client then reports to RoALT on `localhost:16390` every 10 seconds. Add values and items by hand in the **Catalog** (a name, a decal picture, a rarity, or a path the script reads, like `leaderstats.Coins`). Murder Mystery 2 is read out of the box.
+What each alt has in game: level, coins, candy, materials, items with rarity, which PC it runs on and whether it's online. **Get script** gives a loader for your executor's autoexec folder; each client then reports to RoALT on `localhost:16390` every 10 seconds. What it reads is yours to write: each game's **Script** tab holds Luau the reporter downloads and runs (`value("Coins", read("leaderstats.Coins"))`, `items(...)`, with templates and errors shown back in RoALT), and an **Every game** script reads leaderstats by default. The **Catalog** names values and items and gives them a decal picture and rarity. **Add game** sets a game up before anyone plays it.
 
 </td>
 <td valign="top">

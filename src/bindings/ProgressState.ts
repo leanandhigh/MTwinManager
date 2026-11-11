@@ -20,9 +20,9 @@ autoDeleteHours: number, server: ProgressServer,
  */
 now: number, onlineMs: number, 
 /**
- * Universe ids of games the script knows by itself.
+ * The Script tab's Luau by game id, "*" for every game (missing: `default_all`).
  */
-supported: Array<number>, 
+collectors: { [key in string]?: string }, defaultAll: string, 
 /**
  * Games added by hand (`progress_game_add`), so their Catalog can be set up before anyone plays.
  */
