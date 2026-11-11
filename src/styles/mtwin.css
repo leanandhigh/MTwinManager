@@ -390,4 +390,204 @@
     font-size: 11px;
     font-weight: 700;
   }
+
+
+  /* ======== Inside the pages: the script window's controls ========
+     Squared corners instead of pills, uppercase tracked labels over sections, tinted hairline
+     badges, purple for what's on. */
+
+  /* Page heads: a purple tick before the title; section titles as small caps labels. */
+  .page-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 0;
+  }
+  .page-title::before {
+    content: "";
+    flex: none;
+    width: 3px;
+    height: 0.95em;
+    border-radius: 2px;
+    background: var(--accent);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 60%, transparent);
+  }
+  .page-sub {
+    color: var(--fg-3);
+    font-size: var(--fs-small);
+  }
+  .section-title {
+    color: var(--fg-2);
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  /* Buttons: tight corners; the primary a purple slab with a lit top edge. */
+  .btn {
+    border-radius: var(--r-sm);
+    font-weight: 600;
+  }
+  .btn-primary {
+    background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 88%, #fff), var(--accent));
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--accent) 70%, #fff 0%),
+      inset 0 1px 0 rgb(255 255 255 / 0.18),
+      0 4px 14px -6px color-mix(in srgb, var(--accent) 80%, transparent);
+  }
+  .btn-primary:hover:not(:disabled, [aria-disabled="true"]) {
+    background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 78%, #fff), color-mix(in srgb, var(--accent) 92%, #fff));
+  }
+  .btn-danger {
+    background: color-mix(in srgb, var(--err) 10%, var(--surface-2));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--err) 40%, transparent);
+  }
+  .btn-ghost {
+    box-shadow: none;
+    background: transparent;
+  }
+  .btn-play {
+    min-height: 54px;
+    border-radius: var(--r-md);
+    font-size: 15px;
+    letter-spacing: 0.04em;
+  }
+
+  /* Chips: squared tags; picked ones tinted purple with a purple edge. */
+  .chip {
+    border-radius: var(--r-sm);
+  }
+  .chip[aria-pressed="true"],
+  .chip[data-on] {
+    background: color-mix(in srgb, var(--accent) 16%, var(--surface-2));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 60%, transparent);
+    color: var(--fg);
+  }
+  .tag {
+    border-radius: var(--r-xs);
+    background: var(--surface-2);
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+
+  /* Segmented controls and tab strips: a squared track; the chosen one tinted purple. */
+  .seg-group {
+    border-radius: var(--r-md);
+    padding: 3px;
+    background: var(--ground);
+  }
+  .seg {
+    border-radius: var(--r-sm);
+  }
+  .seg-thumb,
+  .seg[aria-pressed="true"],
+  .seg[aria-checked="true"] {
+    border-radius: var(--r-sm);
+    background: color-mix(in srgb, var(--accent) 18%, var(--surface-2));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent);
+  }
+  .seg-group[data-thumb] .seg[aria-pressed="true"],
+  .seg-group[data-thumb] .seg[aria-checked="true"] {
+    background: transparent;
+    box-shadow: none;
+  }
+
+  /* Home's tabs: squared, the chosen one a purple slab. */
+  .home-strip .tab {
+    border-radius: var(--r-sm);
+    background: var(--surface-2);
+  }
+  .home-tab-on {
+    border-radius: var(--r-sm);
+  }
+
+  /* Fields: a sunken well with a hairline; focus lights the edge purple instead of an outline. */
+  .field {
+    border-radius: var(--r-sm);
+    border-color: var(--line);
+    background: var(--ground);
+  }
+  .field:hover:not(:disabled, :focus) {
+    border-color: var(--edge);
+  }
+  .field:focus,
+  .field:focus-within {
+    border-color: var(--accent);
+    outline: none;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+  }
+
+  /* Badges: tinted, with an edge in their own colour. */
+  .status-pill {
+    border-radius: var(--r-xs);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 35%, transparent);
+    font-weight: 600;
+  }
+
+  /* Checkboxes: squared. */
+  .cb {
+    border-radius: var(--r-xs);
+  }
+
+  /* Numbered steps: squared tiles. */
+  .num {
+    border-radius: var(--r-sm);
+    background: var(--surface-2);
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+  .num-done {
+    background: var(--accent);
+    box-shadow: 0 0 12px -2px color-mix(in srgb, var(--accent) 70%, transparent);
+  }
+
+  /* Panels: a lit top edge, like the script window's sections. */
+  .panel {
+    background: linear-gradient(180deg, color-mix(in srgb, var(--surface-1) 92%, #fff), var(--surface-1) 48px);
+  }
+  .well {
+    border-radius: var(--r-sm);
+  }
+
+  /* Table rows: the selected one marked with a purple bar at its start. */
+  .row > td:first-child {
+    border-start-start-radius: var(--r-sm);
+    border-end-start-radius: var(--r-sm);
+  }
+  .row > td:last-child {
+    border-start-end-radius: var(--r-sm);
+    border-end-end-radius: var(--r-sm);
+  }
+  .row[data-selected] > td:first-child {
+    box-shadow: inset 3px 0 0 var(--accent);
+  }
+
+  /* Menus and popovers: squared items. */
+  .menu-item {
+    border-radius: var(--r-xs);
+  }
+
+  /* A disabled primary reads as off, not as a faded purple. */
+  .btn-primary:disabled,
+  .btn-primary[aria-disabled="true"] {
+    background: var(--surface-2);
+    box-shadow: inset 0 0 0 1px var(--line);
+    color: var(--fg-3);
+  }
+
+  /* Docked toolbars and Play's pickers: squared like the rest. */
+  .pill-toolbar {
+    border-radius: var(--r-md);
+    background: var(--surface-1);
+    box-shadow: inset 0 0 0 1px var(--line), 0 8px 24px -12px rgb(0 0 0 / 0.6);
+  }
+  .play-who-sum,
+  .launch-pill {
+    border-radius: var(--r-sm);
+  }
+  .toast {
+    border-radius: var(--r-md);
+    box-shadow: inset 0 0 0 1px var(--line), 0 10px 30px -12px rgb(0 0 0 / 0.7);
+  }
 }
