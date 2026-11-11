@@ -158,7 +158,6 @@ function Root() {
             sideTabs={s?.tabLayout === "side"}
             onToggleTabs={unlocked && s ? () => setSettings.mutate({ tabLayout: s.tabLayout === "side" ? "top" : "side" }) : undefined}
             onLang={s ? (language) => setSettings.mutate({ language }) : undefined}
-            onFind={unlocked ? () => window.dispatchEvent(new Event("mtwin:find")) : undefined}
           />
         }
       />

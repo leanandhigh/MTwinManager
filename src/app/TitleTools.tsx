@@ -1,17 +1,16 @@
 import type { VaultMode } from "../api";
-import { getLang, t } from "../i18n";
+import { getLang, LANGUAGES, t } from "../i18n";
+import { Popover, useAnchor } from "../ui/Popover";
 import { IconButton } from "../ui/Button";
 import { Icon } from "../ui/Icon";
 import { IconSwap } from "../ui/motion";
 
 /** The title bar's own keys: refresh (as F5), the layout, the theme, and the vault (a lock key with a
  * master password, else the encryption's state). */
-export function TitleTools({ dark, onRefresh, onToggleTheme, sideTabs, onToggleTabs, onLock, vaultMode, onLang, onFind }: {
+export function TitleTools({ dark, onRefresh, onToggleTheme, sideTabs, onToggleTabs, onLock, vaultMode, onLang }: {
   dark: boolean;
-  /** EN / TH: sets the language. */
-  onLang?: (lang: "en" | "th") => void;
-  /** The Search box: what Ctrl+F does. */
-  onFind?: () => void;
+  /** The language picker: sets Settings' language. */
+  onLang?: (lang: string) => void;
   onRefresh?: () => void;
   onToggleTheme?: () => void;
   sideTabs?: boolean;
@@ -21,21 +20,7 @@ export function TitleTools({ dark, onRefresh, onToggleTheme, sideTabs, onToggleT
 }) {
   return (
     <div className="title-tools">
-      {onLang && (
-        <div className="lang-switch" role="group" aria-label={t("settings.language")}>
-          {(["en", "th"] as const).map((l) => (
-            <button key={l} type="button" aria-pressed={getLang() === l} onClick={() => getLang() !== l && onLang(l)}>
-              {l.toUpperCase()}
-            </button>
-          ))}
-        </div>
-      )}
-      {onFind && (
-        <button type="button" className="title-search" data-tip-kbd="Ctrl+F" onClick={onFind}>
-          <Icon name="search" size={14} />
-          <span>{t("ui.search")}</span>
-        </button>
-      )}
+      {onLang && <LangPicker onLang={onLang} />}
       {onRefresh && <IconButton icon="refresh" label={t("ui.refresh")} shortcut="F5" onClick={onRefresh} />}
       {onToggleTabs && (
         <IconButton icon={sideTabs ? "layoutTop" : "layoutSide"} label={sideTabs ? t("ui.accountsTop") : t("ui.accountsSide")} onClick={onToggleTabs} />
@@ -55,5 +40,48 @@ export function TitleTools({ dark, onRefresh, onToggleTheme, sideTabs, onToggleT
         )
       )}
     </div>
+  );
+}
+
+/** The language: a globe and the code ("EN"), opening every language the app speaks, each in its own
+ * name (English and Thai first: MTwin Hub's two). */
+function LangPicker({ onLang }: { onLang: (lang: string) => void }) {
+  const anchor = useAnchor();
+  const current = getLang();
+  const order = ["en", "th"];
+  const list = [...LANGUAGES].sort((a, b) => {
+    const [x, y] = [order.indexOf(a[0]), order.indexOf(b[0])];
+    return (x < 0 ? 99 : x) - (y < 0 ? 99 : y);
+  });
+  return (
+    <>
+      <button type="button" className="lang-btn" popoverTarget="lang-menu" style={anchor.style} aria-haspopup="menu" aria-label={t("settings.language")} data-tip={t("settings.language")}>
+        <Icon name="globe" size={14} />
+        <span className="lang-code">{current.toUpperCase()}</span>
+        <Icon name="chevron" size={11} className="lang-chev" />
+      </button>
+      <Popover id="lang-menu" anchor={anchor.name} placement="below-end" role="menu" label={t("settings.language")} className="lang-menu">
+        {list.map(([code, name], i) => (
+          <span key={code} className="contents">
+            {i === 2 && <div role="separator" className="menu-sep" />}
+            <button
+              type="button"
+              role="menuitemradio"
+              aria-checked={code === current}
+              className="menu-item"
+              lang={code}
+              onClick={(e) => {
+                e.currentTarget.closest<HTMLElement>("[popover]")?.hidePopover();
+                if (code !== current) onLang(code);
+              }}
+            >
+              <span className="lang-item-code">{code.toUpperCase()}</span>
+              <span className="flex-1 min-w-0 truncate">{name}</span>
+              {code === current && <Icon name="check" size={14} />}
+            </button>
+          </span>
+        ))}
+      </Popover>
+    </>
   );
 }

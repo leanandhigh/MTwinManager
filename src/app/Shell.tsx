@@ -177,15 +177,6 @@ export function Shell({ vault, settings, islandSlot }: { vault: VaultStatus; set
     }, []),
   );
 
-  // The title bar's Search box: what Ctrl+F does.
-  useEffect(() => {
-    const find = () => {
-      if (!focusIn(".stage main [data-find], #settings-search, #account-filter")) go("accounts", { focus: "#account-filter" });
-    };
-    window.addEventListener("mtwin:find", find);
-    return () => window.removeEventListener("mtwin:find", find);
-  });
-
   // Re-bound each render: Ctrl+4 needs the current draft. Alt is left alone (AltGr types characters).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
