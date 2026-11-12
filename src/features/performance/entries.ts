@@ -3,7 +3,7 @@ import { RANGES } from "../../ui/ranges";
 
 const tune = { view: "performance", group: "performance.fineTune" } as const;
 const cpu = { view: "performance", group: "performance.section.cpuMemory" } as const;
-const own = { view: "performance", group: "performance.section.roalt" } as const;
+const own = { view: "performance", group: "performance.section.app" } as const;
 const net = { view: "performance", group: "performance.section.network" } as const;
 const flags: Pick<Entry, "place" | "parent" | "when"> = { place: tune, parent: "lighterRendering", when: (c) => c.s.lighterRendering };
 const mb = { unit: { text: "MB" }, short: { text: "MB" } } as const;

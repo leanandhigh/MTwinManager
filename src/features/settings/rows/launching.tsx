@@ -281,7 +281,7 @@ function Install({ client }: { client: RobloxClient }) {
   );
 }
 
-/** The client RoALT starts: what it is (pill and version, under the group's "Roblox client"
+/** The client MTwin Manager starts: what it is (pill and version, under the group's "Roblox client"
  * heading), where it is, and Install or Update (never over a bootstrapper, as the pill says). */
 export function ClientCard() {
   // Asked again each time: Roblox may have been installed meanwhile.

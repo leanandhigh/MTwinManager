@@ -82,7 +82,7 @@ pub async fn vault_recovery_create(s: State<'_, App>, current_password: String) 
 fn recovery_file_text(code: &str) -> Result<String> {
     let code = crate::vault::master::normalize_code(code).ok_or_else(not_a_code)?;
     Ok(tr!(
-        "MTwin Hub recovery code: {code}\n\nIf you forget your master password, press Forgot password? on the unlock screen and enter this code. \
+        "MTwin Manager recovery code: {code}\n\nIf you forget your master password, press Forgot password? on the unlock screen and enter this code. \
          It works once, for this Windows user on this PC.\n\nAnyone who finds this file on this PC can open your vault. Keep it on a USB stick, \
          a phone or paper.\n",
         code = code.expose()
@@ -344,14 +344,14 @@ pub async fn accounts_import_ram(app: AppHandle, s: State<'_, App>, path: String
     }
     let meta = std::fs::metadata(&path).map_err(|e| {
         log::warn!("could not read RAM file metadata: {e}");
-        AppError::Invalid(tr!("MTwin Hub couldn't read that file."))
+        AppError::Invalid(tr!("MTwin Manager couldn't read that file."))
     })?;
     if meta.len() > 32 * 1024 * 1024 {
         return Err(AppError::Invalid(tr!("That file is too big to be an AccountData.json.")));
     }
     let data = zeroize::Zeroizing::new(std::fs::read(&path).map_err(|e| {
         log::warn!("could not read RAM file: {e}");
-        AppError::Invalid(tr!("MTwin Hub couldn't read that file."))
+        AppError::Invalid(tr!("MTwin Manager couldn't read that file."))
     })?);
     if data.starts_with(RAM_HEADER) {
         return Err(AppError::Invalid(tr!(
@@ -363,7 +363,7 @@ pub async fn accounts_import_ram(app: AppHandle, s: State<'_, App>, path: String
         Err(_) if data.trim_ascii_start().starts_with(b"[") || data.starts_with(b"\xEF\xBB\xBF") => ram_accounts(&data)?,
         Err(_) => {
             return Err(AppError::Invalid(tr!(
-                "MTwin Hub couldn't decrypt this file. It must come from Roblox Account Manager on this PC, signed in as the same Windows user."
+                "MTwin Manager couldn't decrypt this file. It must come from Roblox Account Manager on this PC, signed in as the same Windows user."
             )));
         }
     };
@@ -1150,7 +1150,7 @@ pub fn notice(app: &AppHandle, error: bool, message: impl Into<String>) {
     let _ = app.emit("app://notice", Notice { error, message });
 }
 
-/// The Roblox client RoALT would start (`launcher::client::find`; not installed → path None),
+/// The Roblox client MTwin Manager would start (`launcher::client::find`; not installed → path None),
 /// its version and Roblox's latest (`launcher::update`).
 #[tauri::command]
 pub fn roblox_client(app: AppHandle) -> RobloxClient {
@@ -1164,37 +1164,26 @@ pub async fn roblox_install(app: AppHandle) -> Result<RobloxClient> {
     crate::launcher::update::install(&app).await
 }
 
-/// RoALT's version and the newer release the last check found (no network).
+/// MTwin Manager's version and the newer release the last check found (no network).
 #[tauri::command]
 pub fn self_update_status(s: State<'_, App>) -> AppUpdate {
     crate::self_update::status(&s)
 }
 
-/// Home's News tab: RoALT's releases, the DevForum and Roblox's newsroom (`news`).
+/// Home's News tab: MTwin Manager's releases, the DevForum and Roblox's newsroom (`news`).
 #[tauri::command]
 pub async fn news() -> crate::model::News {
     crate::news::fetch().await
 }
 
-/// Pings RoALT's online counter and returns how many people use RoALT now and how many accounts
-/// they're playing (`online`). None, and nothing sent, while `settings.online_count` is off or the
-/// settings can't be read.
-#[tauri::command]
-pub async fn online_ping(s: State<'_, App>) -> Result<Option<crate::online::Online>> {
-    if !s.db.settings().is_ok_and(|v| v.online_count) {
-        return Ok(None);
-    }
-    Ok(crate::online::ping(s.tracker.clients().len()).await)
-}
-
-/// Asks GitHub for a newer RoALT now (Check now), whatever `settings.self_update` says.
+/// Asks GitHub for a newer MTwin Manager now (Check now), whatever `settings.self_update` says.
 #[tauri::command]
 pub async fn self_update_check(app: AppHandle) -> Result<AppUpdate> {
     crate::self_update::check(&app).await
 }
 
-/// Downloads the newer RoALT's installer, checks its signature, runs it and quits
-/// (`self_update::install`; the installer starts RoALT again).
+/// Downloads the newer MTwin Manager's installer, checks its signature, runs it and quits
+/// (`self_update::install`; the installer starts MTwin Manager again).
 #[tauri::command]
 pub async fn self_update_install(app: AppHandle) -> Result<()> {
     crate::self_update::install(&app).await
@@ -1217,7 +1206,7 @@ pub fn data_dir_open(app: AppHandle, s: State<'_, App>) -> Result<()> {
     app.opener().open_path(s.data_dir.display().to_string(), None::<&str>).map_err(|e| AppError::Internal(e.to_string()))
 }
 
-/// Opens RoALT's own log folder (data folder\logs) in Explorer.
+/// Opens MTwin Manager's own log folder (data folder\logs) in Explorer.
 #[tauri::command]
 pub fn logs_open(app: AppHandle, s: State<'_, App>) -> Result<()> {
     use tauri_plugin_opener::OpenerExt;
@@ -1368,19 +1357,19 @@ fn shutdown_exe(args: &[&str]) -> Result<(i32, String)> {
     Ok((code, text))
 }
 
-/// The settings-table row with the scheduled shutdown's deadline (Unix ms), so RoALT still knows
+/// The settings-table row with the scheduled shutdown's deadline (Unix ms), so MTwin Manager still knows
 /// it (and can cancel it) after a restart; Windows keeps the timer either way.
 const SHUTDOWN_KEY: &str = "shutdown_at";
 
-/// The deadline of a shutdown scheduled before RoALT restarted, if it is still ahead (at start).
+/// The deadline of a shutdown scheduled before MTwin Manager restarted, if it is still ahead (at start).
 pub fn pending_shutdown(db: &crate::storage::Db) -> Option<i64> {
     let v = db.setting_value(SHUTDOWN_KEY).inspect_err(|e| log::warn!("could not read the scheduled shutdown: {e}")).ok().flatten()?;
     v.parse::<i64>().inspect_err(|e| log::warn!("scheduled shutdown deadline {v:?} unreadable: {e}")).ok().filter(|&at| at > now_ms())
 }
 
 /// Tells Windows to shut down in `in_secs` or at `at_ms` (`shutdown /s /t`, no admin rights;
-/// Windows then force-closes every app). Replaces one RoALT scheduled. `close_clients`: RoALT's
-/// clients are asked to close 30 s before (while RoALT keeps running). Returns the deadline
+/// Windows then force-closes every app). Replaces one MTwin Manager scheduled. `close_clients`: MTwin Manager's
+/// clients are asked to close 30 s before (while MTwin Manager keeps running). Returns the deadline
 /// (Unix ms), stored (`SHUTDOWN_KEY`) until it is called off or passes.
 #[tauri::command]
 pub fn shutdown_schedule(app: AppHandle, s: State<'_, App>, at_ms: Option<i64>, in_secs: Option<u32>, close_clients: bool) -> Result<Option<i64>> {
@@ -1414,12 +1403,12 @@ pub fn shutdown_schedule(app: AppHandle, s: State<'_, App>, at_ms: Option<i64>, 
     Ok(Some(deadline))
 }
 
-/// Calls off the shutdown RoALT scheduled (`shutdown /a`).
+/// Calls off the shutdown MTwin Manager scheduled (`shutdown /a`).
 #[tauri::command]
 pub fn shutdown_cancel(s: State<'_, App>) -> Result<Option<i64>> {
     let mut at = s.shutdown.lock().unwrap_or_else(|e| e.into_inner());
     if at.is_some() {
-        // 1116: none is scheduled any more (called off outside RoALT).
+        // 1116: none is scheduled any more (called off outside MTwin Manager).
         let (code, text) = shutdown_exe(&["/a"])?;
         if code != 0 && code != 1116 {
             return Err(AppError::Invalid(tr!("Windows wouldn't call off the shutdown: {text}", text = text)));
@@ -1431,7 +1420,7 @@ pub fn shutdown_cancel(s: State<'_, App>) -> Result<Option<i64>> {
     Ok(None)
 }
 
-/// When the shutdown RoALT scheduled is due (Unix ms); None when there is none.
+/// When the shutdown MTwin Manager scheduled is due (Unix ms); None when there is none.
 #[tauri::command]
 pub fn shutdown_status(s: State<'_, App>) -> Option<i64> {
     *s.shutdown.lock().unwrap_or_else(|e| e.into_inner())
@@ -1440,7 +1429,7 @@ pub fn shutdown_status(s: State<'_, App>) -> Option<i64> {
 /// Copies the database into `path` (a new folder or one without a roalt.db; not the current
 /// folder or inside it) with SQLite's `VACUUM INTO` (consistent while open), records it in
 /// `%LOCALAPPDATA%\RoALT\location.json` as `{"dataDir": path, "movedFrom": current}` and
-/// restarts RoALT, all with the database locked so no write lands in the old copy after the
+/// restarts MTwin Manager, all with the database locked so no write lands in the old copy after the
 /// copy. The next start deletes the old folder's roalt.db, roalt.db-wal and roalt.db-shm once
 /// the new database opened, and drops `movedFrom`. Returns only on failure, after deleting the
 /// database files it may have left in `path`. Refused for test runs (`ROALT_DATA_DIR`), when
@@ -2366,7 +2355,7 @@ fn check_window_size((w, h): (u32, u32)) -> Result<()> {
     Ok(())
 }
 
-/// Lays every running client's window out in a grid on the monitor RoALT is on, `micro`-sized
+/// Lays every running client's window out in a grid on the monitor MTwin Manager is on, `micro`-sized
 /// or as big as all fit (`window::tile`; hidden and minimized ones are left alone). How many it laid out.
 #[tauri::command]
 pub async fn instances_tile(app: AppHandle, s: State<'_, App>, micro: bool) -> Result<usize> {
@@ -2421,7 +2410,7 @@ const PREVIEW_FOR: Duration = Duration::from_secs(6);
 /// Bumped by each preview: an older one's timer leaves a newer window alone.
 static PREVIEW_ROUND: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
-/// Draws the window layout's spots for launching `account_ids` (in list order) over RoALT's monitor
+/// Draws the window layout's spots for launching `account_ids` (in list order) over MTwin Manager's monitor
 /// for a few seconds: numbered (launch order) with the account's name, spots of clients already
 /// running marked `running` (the caller's translated word). The same slots and cells a launch gets
 /// (`Tracker::preview_slots`, `window::slot_rect`). The window is see-through and click-through,
@@ -2467,8 +2456,8 @@ pub async fn layout_preview(app: AppHandle, s: State<'_, App>, account_ids: Vec<
     }
     let w = builder
         .initialization_script(format!("window.__ROALT_LAYOUT_PREVIEW__ = {data};"))
-        .title("MTwin Hub")
-        // The main window's WebView2 profile: none of its own outside RoALT's data folder.
+        .title("MTwin Manager")
+        // The main window's WebView2 profile: none of its own outside MTwin Manager's data folder.
         .data_directory(s.data_dir.join("webview"))
         .decorations(false)
         .transparent(true)
@@ -2476,7 +2465,7 @@ pub async fn layout_preview(app: AppHandle, s: State<'_, App>, account_ids: Vec<
         .always_on_top(true)
         .skip_taskbar(true)
         .focused(false)
-        // Never the foreground window: RoALT keeps the keyboard.
+        // Never the foreground window: MTwin Manager keeps the keyboard.
         .focusable(false)
         .resizable(false)
         .visible(false)
@@ -2516,7 +2505,7 @@ pub fn layout_preview_stop(app: AppHandle) {
     close_layout_previews(&app);
 }
 
-/// Ends every layout preview on screen (a new one replaces it; RoALT's window closing ends it too).
+/// Ends every layout preview on screen (a new one replaces it; MTwin Manager's window closing ends it too).
 pub fn close_layout_previews(app: &AppHandle) {
     for (label, w) in app.webview_windows() {
         if label.starts_with(PREVIEW) {
@@ -2619,7 +2608,7 @@ pub(crate) fn retake_multi(s: &App, v: &Settings) {
 }
 
 /// Locks the shared login files at once when protection is on and clients already run
-/// (RoALT's, or ones from before a restart).
+/// (MTwin Manager's, or ones from before a restart).
 fn protect_running(s: &App, v: &Settings) {
     if v.protect_shared_login && (s.multi.in_flight() || s.tracker.any_running() || s.multi.has_survivors()) {
         s.multi.lock_shared();
@@ -2710,7 +2699,7 @@ pub fn set_panic_hotkey(app: &AppHandle, old: &str, key: &str) -> Result<()> {
             log::warn!("could not re-register the old panic hotkey; none is bound: {e}");
         }
         log::warn!("could not register the panic hotkey {key}: {e}");
-        return Err(AppError::Invalid(tr!("Windows wouldn't give MTwin Hub {key}: another app probably uses it. Pick another.", key = key)));
+        return Err(AppError::Invalid(tr!("Windows wouldn't give MTwin Manager {key}: another app probably uses it. Pick another.", key = key)));
     }
     Ok(())
 }
@@ -2765,7 +2754,7 @@ fn diagnostics_sources(s: &App) -> Result<crate::diagnostics::Sources> {
     // Whether the lock is held and, when it isn't, why: what multi-instance reports turn on.
     let multi = s.multi.status(v.multi_instance, v.protect_shared_login);
     let head = format!(
-        "MTwin Hub {} on {} {} (build {})\nMulti-instance: {}, lock held: {}{}\nPerformance: {}\n",
+        "MTwin Manager {} on {} {} (build {})\nMulti-instance: {}, lock held: {}{}\nPerformance: {}\n",
         env!("CARGO_PKG_VERSION"),
         reg("ProductName"),
         reg("DisplayVersion"),
@@ -3102,7 +3091,7 @@ fn check_backup(p: &backup::BackupPayload) -> Result<()> {
         || p.groups.iter().any(|g| bad(&g.name))
         || p.favourites.iter().any(|f| f.name.is_empty() || bad(&f.name));
     if wrong {
-        return Err(AppError::Invalid(tr!("This isn't a MTwin Hub backup.")));
+        return Err(AppError::Invalid(tr!("This isn't a MTwin Manager backup.")));
     }
     for a in &p.accounts {
         if let Some(args) = &a.launch_args {
@@ -3219,7 +3208,7 @@ pub async fn performance_export(s: State<'_, App>, path: String, preview_fps: Op
 /// through `settings_set`).
 #[tauri::command]
 pub async fn performance_read(s: State<'_, App>, path: String) -> Result<crate::performance::Profile> {
-    let refused = || AppError::Invalid(tr!("This isn't a MTwin Hub performance profile."));
+    let refused = || AppError::Invalid(tr!("This isn't a MTwin Manager performance profile."));
     if std::fs::metadata(&path)?.len() > crate::performance::MAX_BYTES as u64 {
         return Err(refused());
     }

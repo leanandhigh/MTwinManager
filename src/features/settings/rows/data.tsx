@@ -17,9 +17,9 @@ import { ActionButton } from "../kit/ActionButton";
 import { useRow } from "../kit/rowError";
 import { SettingRow } from "../kit/SettingRow";
 
-const backupFilter = () => [{ name: t("settings.backupFilter"), extensions: ["roalt"] }];
+const backupFilter = () => [{ name: t("settings.backupFilter"), extensions: ["mtwin", "roalt"] }];
 
-/** Open the folder or RoALT's own logs; move it elsewhere (confirmed: RoALT restarts to use it).
+/** Open the folder or MTwin Manager's own logs; move it elsewhere (confirmed: MTwin Manager restarts to use it).
  * There is no Move while ROALT_DATA_DIR decides the folder. */
 function FolderActions({ movable }: { movable: boolean }) {
   const row = useRow();
@@ -29,7 +29,7 @@ function FolderActions({ movable }: { movable: boolean }) {
     const path = await openFile({ directory: true, multiple: false, title: t("settings.moveDialog") }).catch(row.fail);
     if (path) setTo(path);
   }
-  // Settles only on failure: on success RoALT restarts from the new folder.
+  // Settles only on failure: on success MTwin Manager restarts from the new folder.
   const move = () => {
     setMoving(true);
     api.dataDirMove(to!).catch((e) => {
@@ -111,7 +111,7 @@ function ImportResult({ report, onDone }: { report: ImportReport; onDone: () => 
   );
 }
 
-/** One backup file into RoALT: its password and what to do with accounts already here, then the
+/** One backup file into MTwin Manager: its password and what to do with accounts already here, then the
  * report, in one dialog. */
 function ImportFlow({ path, onClose }: { path: string | null; onClose: () => void }) {
   const [policy, setPolicy] = useState<ConflictPolicy>("skip");
@@ -192,7 +192,7 @@ function BackupActions() {
         nextLabel={t("settings.backupPassword")}
         onSubmit={async ({ current, next }) => {
           const date = new Date().toISOString().slice(0, 10);
-          const path = await saveFile({ defaultPath: `RoALT-backup-${date}.roalt`, filters: backupFilter() });
+          const path = await saveFile({ defaultPath: `MTwin-backup-${date}.mtwin`, filters: backupFilter() });
           // No file picked: the dialog stays, quietly.
           if (!path) throw { kind: "cancelled", message: "" };
           row.setResult(t("settings.exported", { count: await api.backupExport(path, next, master ? current : undefined) }));

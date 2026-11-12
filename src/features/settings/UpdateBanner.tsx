@@ -9,7 +9,7 @@ import { toastError } from "../../ui/Toast";
 import { isRunning } from "../launch/Running";
 import { t, tx } from "../../i18n";
 
-/** The version Later hid: not offered again until RoALT restarts, or Check now finds it. */
+/** The version Later hid: not offered again until MTwin Manager restarts, or Check now finds it. */
 let hidden: string | null = null;
 const { subscribe, notify } = signal();
 const hide = (version: string | null) => {
@@ -34,7 +34,7 @@ export function useUpdateInstall(version: string | null) {
   const running = useInstances().data?.filter(isRunning).length ?? 0;
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
-  // Resolves just before RoALT quits for the installer, which starts it again.
+  // Resolves just before MTwin Manager quits for the installer, which starts it again.
   async function install() {
     setConfirm(false);
     setBusy(true);

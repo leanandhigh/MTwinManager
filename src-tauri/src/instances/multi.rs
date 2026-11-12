@@ -1,6 +1,6 @@
 //! Multi-instance: hold a mutex named exactly `ROBLOX_singletonEvent` (no prefix, not owned)
 //! before any client starts, so a new client can't create its singleton event and doesn't
-//! close the running one. Optionally, while RoALT's clients run, hold Roblox's shared login files
+//! close the running one. Optionally, while MTwin Manager's clients run, hold Roblox's shared login files
 //! (`%LOCALAPPDATA%\Roblox\LocalStorage\RobloxCookies.dat`, `appStorage.json`) open with share mode
 //! 0 so clients can't overwrite each other's session.
 //!
@@ -60,10 +60,10 @@ pub struct Multi {
 /// The mutex handle and the locked files; dropping it releases everything.
 struct Held {
     _mutex: Singleton,
-    /// Empty unless RoALT's clients run with protection on.
+    /// Empty unless MTwin Manager's clients run with protection on.
     files: Vec<File>,
     /// Clients (pid, start time) already running when the lock was taken: started under an
-    /// earlier lock (a normal Roblox would have made `take` fail), e.g. before RoALT restarted.
+    /// earlier lock (a normal Roblox would have made `take` fail), e.g. before MTwin Manager restarted.
     survivors: Vec<(u32, u64)>,
 }
 
@@ -94,7 +94,7 @@ impl Multi {
 
     /// Takes the lock (no-op when held). The name decides: if it already belongs to an event
     /// (`ERROR_INVALID_HANDLE`), Roblox is running unprotected and nothing is held; the error
-    /// says Roblox must be closed first. Clients RoALT started under an earlier lock never
+    /// says Roblox must be closed first. Clients MTwin Manager started under an earlier lock never
     /// created that event, so the lock can be taken again while they run (e.g. after a
     /// restart). An existing *mutex* of that name (another tool) is fine: it blocks clients the
     /// same way.
@@ -160,7 +160,7 @@ impl Multi {
         self.launches.load(Ordering::SeqCst) > 0
     }
 
-    /// Clients RoALT follows again after a restart (`Tracker::readopt`): its own, not survivors.
+    /// Clients MTwin Manager follows again after a restart (`Tracker::readopt`): its own, not survivors.
     pub fn adopt(&self, clients: &[(u32, u64)]) {
         if let Some(h) = self.held().as_mut() {
             h.survivors.retain(|s| !clients.contains(s));
@@ -427,7 +427,7 @@ fn close_in(pid: u32, table: &[Handle], suffix: &str) -> Result<usize> {
             if e.code() == ERROR_ACCESS_DENIED.to_hresult() {
                 AppError::Invalid(elevated())
             } else {
-                AppError::Invalid(tr!("Windows wouldn't let MTwin Hub into Roblox (process {pid}): {why}", pid = pid, why = e.message()))
+                AppError::Invalid(tr!("Windows wouldn't let MTwin Manager into Roblox (process {pid}): {why}", pid = pid, why = e.message()))
             }
         })?;
     let mut closed = 0;
@@ -697,7 +697,7 @@ mod tests {
         assert!(m.has_survivors());
         assert_eq!(m.held().as_ref().unwrap().survivors.len(), 1);
         m.adopt(&[(child.id(), t)]);
-        assert!(!m.has_survivors(), "followed again: RoALT's own");
+        assert!(!m.has_survivors(), "followed again: MTwin Manager's own");
         m.held().as_mut().unwrap().survivors = vec![(child.id(), t)];
         child.kill().unwrap();
         child.wait().unwrap();

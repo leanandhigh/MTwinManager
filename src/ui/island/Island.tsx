@@ -11,7 +11,7 @@ import type { IslandGroup, IslandLeaf, IslandModel } from "./model";
 /** Inflated once per page life (a remount, a StrictMode double effect, a lock and unlock don't). */
 let inflated = false;
 
-/** The island: RoALT's one living control, in the title bar. Places are tiles; the current one is a
+/** The island: MTwin Manager's one living control, in the title bar. Places are tiles; the current one is a
  * solid tile wearing its label (its width springs). A gray ghost glides under the pointer. A group
  * opens in place as an inset pill (✕, then its children); picking a child folds it back and the
  * group's tile turns into the child. `live` capsules (launch progress, running clients) sit at the

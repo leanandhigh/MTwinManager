@@ -102,7 +102,7 @@ export function Avatar({ account, size, url }: { account: AccountSummary; size: 
   return (
     <span
       aria-hidden="true"
-      className="relative flex-none grid place-content-center font-bold overflow-hidden rounded-full"
+      className="relative flex-none grid place-content-center font-bold overflow-hidden rounded-[3px]"
       // The colour backs the initials only: a headshot has a transparent background of its own.
       style={{ width: size, height: size, background: done ? "transparent" : bg, color: inkOn(bg), fontSize: Math.round(size * 0.36) }}
     >

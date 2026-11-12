@@ -232,6 +232,9 @@ export type LaunchRow = {
   instanceId: string | null;
   /** The server it is in, once in game. */
   job: string | null;
+  /** Its client dropped out and is being brought back (auto-rejoin, auto-restart): on its way, not
+   * failed. With why that has to wait, when it does. */
+  rejoining: { waiting: string | null } | null;
 };
 export type LaunchActivity = {
   /** A batch's id, or "local:n"; a new launch has a new one. */
@@ -266,6 +269,8 @@ export type LaunchActivity = {
 function stageOf(i: Instance, allowDisconnect: boolean): BulkStage {
   // As the backend's mirror_item: these notes fail the item whatever the state.
   if (i.signInProblem) return { kind: "failed", message: i.note ?? "" };
+  // Being relaunched: it is on its way again, whatever its old client's state says.
+  if (comingBack(i)) return { kind: "starting" };
   switch (i.state) {
     case "starting":
     case "joining":
@@ -276,6 +281,20 @@ function stageOf(i: Instance, allowDisconnect: boolean): BulkStage {
     case "exited":
       return { kind: "failed", message: i.note ?? t("launch.batch.closed") };
   }
+}
+
+/** A client that dropped out (disconnected, crashed, closed for its memory) while a relaunch of it is under way. */
+const comingBack = (i: Instance) => i.relaunching && (i.state === "disconnected" || i.state === "exited");
+
+/** The client a row follows now: its own while that runs; once it ended (or left the list), the one
+ * started for the account since. An auto-rejoin or restart gives the account a new client under a new
+ * id, and a row still watching the old one would call a launch failed that is back in its game. */
+function followed(instances: Instance[] | undefined, id: string | null, accountId: number): Instance | undefined {
+  const own = id ? instances?.find((i) => i.id === id) : undefined;
+  if (!id || (own && own.state !== "exited")) return own;
+  const after = own?.startedAt ?? 0;
+  const next = instances?.filter((i) => i.id !== id && i.accountId === accountId && i.state !== "exited" && i.startedAt >= after).sort((x, y) => y.startedAt - x.startedAt)[0];
+  return next ?? own;
 }
 
 const isIn = (s: BulkStage) => s.kind === "inGame" || s.kind === "done";
@@ -310,26 +329,26 @@ export function useLaunchActivity(): LaunchActivity | null {
     const a = byId.get(r.accountId);
     return a && a.userId === r.userId ? a : undefined;
   };
-  const live = new Map(instances?.map((i) => [i.id, i]));
   const closed: BulkStage = { kind: "failed", message: t("launch.batch.closed") };
+  const rejoin = (i: Instance | undefined) => (i && comingBack(i) ? { waiting: i.relaunchProblem } : null);
 
   const rows: LaunchRow[] = batch
     ? batch.items.map((item) => {
-        const inst = item.instanceId ? live.get(item.instanceId) : undefined;
+        const inst = followed(instances, item.instanceId, item.accountId);
         const started = item.stage.kind === "starting" || item.stage.kind === "joining" || item.stage.kind === "inGame";
         // Only ended clients leave the tracker; while the batch runs the backend already says so,
         // and a progress event may arrive before the instance list catches up.
         const stage = inst ? stageOf(inst, own(item)?.allowDisconnect ?? false) : started && batch.done && instances && item.instanceId ? closed : item.stage;
-        return { accountId: item.accountId, userId: item.userId, account: own(item), stage, instanceId: item.instanceId, job: inst?.jobId ?? null };
+        return { accountId: item.accountId, userId: item.userId, account: own(item), stage, instanceId: item.instanceId, job: inst?.jobId ?? null, rejoining: rejoin(inst) };
       })
     : (local?.rows ?? []).map((r) => {
         const inst = r.instanceId
-          ? live.get(r.instanceId)
+          ? followed(instances, r.instanceId, r.accountId)
           : r.stage.kind === "starting" && r.at !== null
             ? instances?.filter((i) => i.accountId === r.accountId && i.startedAt >= r.at! - 1000).sort((x, y) => x.startedAt - y.startedAt)[0]
             : undefined;
         const stage = inst ? stageOf(inst, own(r)?.allowDisconnect ?? false) : r.instanceId && instances ? closed : r.stage;
-        return { accountId: r.accountId, userId: r.userId, account: own(r), stage, instanceId: inst?.id ?? r.instanceId, job: inst?.jobId ?? null };
+        return { accountId: r.accountId, userId: r.userId, account: own(r), stage, instanceId: inst?.id ?? r.instanceId, job: inst?.jobId ?? null, rejoining: rejoin(inst) };
       });
 
   // A local row keeps the client it found, so it shows that one ending (or cleared) rather than waiting.

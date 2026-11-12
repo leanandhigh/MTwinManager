@@ -1,4 +1,4 @@
-//! RoALT's own updates (Roblox's are `launcher::update`).
+//! MTwin Manager's own updates (Roblox's are `launcher::update`).
 //!
 //! - Check: `GET api.github.com/repos/leanandhigh/RoALT/releases/latest` (published releases
 //!   only, never a draft or prerelease) at start and every 6 h while `self_update` is on,
@@ -10,7 +10,7 @@
 //!   ECDSA P-256 / SHA-256 signature of `RoALT-Setup-X.Y.Z.exe\n` followed by exactly those bytes
 //!   against `PUBLIC_KEY` (Windows CNG): the version is signed too, so an older installer can't
 //!   pass as a newer one. Only then, and if no launch or Roblox install started meanwhile, runs it
-//!   silently with `/RELAUNCH` (RoALT.iss starts RoALT again afterwards) and
+//!   silently with `/RELAUNCH` (MTwin Manager.iss starts MTwin Manager again afterwards) and
 //!   quits, so its files can be replaced. The folder is left to the installer; the next start
 //!   deletes it.
 
@@ -50,7 +50,7 @@ const MAX_SIG: u64 = 4_096;
 /// Where release assets may come from: github.com, then GitHub's redirect to its storage.
 const ASSET_HOSTS: [&str; 3] = ["github.com", "objects.githubusercontent.com", "release-assets.githubusercontent.com"];
 const TEMP_PREFIX: &str = "roalt-update-";
-/// Inno Setup's silent install; `/RELAUNCH` is RoALT.iss's own: start RoALT when done.
+/// Inno Setup's silent install; `/RELAUNCH` is MTwin Manager.iss's own: start MTwin Manager when done.
 const INSTALLER_ARGS: [&str; 5] = ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS", "/RELAUNCH"];
 /// The release signing key (P-256, uncompressed X‖Y): its private half is the `ROALT_UPDATE_KEY`
 /// secret of the release workflow, never in this repository. The release workflow puts the public
@@ -162,7 +162,7 @@ pub fn pick(body: &[u8], current: &str) -> Result<Option<Release>> {
     };
     match (url(format!("RoALT-Setup-{version}.exe")), url(format!("RoALT-Setup-{version}.exe.sig"))) {
         (Some(exe), Some(sig)) => Ok(Some(Release { version, exe, sig })),
-        _ => Err(failed(tr!("MTwin Hub {version} is out, but without a signed installer. Get it from GitHub Releases.", version = version))),
+        _ => Err(failed(tr!("MTwin Manager {version} is out, but without a signed installer. Get it from GitHub Releases.", version = version))),
     }
 }
 
@@ -259,7 +259,7 @@ fn write_verified(path: &Path, version: &str, bytes: &[u8], sig: &[u8], key: &[u
     signed.reserve(bytes.len());
     pinned.read_to_end(&mut signed)?;
     if !verify(key, &signed, sig) {
-        return Err(AppError::Invalid(tr!("The downloaded MTwin Hub installer was not run: its signature didn't check out.")));
+        return Err(AppError::Invalid(tr!("The downloaded MTwin Manager installer was not run: its signature didn't check out.")));
     }
     Ok(pinned)
 }
@@ -284,7 +284,7 @@ fn network(e: reqwest::Error) -> AppError {
 
 fn http() -> Result<reqwest::Client> {
     reqwest::Client::builder()
-        .user_agent(concat!("RoALT/", env!("CARGO_PKG_VERSION")))
+        .user_agent(concat!("MTwinManager/", env!("CARGO_PKG_VERSION")))
         .https_only(true)
         .redirect(Policy::custom(|a| {
             if a.previous().len() >= 5 {
@@ -299,7 +299,7 @@ fn http() -> Result<reqwest::Client> {
         .build()
         .map_err(|e| {
             log::warn!("update: http client unavailable: {}", e.without_url());
-            failed(tr!("MTwin Hub's HTTP client couldn't start."))
+            failed(tr!("MTwin Manager's HTTP client couldn't start."))
         })
 }
 
@@ -359,7 +359,7 @@ pub fn switched(app: &AppHandle, on: bool) {
             Ok(u) => {
                 let _ = app.emit(UPDATE_EVENT, &u);
             }
-            Err(e) => log::info!("RoALT update check failed: {e}"),
+            Err(e) => log::info!("MTwin Manager update check failed: {e}"),
         }
     });
 }
@@ -383,7 +383,7 @@ pub fn spawn(app: AppHandle) {
                         let _ = app.emit(UPDATE_EVENT, &u);
                     }
                     Ok(_) => {}
-                    Err(e) => log::info!("RoALT update check failed: {e}"),
+                    Err(e) => log::info!("MTwin Manager update check failed: {e}"),
                 }
             }
             tokio::time::sleep(CHECK_EVERY).await;
@@ -413,25 +413,25 @@ pub async fn install(app: &AppHandle) -> Result<()> {
     s.self_update
         .installing
         .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
-        .map_err(|_| AppError::Invalid(tr!("MTwin Hub is already being updated.")))?;
+        .map_err(|_| AppError::Invalid(tr!("MTwin Manager is already being updated.")))?;
     let result = run_install(&s).await;
     match &result {
         Ok(()) => app.exit(0),
         Err(e) => {
-            log::warn!("RoALT update failed: {e}");
+            log::warn!("MTwin Manager update failed: {e}");
             s.self_update.installing.store(false, Ordering::SeqCst);
         }
     }
     result
 }
 
-/// Refused while a launch, batch, auto-rejoin or Roblox install runs: RoALT quits for the installer.
+/// Refused while a launch, batch, auto-rejoin or Roblox install runs: MTwin Manager quits for the installer.
 fn idle(s: &App) -> Result<()> {
     if s.bulk.any_busy() {
-        return Err(AppError::Invalid(tr!("Wait for the running launch, batch or auto-rejoin to finish, then update MTwin Hub.")));
+        return Err(AppError::Invalid(tr!("Wait for the running launch, batch or auto-rejoin to finish, then update MTwin Manager.")));
     }
     if s.update.installing() {
-        return Err(AppError::Invalid(tr!("Wait for Roblox's installer to finish, then update MTwin Hub.")));
+        return Err(AppError::Invalid(tr!("Wait for Roblox's installer to finish, then update MTwin Manager.")));
     }
     Ok(())
 }
@@ -439,9 +439,9 @@ fn idle(s: &App) -> Result<()> {
 async fn run_install(s: &App) -> Result<()> {
     idle(s)?;
     let http = http()?;
-    let release = latest(&http).await?.ok_or_else(|| AppError::Invalid(tr!("MTwin Hub is up to date.")))?;
+    let release = latest(&http).await?.ok_or_else(|| AppError::Invalid(tr!("MTwin Manager is up to date.")))?;
     *lock(&s.self_update.available) = Some(release.version.clone());
-    let refused = || AppError::Invalid(tr!("The downloaded MTwin Hub installer was not run: its signature file is malformed."));
+    let refused = || AppError::Invalid(tr!("The downloaded MTwin Manager installer was not run: its signature file is malformed."));
     let sig = get(&http, &release.sig, "application/octet-stream", MAX_SIG, Duration::from_secs(30)).await?;
     let sig = std::str::from_utf8(&sig).ok().and_then(base64).filter(|s| s.len() == 64).ok_or_else(refused)?;
     let bytes = get(&http, &release.exe, "application/octet-stream", MAX_INSTALLER, Duration::from_secs(600)).await?;
@@ -452,7 +452,7 @@ async fn run_install(s: &App) -> Result<()> {
     let pinned = blocking(move || write_verified(&checked, &version, &bytes, &sig, &public_key())).await?;
     // Again: one may have started during the download, and quitting now would cut it off.
     idle(s)?;
-    log::info!("running RoALT {}'s installer (signature checked)", release.version);
+    log::info!("running MTwin Manager {}'s installer (signature checked)", release.version);
     Command::new(&exe)
         .args(INSTALLER_ARGS)
         .current_dir(&dir.0)
@@ -460,8 +460,8 @@ async fn run_install(s: &App) -> Result<()> {
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
-        .map_err(|e| AppError::Internal(tr!("Could not start MTwin Hub's installer: {why}", why = e)))?;
-    // The installer runs from the folder: kept (write-locked until RoALT exits) for the next start
+        .map_err(|e| AppError::Internal(tr!("Could not start MTwin Manager's installer: {why}", why = e)))?;
+    // The installer runs from the folder: kept (write-locked until MTwin Manager exits) for the next start
     // to delete.
     std::mem::forget((pinned, dir));
     Ok(())

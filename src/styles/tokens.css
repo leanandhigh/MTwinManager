@@ -64,9 +64,10 @@
     --page-pt: 24px;
     --page-gap: 24px;
 
-    /* Type. Geist covers latin, cyrillic and vietnamese; the rest fall back to Windows' own faces. */
-    --font-ui: "Geist Variable", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
-    --font-code: "Geist Mono Variable", ui-monospace, Consolas, monospace;
+    /* Type. Geist covers latin, cyrillic and vietnamese; Anuphan (styles/thai.css) covers Thai in the
+       same weights; the rest fall back to Windows' own faces. */
+    --font-ui: "Geist Variable", "Anuphan Variable", "Segoe UI Variable Text", "Leelawadee UI", "Segoe UI", system-ui, sans-serif;
+    --font-code: "Geist Mono Variable", "Anuphan Variable", ui-monospace, Consolas, monospace;
     --fs-micro: 11px;
     --fs-meta: 12px;
     --fs-small: 13px;
@@ -161,12 +162,9 @@
     --accent-ring: var(--user-accent-ring, transparent);
   }
 
-  /* Faces for scripts Geist doesn't carry, and the line height Thai needs. */
+  /* Thai: room above and below the line for its marks, and no 11px text. */
   :root:lang(th) {
-    --font-ui: "Geist Variable", "Leelawadee UI", "Segoe UI", system-ui, sans-serif;
     --lh-body: 1.6;
-  }
-  :root:lang(th) {
     --fs-micro: 12px;
   }
   @media (max-width: 1100px) {

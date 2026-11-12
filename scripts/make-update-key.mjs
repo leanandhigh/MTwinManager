@@ -1,11 +1,11 @@
-// Makes the signing key pair for RoALT's self-updater, once.
+// Makes the signing key pair for MTwin Manager's self-updater, once.
 //
 //   node scripts/make-update-key.mjs
 //
 // Writes the private key to update-key-PRIVATE.pem (never commit or share it: whoever has it can
-// make every RoALT that trusts it run their installer). Put the file's whole text into the
+// make every MTwin Manager that trusts it run their installer). Put the file's whole text into the
 // repository's ROALT_UPDATE_KEY secret (GitHub: Settings > Secrets and variables > Actions >
-// New repository secret). The Release workflow builds RoALT with the matching public half and
+// New repository secret). The Release workflow builds MTwin Manager with the matching public half and
 // signs each installer with it. Keep a copy of the .pem somewhere safe: with a new key, builds
 // made with the old one won't accept updates any more.
 import { generateKeyPairSync } from "node:crypto";

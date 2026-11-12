@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { releaseNotes } from "../src/features/news/notes.ts";
 
-// The shape RoALT's release notes have on GitHub.
+// The shape MTwin Manager's release notes have on GitHub.
 const md = `## Fixes
 - **Anti-AFK now really keeps clients online.** Roblox only counts a real key press.
 - Anti-AFK has one mode now.

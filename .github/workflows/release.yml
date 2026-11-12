@@ -1,12 +1,12 @@
 name: Release
 
 # On a v* tag, or by hand (Actions > Release > Run workflow): builds the installer, signs it for
-# RoALT's self-updater (RoALT-Setup-<version>.exe.sig, ECDSA P-256 with the ROALT_UPDATE_KEY
+# the app's self-updater (RoALT-Setup-<version>.exe.sig, ECDSA P-256 with the ROALT_UPDATE_KEY
 # secret), then puts both with their SHA-256 on a draft release v<version>. Nothing is published:
 # a maintainer reviews the draft and publishes it, which creates the tag when a manual run made it.
 #
 # Every push to the Progress branch is released too, published straight away as 1.2.<run number>,
-# so every RoALT built from a release updates itself to it (Settings > About > Check now, or
+# so every MTwin Manager built from a release updates itself to it (Settings > About > Check now, or
 # within 6 hours). Needs the ROALT_UPDATE_KEY secret (scripts/make-update-key.mjs).
 on:
   push:
@@ -74,7 +74,7 @@ jobs:
           node-version: 24
       - uses: dtolnay/rust-toolchain@stable
       - name: Build with the update key's public half
-        # RoALT only runs installers signed by the key whose public half it carries: put the public
+        # The app only runs installers signed by the key whose public half it carries: put the public
         # half of ROALT_UPDATE_KEY into self_update.rs before building, so they always match.
         env:
           ROALT_UPDATE_KEY: ${{ secrets.ROALT_UPDATE_KEY }}
@@ -124,7 +124,7 @@ jobs:
         # The key (a PKCS#8 PEM P-256 private key) reaches Node only through the environment and is
         # never printed. Signed: "RoALT-Setup-<version>.exe\n" then the installer's bytes, so the
         # version can't be swapped. The signature is IEEE P1363 (r||s, 64 bytes) in base64: what
-        # RoALT checks, and it is checked here against the PUBLIC_KEY in self_update.rs first.
+        # the app checks, and it is checked here against the PUBLIC_KEY in self_update.rs first.
         env:
           ROALT_UPDATE_KEY: ${{ secrets.ROALT_UPDATE_KEY }}
           VERSION: ${{ steps.v.outputs.version }}
@@ -140,7 +140,7 @@ jobs:
             const xy = Buffer.from(hex, "hex"), b64 = (b) => b.toString("base64url");
             const pub = crypto.createPublicKey({ key: { kty: "EC", crv: "P-256", x: b64(xy.subarray(0, 32)), y: b64(xy.subarray(32)) }, format: "jwk" });
             if (!crypto.verify("sha256", data, { key: pub, dsaEncoding: "ieee-p1363" }, sig)) {
-              console.log("::error::ROALT_UPDATE_KEY is not the key whose public half is PUBLIC_KEY in self_update.rs: RoALT would refuse this installer");
+              console.log("::error::ROALT_UPDATE_KEY is not the key whose public half is PUBLIC_KEY in self_update.rs: the app would refuse this installer");
               process.exit(1);
             }
             fs.writeFileSync(exe + ".sig", sig.toString("base64"));
@@ -183,7 +183,7 @@ jobs:
           signing="No Authenticode signature yet: SmartScreen warns."
           if [ "$SIGNED" = true ]; then signing="Code signed."; fi
           cat > ../notes.md <<EOF
-          $signing The SHA-256 sums are below and in SHA256SUMS.txt; RoALT-Setup-$VERSION.exe.sig is the signature RoALT's built-in updater checks before it runs the installer.
+          $signing The SHA-256 sums are below and in SHA256SUMS.txt; RoALT-Setup-$VERSION.exe.sig is the signature the built-in updater checks before it runs the installer.
 
           - **Windows** 10 1809 or later, or Windows 11, x64: RoALT-Setup-$VERSION.exe. SmartScreen warns on first run: More info → Run anyway.
           - Needs the Microsoft Edge WebView2 Runtime (Windows 11 has it). Setup checks, and offers Microsoft's download when it is missing.
@@ -206,8 +206,8 @@ jobs:
             gh release edit "$TAG" --target "$GITHUB_SHA" --notes-file ../notes.md
           else
             if [ "$PUBLISH" = true ]; then
-              gh release create "$TAG" ./* --latest --target "$GITHUB_SHA" --title "RoALT $VERSION" --notes-file ../notes.md
+              gh release create "$TAG" ./* --latest --target "$GITHUB_SHA" --title "MTwin Manager $VERSION" --notes-file ../notes.md
             else
-              gh release create "$TAG" ./* --draft --target "$GITHUB_SHA" --title "RoALT $VERSION" --notes-file ../notes.md
+              gh release create "$TAG" ./* --draft --target "$GITHUB_SHA" --title "MTwin Manager $VERSION" --notes-file ../notes.md
             fi
           fi

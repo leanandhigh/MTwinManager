@@ -96,7 +96,7 @@ export function Shell({ vault, settings, islandSlot }: { vault: VaultStatus; set
   const viewName = t(VIEW_NAME[view]);
 
   useEffect(() => {
-    document.title = `${viewName} · MTwin Hub`;
+    document.title = `${viewName} · MTwin Manager`;
   }, [viewName]);
 
   // So a first visit doesn't wait on its chunk (a switch is a transition: the old view stays meanwhile).

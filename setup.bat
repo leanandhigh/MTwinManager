@@ -1,6 +1,6 @@
 @echo off
 setlocal
-rem One-time setup for building RoALT on Windows: installs what the build needs with winget
+rem One-time setup for building MTwin Manager on Windows: installs what the build needs with winget
 rem (Node.js, Rust, the Visual Studio C++ Build Tools, Strawberry Perl, Inno Setup), skipping
 rem anything already installed, then builds the installer with build-exe.bat.
 cd /d "%~dp0"
@@ -46,5 +46,5 @@ set "PATH=%ProgramFiles%\nodejs;%USERPROFILE%\.cargo\bin;C:\Strawberry\perl\bin;
 where rustup >nul 2>nul && rustup default stable
 
 echo.
-echo Setup done. Building RoALT now...
+echo Setup done. Building MTwin Manager now...
 call "%~dp0build-exe.bat"

@@ -1,4 +1,4 @@
-// Browse's own tabs, drawn by RoALT rather than roblox.com: Popular (Roblox's Charts) and Playtime.
+// Browse's own tabs, drawn by MTwin Manager rather than roblox.com: Popular (Roblox's Charts) and Playtime.
 import { useState } from "react";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { api, asError, type AccountSummary, type GameInfo, type PopularGame } from "../../api";
@@ -89,7 +89,7 @@ function PopularCard({ game: g, onOpen, onPlay, onDetails }: { game: PopularGame
 /** A game's time: its places together (a teleport moves to another place of the same game). */
 type Played = { key: string; game: GameInfo | undefined; placeId: number; ms: number; last: number; byAccount: Map<number, number> };
 
-/** How long each account spent in each game, from the clients RoALT followed. */
+/** How long each account spent in each game, from the clients MTwin Manager followed. */
 export function PlaytimeTab({ accounts, onOpen, onPlay, onDetails }: { accounts: AccountSummary[] } & Actions) {
   const q = useQuery({ queryKey: ["playtime"], queryFn: api.playtimeList, refetchInterval: 60_000 });
   const places = [...new Set((q.data ?? []).map((r) => r.placeId))];

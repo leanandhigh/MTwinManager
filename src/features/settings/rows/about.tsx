@@ -15,7 +15,7 @@ import { unhideUpdate, useUpdateInstall } from "../UpdateBanner";
 
 const RELEASES = "https://github.com/leanandhigh/RoALT/releases";
 
-/** MTwin Hub's version and its updates in one card: what runs, whether a newer one is out, one
+/** MTwin Manager's version and its updates in one card: what runs, whether a newer one is out, one
  * button that checks or (once one is found) installs it, and the switch for the background checks. */
 function UpdateCard() {
   const row = useRow();
@@ -47,7 +47,7 @@ function UpdateCard() {
       <div className="upd-main">
         <span className="upd-logo"><Logo size={40} /></span>
         <span className="min-w-0">
-          <span className="upd-name">MTwin Hub</span>
+          <span className="upd-name">MTwin Manager</span>
           <span className="upd-ver mono">v{version}</span>
         </span>
         {available ? (
@@ -81,13 +81,13 @@ function UpdateCard() {
 
 export function VersionRow() {
   return (
-    <SettingRow id="version" name={`MTwin Hub ${import.meta.env.APP_VERSION}`} below={<UpdateCard />}>
+    <SettingRow id="version" name={`MTwin Manager ${import.meta.env.APP_VERSION}`} below={<UpdateCard />}>
       {null}
     </SettingRow>
   );
 }
 
-/** The community: MTwin Hub's Discord. */
+/** The community: MTwin Manager's Discord. */
 function Support() {
   const row = useRow();
   return (

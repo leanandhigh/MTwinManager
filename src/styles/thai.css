@@ -1,0 +1,10 @@
+/* Thai: Anuphan, a loopless face cut to sit beside Geist (same stroke weights, 100-700). Only its
+   Thai range is loaded, so Latin and digits stay Geist's. */
+@font-face {
+  font-family: "Anuphan Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 700;
+  src: url("../../node_modules/@fontsource-variable/anuphan/files/anuphan-thai-wght-normal.woff2") format("woff2-variations");
+  unicode-range: U+02D7, U+0303, U+0331, U+0E01-0E5B, U+200C-200D, U+25CC;
+}

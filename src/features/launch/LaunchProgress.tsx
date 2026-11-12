@@ -80,7 +80,13 @@ export function LaunchProgress({ onPick, variant = "full" }: { onPick: (ids: num
       <ol ref={list} className={`scroll ${island ? "max-h-[300px]" : "max-h-[40vh]"}`}>
         {a.rows.map((r) => {
           const s = r.stage;
-          const note = s.kind === "failed" ? t("launch.batch.failedNote", { message: s.message }) : s.kind === "inGame" && r.job ? t("launch.batch.inGameJob", { job: r.job.slice(0, 8) }) : t(NOTE[s.kind]);
+          const note = r.rejoining
+            ? (r.rejoining.waiting ?? t("launch.batch.rejoining"))
+            : s.kind === "failed"
+              ? t("launch.batch.failedNote", { message: s.message })
+              : s.kind === "inGame" && r.job
+                ? t("launch.batch.inGameJob", { job: r.job.slice(0, 8) })
+                : t(NOTE[s.kind]);
           return (
             <li key={r.accountId} className={`launch-row-grid items-center gap-y-1 py-2.5 border-b border-line last:border-b-0 ${s.kind === "cancelled" ? "opacity-55" : ""}`}>
               <span className="flex items-center gap-2.5 min-w-0">

@@ -735,14 +735,23 @@ impl Run {
         let mut stop = None;
         self.update(|p| {
             for (item, a) in p.items.iter_mut().zip(&self.accounts) {
-                match item.instance_id.as_deref().map(|id| s.tracker.get(id)) {
-                    Some(Some(inst)) => {
+                let Some(id) = item.instance_id.clone() else { continue };
+                let mut inst = s.tracker.get(&id);
+                // An auto-rejoin or restart brought the account back as a new client: the item follows
+                // that one, or it would call a launch failed that is back in its game.
+                if inst.as_ref().is_none_or(|i| i.state == InstanceState::Exited)
+                    && let Some(next) = s.tracker.successor(&id, a.id)
+                {
+                    item.instance_id = Some(next.id.clone());
+                    inst = Some(next);
+                }
+                match inst {
+                    Some(inst) => {
                         let why = mirror_item(item, &inst, a);
                         stop = stop.take().or(why);
                     }
                     // Only ended entries leave the tracker (Clear ended, pruning).
-                    Some(None) => gone(item),
-                    None => {}
+                    None => gone(item),
                 }
             }
         });
@@ -927,12 +936,18 @@ fn mirror_item(item: &mut BulkItem, inst: &Instance, a: &Account) -> Option<Stri
             tr!("Roblox wants a human check for {name}. Finish it in that client or close it.", name = name)
         }
         _ => {
-            item.stage = stage_of(inst, a.allow_disconnect);
+            item.stage = if coming_back(inst) { BulkStage::Starting } else { stage_of(inst, a.allow_disconnect) };
             return None;
         }
     };
     item.stage = BulkStage::Failed { message: inst.note.clone().unwrap_or_default() };
     Some(why)
+}
+
+/// Dropped out (disconnected, crashed, closed for its memory) with a relaunch of it under way
+/// (`instances::rejoin`): on its way again, not failed.
+fn coming_back(inst: &Instance) -> bool {
+    inst.relaunching && matches!(inst.state, InstanceState::Disconnected | InstanceState::Exited)
 }
 
 /// A started client that left the tracker: it ended.
@@ -1180,6 +1195,24 @@ mod tests {
         let mut it = item(BulkStage::Joining, true);
         assert_eq!(mirror_item(&mut it, &instance(InstanceState::Joining, Some("Roblox refused the sign-in (error 403)")), &a), None);
         assert_eq!(it.stage, failed("Roblox refused the sign-in (error 403)"));
+    }
+
+    #[test]
+    fn a_client_being_relaunched_is_on_its_way_not_failed() {
+        use InstanceState::*;
+        let a = accounts(&[1]).remove(0);
+        let mut it = item(BulkStage::InGame, true);
+        let mut inst = instance(Disconnected, None);
+        inst.relaunching = true;
+        assert_eq!(mirror_item(&mut it, &inst, &a), None);
+        assert_eq!(it.stage, BulkStage::Starting);
+        inst.state = Exited;
+        inst.note = Some("Closed".into());
+        assert_eq!(mirror_item(&mut it, &inst, &a), None);
+        assert_eq!(it.stage, BulkStage::Starting, "closed to be launched again");
+        inst.relaunching = false;
+        assert_eq!(mirror_item(&mut it, &inst, &a), None);
+        assert_eq!(it.stage, failed("Closed"));
     }
 
     #[test]

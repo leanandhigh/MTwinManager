@@ -12,7 +12,7 @@
 // Each kick is recorded as a disconnect, shown under the ended row in Running clients. "Kill all" ends everything.
 // Monitor: each running client's CPU, memory and IO drift over time; "Alt 01"'s memory keeps growing (a leak).
 // The bandwidth limit "applies" after a pretend admin prompt; 1234 kbit/s fails as a declined prompt.
-// Moving the data folder to a path containing "bad" fails as a folder that already has a RoALT database.
+// Moving the data folder to a path containing "bad" fails as a folder that already has an MTwin Manager database.
 // Anti-AFK (when on) "presses a key" in each opted-in client in a game every 20 s, so the time moves.
 // Discord: any discord.com webhook URL is accepted; one whose token contains "deleted" fails the test.
 import { emit } from "@tauri-apps/api/event";
@@ -91,10 +91,10 @@ let robloxClient: RobloxClient = {
   latest: "version-9ac8595712b447a7",
   outdated: true,
 };
-/** RoALT's self-update: the background check "finds" the next minor version 10 s after start. */
+/** MTwin Manager's self-update: the background check "finds" the next minor version 10 s after start. */
 const APP_VERSION: string = import.meta.env.APP_VERSION;
 const NEXT_VERSION = APP_VERSION.replace(/^(\d+)\.(\d+)\..*$/, (_, a, b) => `${a}.${Number(b) + 1}.0`);
-/** The website's demo (`npm run build:demo`) never invents a RoALT release or usage numbers visitors could believe. */
+/** The website's demo (`npm run build:demo`) never invents an MTwin Manager release or usage numbers visitors could believe. */
 const DEMO = import.meta.env.MODE === "demo";
 let appUpdate: string | null = null;
 setTimeout(() => {
@@ -218,7 +218,7 @@ function perfProfile(previewFps: number) {
 
 /** The profile in `text` as performance_parse returns it, or the error message. */
 function perfParse(text: string): Record<string, unknown> | string {
-  const refused = "This isn't a RoALT performance profile.";
+  const refused = "This isn't an MTwin Manager performance profile.";
   let file: { format?: unknown; version?: number; settings?: Record<string, unknown> };
   try {
     file = JSON.parse(text);
@@ -226,7 +226,7 @@ function perfParse(text: string): Record<string, unknown> | string {
     return refused;
   }
   if (file?.format !== "roalt-performance") return refused;
-  if ((file.version ?? 0) > 1) return "This profile was made by a newer RoALT; update RoALT first.";
+  if ((file.version ?? 0) > 1) return "This profile was made by a newer MTwin Manager; update MTwin Manager first.";
   const p = file.settings ?? {};
   const fps = p.fpsCap as number | undefined;
   if (fps && (fps < 5 || fps > 360)) return "The FPS cap must be 0 (off) or 5 to 360.";
@@ -266,12 +266,16 @@ function kick(i: Instance) {
   });
   instancesChanged();
   if (!settings.autoRejoin || find(i.accountId)?.allowDisconnect) return;
+  // As the backend: flagged while its relaunch is on the way.
+  i.relaunching = true;
+  instancesChanged();
   setTimeout(() => {
     const a = find(i.accountId);
     if (i.state !== "disconnected") return;
     const busy = instances.some((x) => x.id !== i.id && x.accountId === i.accountId && x.state !== "exited" && x.state !== "disconnected");
     if (!a || !settings.autoRejoin || (batch && !batch.done) || busy) return;
     endInstance(i.id, "Closed");
+    i.relaunching = false;
     void emit("app://notice", { error: false, message: `${a.alias || a.displayName} was disconnected and is rejoining.` });
     retakeLock();
     track(a.id, 14000 + Math.floor(Math.random() * 9000), i.target, i.placeId, i.viaBootstrapper, i.rejoins + 1, i.fpsCap);
@@ -541,7 +545,7 @@ const GAMES: Record<number, [name: string, creator: string, universeId: number]>
   7719004215: ["Mega Obby", "ObbyWorks", 2650339475],
 };
 function fakeGame(placeId: number): GameInfo {
-  const [name, creator, universeId] = GAMES[placeId] ?? [`Test Place ${placeId}`, "RoALT Dev", 1_000_000 + (placeId % 9_000_000)];
+  const [name, creator, universeId] = GAMES[placeId] ?? [`Test Place ${placeId}`, "MTwin Studio", 1_000_000 + (placeId % 9_000_000)];
   return {
     placeId, universeId, rootPlaceId: placeId, name, creator, maxPlayers: 12,
     playing: fakeServers(placeId).reduce((n, s) => n + s.playing, 0), visits: (placeId % 997) * 1_000_003,
@@ -957,7 +961,7 @@ async function handle(cmd: string, args: Args): Promise<unknown> {
       await reauth(args.password);
       const n = accounts.filter((a) => !args.accountIds || args.accountIds.includes(a.id)).length;
       await sleep(300);
-      return { path: "C:\\Users\\you\\AppData\\Roaming\\RoALT\\exports\\RoALT-cookies-20261104-211500.txt", count: n, skipped: 0, deletesAt: Date.now() + 600_000 };
+      return { path: "C:\\Users\\you\\AppData\\Roaming\\MTwin Manager\\exports\\MTwin-cookies-20261104-211500.txt", count: n, skipped: 0, deletesAt: Date.now() + 600_000 };
     }
     case "cookie_export_delete":
       return 1;
@@ -1383,7 +1387,7 @@ async function handle(cmd: string, args: Args): Promise<unknown> {
           ]
         : [];
     case "diagnostics_text":
-      return "RoALT (preview) diagnostics";
+      return "MTwin Manager (preview) diagnostics";
     case "diagnostics_save":
       return null;
     case "crashes_list":
@@ -1410,24 +1414,6 @@ async function handle(cmd: string, args: Args): Promise<unknown> {
       if (!webhook) return fail("invalid", "Set a webhook first.");
       if (webhook.token.includes("deleted")) return fail("invalid", "Discord refused the webhook; it may have been deleted. Paste a new one.");
       return null;
-    case "news": {
-      await sleep(700);
-      const at = (hours: number) => new Date(Date.now() - hours * 3_600_000).toISOString();
-      const release = (v: string, hours: number, notes: string) => ({ id: `roalt:${v}`, source: "roalt", title: `RoALT ${v}`, summary: notes, url: `https://github.com/inspectsoftware/RoALT/releases/tag/v${v}`, published: at(hours), version: v });
-      const forum = (id: number, title: string, hours: number, summary: string) => ({ id: `devforum:${id}`, source: "devforum", title, summary, url: `https://devforum.roblox.com/t/topic/${id}`, published: at(hours), version: null });
-      const month = new Date().toISOString().slice(0, 7);
-      return {
-        items: [
-          ...(DEMO ? [] : [release(NEXT_VERSION, 3, "## New\n- **A redesigned app**: the island, client cards, Home tabs and a searchable Settings.\n- Export cookies from Accounts.\n- Private servers: change their settings, or buy one.\n\n## Fixed\n- Tooltips no longer jump to the corner of the window.\n- Switching to the side layout no longer flashes the tab strip.\n- The Performance icon sits centred.\n\nNo Authenticode signature yet.")]),
-          forum(9001, "Studio MCP Server Updates: Open Cloud Access in Your MCP Client", 5, "Key Takeaways MCP now has full access to Open Cloud; connected agents can help you manage your game beyond building…"),
-          forum(9002, "PlayerCharacterDestroyBehavior Will Be Default on November 11", 9, "Hi Creators, What’s Changing We introduced PlayerCharacterDestroyBehavior as an opt-in property almost three years ago…"),
-          forum(9003, "Release Notes for 745", 200, ""),
-          release(APP_VERSION, 72, "## Fixes\n- **Anti-AFK now really keeps clients online.**"),
-          { id: `newsroom:${month}/the-hollow`, source: "newsroom", title: "The Hollow: New Platform-Wide Survival Event for Halloween", summary: "", url: "https://about.roblox.com/newsroom", published: month, version: null },
-        ],
-        failed: [],
-      };
-    }
     case "executors_list":
       return [
         { title: "Potassium", version: "1.7.9", updatedDate: "07/24/2025 at 3:47 PM UTC", rbxVersion: "version-31fc142272764f02", updated: true, detected: true, free: false, kind: "wexecutor", platform: "Windows", sunc: 100, unc: 99, decompiler: true, multiInject: true, keysystem: null, cost: "$20 Lifetime", website: "https://potassium.pro", discord: null },
@@ -1495,8 +1481,6 @@ async function handle(cmd: string, args: Args): Promise<unknown> {
       return (args.universeIds as number[]).flatMap((id) =>
         id === 66654135 ? [{ universeId: id, rootPlaceId: 142823291, name: "Murder Mystery 2", playing: 19114, iconUrl: null }] : id === 383310974 ? [{ universeId: id, rootPlaceId: 920587237, name: "Adopt Me!", playing: 151020, iconUrl: null }] : [],
       );
-    case "online_ping":
-      return !DEMO && settings.onlineCount ? { online: 1284, playing: 5120 } : null;
     case "self_update_status":
       return { current: APP_VERSION, available: appUpdate };
     case "self_update_check":
@@ -1504,8 +1488,8 @@ async function handle(cmd: string, args: Args): Promise<unknown> {
       appUpdate = DEMO ? null : NEXT_VERSION;
       return { current: APP_VERSION, available: appUpdate };
     case "self_update_install":
-      if (!appUpdate) return fail("invalid", "RoALT is up to date.");
-      if (batch && !batch.done) return fail("invalid", "Wait for the running launch, batch or auto-rejoin to finish, then update RoALT.");
+      if (!appUpdate) return fail("invalid", "MTwin Manager is up to date.");
+      if (batch && !batch.done) return fail("invalid", "Wait for the running launch, batch or auto-rejoin to finish, then update MTwin Manager.");
       // Downloading, checking, then the installer restarts the app.
       await sleep(2500);
       location.reload();
@@ -1535,7 +1519,7 @@ async function handle(cmd: string, args: Args): Promise<unknown> {
       }
     }
     case "data_dir_info":
-      return { path: "C:\\Users\\you\\AppData\\Local\\RoALT", default: true, overridden: false };
+      return { path: "C:\\Users\\you\\AppData\\Local\\MTwin Manager", default: true, overridden: false };
     case "data_dir_open":
     case "logs_open":
       return null;
@@ -1588,7 +1572,7 @@ async function handle(cmd: string, args: Args): Promise<unknown> {
     case "data_dir_move":
       await sleep(1200);
       if (batch && !batch.done) return fail("invalid", MOVE_BUSY);
-      if (/bad/i.test(args.path)) return fail("invalid", "That folder already has a RoALT database. Pick another one.");
+      if (/bad/i.test(args.path)) return fail("invalid", "That folder already has an MTwin Manager database. Pick another one.");
       location.reload();
       return new Promise(() => {});
 
@@ -1644,9 +1628,9 @@ async function handle(cmd: string, args: Args): Promise<unknown> {
     }
 
     case "plugin:dialog|save":
-      return `C:\\Users\\you\\Documents\\${args.options?.defaultPath ?? "backup.roalt"}`;
+      return `C:\\Users\\you\\Documents\\${args.options?.defaultPath ?? "backup.mtwin"}`;
     case "plugin:dialog|open":
-      return args.options?.directory ? "D:\\RoALT data" : "C:\\Users\\you\\Documents\\RoALT-backup-2026-10-01.roalt";
+      return args.options?.directory ? "D:\\MTwin Manager data" : "C:\\Users\\you\\Documents\\MTwin-backup-2026-10-01.mtwin";
     case "plugin:window|is_maximized":
       return false;
     default:

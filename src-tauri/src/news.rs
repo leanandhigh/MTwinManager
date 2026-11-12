@@ -1,4 +1,4 @@
-//! Home's News tab: RoALT's releases (GitHub), the DevForum's announcements and release notes, and
+//! Home's News tab: MTwin Manager's releases (GitHub), the DevForum's announcements and release notes, and
 //! Roblox's newsroom. Fetched when the UI asks (at start and every 30 min); the sources load side by
 //! side and one that fails is named in `failed` while the others still show. Every link is rebuilt
 //! from an id or slug on the source's own host, so a page can't hand the UI some other address.
@@ -25,7 +25,7 @@ const MAX_NOTES: usize = 20_000;
 /// Fetches every source at once; never fails as a whole.
 pub async fn fetch() -> News {
     let http = match reqwest::Client::builder()
-        .user_agent(concat!("RoALT/", env!("CARGO_PKG_VERSION")))
+        .user_agent(concat!("MTwinManager/", env!("CARGO_PKG_VERSION")))
         .https_only(true)
         .redirect(Policy::none())
         .connect_timeout(Duration::from_secs(10))
@@ -108,7 +108,7 @@ fn parse_releases(body: &str) -> Option<Vec<NewsItem>> {
                     id: format!("roalt:{version}"),
                     source: NewsSource::Roalt,
                     // By the tag, as the update offer names it (a release's name can differ: v0.9.2 is "RoALT 0.9.1a").
-                    title: format!("MTwin Hub {version}"),
+                    title: format!("MTwin Manager {version}"),
                     summary: r.body.unwrap_or_default().chars().take(MAX_NOTES).collect(),
                     url: format!("https://github.com/leanandhigh/RoALT/releases/tag/v{version}"),
                     published: r.published_at?,
@@ -287,7 +287,7 @@ mod tests {
         ]"###;
         let items = parse_releases(body).unwrap();
         assert_eq!(items.len(), 2, "drafts, prereleases, odd tags and undated ones are left out");
-        assert_eq!(items[0].title, "MTwin Hub 0.10.0", "by the tag, not the release's name");
+        assert_eq!(items[0].title, "MTwin Manager 0.10.0", "by the tag, not the release's name");
         assert_eq!(items[0].summary, "## New\n- Macros");
         assert_eq!(items[0].url, "https://github.com/leanandhigh/RoALT/releases/tag/v0.10.0");
         assert_eq!(items[0].version.as_deref(), Some("0.10.0"));

@@ -342,7 +342,7 @@ function ClientTable({ running, byInst, hist, accounts, onLimits }: {
   );
 }
 
-/** Live CPU, memory and IO of every client RoALT runs, sampled every 2 s: which one uses too much,
+/** Live CPU, memory and IO of every client MTwin Manager runs, sampled every 2 s: which one uses too much,
  * and its limits one click away. */
 export function MonitorView({ accounts }: { accounts: AccountSummary[] }) {
   const instances = useInstances();

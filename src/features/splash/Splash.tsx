@@ -26,7 +26,7 @@ function seen() {
 const FIRST: SplashPhase = seen() ? "gone" : "play";
 setSplashPhase(FIRST);
 
-/** The start-up splash over the app: the mark rises over a violet glow while the bar fills, then the window
+/** The start-up splash over the app: the mark rises over a crimson glow while the bar fills, then the window
  * (opened small by `splash::start`) grows into the app and this fades away. */
 export function Splash() {
   const [state, setState] = useState<SplashPhase>(FIRST);
@@ -63,7 +63,7 @@ export function Splash() {
           <span className="sp-halo" />
           <img src={logo} alt="" draggable={false} />
         </div>
-        <div className="sp-word">MTwin Hub</div>
+        <div className="sp-word">MTwin Manager</div>
         <div className="sp-status">{t("common.loading")}</div>
         <div className="sp-bar">
           <span />

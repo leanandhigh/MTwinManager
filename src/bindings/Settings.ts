@@ -50,7 +50,7 @@ launchDelayMs: number,
  */
 autoRejoin: boolean, 
 /**
- * Relaunch a client that ended without RoALT closing it or stopped responding (a window
+ * Relaunch a client that ended without MTwin Manager closing it or stopped responding (a window
  * closed by hand looks the same, so it is opt-in), within the breaker.
  */
 autoRestartOnCrash: boolean, 
@@ -59,7 +59,7 @@ autoRestartOnCrash: boolean,
  */
 breakerMax: number, 
 /**
- * ... within this many minutes (1..=240); then RoALT gives up on it.
+ * ... within this many minutes (1..=240); then MTwin Manager gives up on it.
  */
 breakerWindowMin: number, 
 /**
@@ -97,7 +97,7 @@ protectMain: boolean,
  */
 muteOnLaunch: boolean, 
 /**
- * Launched clients go into this layout on RoALT's monitor; not Off: it replaces `tiny_on_launch`.
+ * Launched clients go into this layout on MTwin Manager's monitor; not Off: it replaces `tiny_on_launch`.
  */
 windowLayout: WindowLayout, 
 /**
@@ -137,18 +137,18 @@ discord: DiscordEvents,
  */
 autoUpdate: boolean, 
 /**
- * Ask GitHub for a newer RoALT at start and every 6 hours (`self_update`); it is offered,
+ * Ask GitHub for a newer MTwin Manager at start and every 6 hours (`self_update`); it is offered,
  * never installed without a click.
  */
 selfUpdate: boolean, 
 /**
- * Discord rich presence through the Discord app on this PC (`rpc`): "Playing RoALT" with
+ * Discord rich presence through the Discord app on this PC (`rpc`): "Playing MTwin Manager" with
  * the game and how many alts run.
  */
 discordPresence: boolean, 
 /**
- * Ping RoALT's online counter every 2 minutes with a random id made once per launch, and
- * show how many people use RoALT beside the Discord button (`online`). Off: nothing is sent.
+ * No longer used: the online counter is gone, and nothing is sent. Kept so stored settings
+ * and profiles that carry it still read.
  */
 onlineCount: boolean, 
 /**
@@ -196,7 +196,7 @@ customFlags: { [key in string]: string },
 customFlagsScope: FlagScope, 
 /**
  * Browse refuses anything that spends Robux (free items still work) and the Robux, Premium and
- * billing pages (`browse`); RoALT's own private server purchase is refused too. On by default.
+ * billing pages (`browse`); MTwin Manager's own private server purchase is refused too. On by default.
  */
 lockPurchases: boolean, 
 /**

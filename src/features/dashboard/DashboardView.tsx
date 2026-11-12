@@ -276,7 +276,7 @@ function Overview({ accounts, home, extra, onAdd, onImport, onPickFavourite }: {
 }
 
 /** Every running client at a glance, with a picture of its window, and the window tools; with
- * nothing running, the way to the first game. Home's tabs (News, Overview, accounts) sit above it. */
+ * nothing running, the way to the first game. Home's tabs (Overview, accounts) sit above it. */
 export function DashboardView({ accounts, home, onAdd, onImport, onPickFavourite }: {
   accounts: AccountSummary[];
   home: HomeTabs;

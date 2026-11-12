@@ -1,6 +1,6 @@
-// Browse's profile card: RoALT's numbers on a player's roblox.com profile. Runs in Browse's page
-// (top frame only) before Roblox's own scripts. RoALT hands it the data (`browse_card`); the page
-// can't reach RoALT. Text only (textContent, never HTML), in a closed shadow root: Roblox's styles
+// Browse's profile card: MTwin Manager's numbers on a player's roblox.com profile. Runs in Browse's page
+// (top frame only) before Roblox's own scripts. MTwin Manager hands it the data (`browse_card`); the page
+// can't reach MTwin Manager. Text only (textContent, never HTML), in a closed shadow root: Roblox's styles
 // don't reach it and its scripts can't read it. Shown only on the profile it belongs to.
 (() => {
   if (window.top !== window || location.hostname !== "www.roblox.com") return;
@@ -54,7 +54,7 @@ li span:last-child { font-variant-numeric: tabular-nums; }`;
       open = !open;
       render();
     });
-    head.append(el("b", "RoALT"), el("span", card.title), toggle);
+    head.append(el("b", "MTwin Manager"), el("span", card.title), toggle);
     box.append(head);
     if (open) {
       const dl = el("dl");
@@ -74,7 +74,7 @@ li span:last-child { font-variant-numeric: tabular-nums; }`;
     const style = el("style", CSS);
     root.replaceChildren(style, box);
   }
-  // Not replaceable by the page: what RoALT sends goes to this card only.
+  // Not replaceable by the page: what MTwin Manager sends goes to this card only.
   Object.defineProperty(window, "__roaltCard", {
     value: (c) => {
       card = c;

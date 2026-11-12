@@ -498,8 +498,47 @@
     resize: none;
     line-height: 1.45;
   }
-  select.field {
-    padding-inline-end: 32px;
+  /* A select: a field that opens the app's own list (ui/Field `Select`). */
+  .select {
+    position: relative;
+    display: inline-flex;
+    min-width: 0;
+  }
+  .select-trigger {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-inline: 12px 10px;
+    text-align: start;
+    cursor: pointer;
+  }
+  .select-trigger:disabled {
+    cursor: not-allowed;
+  }
+  .select-value {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .select-chevron {
+    color: var(--fg-3);
+    transition: rotate var(--dur-base) var(--ease-out);
+  }
+  .select-trigger[aria-expanded="true"] .select-chevron {
+    rotate: 180deg;
+  }
+  .select-list {
+    min-width: max(180px, anchor-size(width));
+    max-height: min(340px, calc(100vh - 32px));
+  }
+  .select-option[aria-selected="true"] {
+    background: var(--sel);
+    font-weight: 600;
+  }
+  .select-check {
+    color: var(--accent-text);
   }
   .secret {
     -webkit-text-security: disc;

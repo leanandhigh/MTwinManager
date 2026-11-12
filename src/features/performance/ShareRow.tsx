@@ -15,7 +15,9 @@ import { SettingSection } from "../settings/kit/SettingSection";
 
 const profileFilter = () => [{ name: t("performance.profileFilter"), extensions: ["json"] }];
 /** A share code: this prefix, then the profile's JSON as base64url. */
-const CODE = "RoALT-PERF:";
+const CODE = "MTWIN-PERF:";
+/** The prefix codes had before the app was renamed: still read. */
+const OLD_CODE = "RoALT-PERF:";
 
 function toCode(json: string) {
   const bytes = new TextEncoder().encode(json);
@@ -25,9 +27,10 @@ function toCode(json: string) {
 /** The profile's JSON in a share code; null when it isn't one. */
 function fromCode(code: string): string | null {
   const body = code.trim();
-  if (!body.startsWith(CODE)) return null;
+  const prefix = [CODE, OLD_CODE].find((p) => body.startsWith(p));
+  if (!prefix) return null;
   try {
-    const b64 = body.slice(CODE.length).replace(/\s+/g, "").replace(/-/g, "+").replace(/_/g, "/");
+    const b64 = body.slice(prefix.length).replace(/\s+/g, "").replace(/-/g, "+").replace(/_/g, "/");
     return new TextDecoder("utf-8", { fatal: true }).decode(Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)));
   } catch {
     return null;
@@ -37,7 +40,7 @@ function fromCode(code: string): string | null {
 if (import.meta.env.DEV) {
   const json = '{"fpsCap":30,"name":"Ünïcode"}';
   console.assert(fromCode(toCode(json)) === json, "share code: round trip");
-  console.assert(fromCode("RoALT-PERF:!!") === null && fromCode("hello") === null, "share code: refuses what isn't one");
+  console.assert(fromCode("MTWIN-PERF:!!") === null && fromCode("hello") === null, "share code: refuses what isn't one");
 }
 
 /** Export, import and share the settings above. What happened shows under the buttons. */
@@ -66,7 +69,7 @@ export function ShareRow({ onProfile }: { onProfile: (p: Profile) => void }) {
     });
   const exportFile = () =>
     act(async () => {
-      const path = await saveFile({ defaultPath: `RoALT-performance-${new Date().toISOString().slice(0, 10)}.json`, filters: profileFilter() });
+      const path = await saveFile({ defaultPath: `MTwin-performance-${new Date().toISOString().slice(0, 10)}.json`, filters: profileFilter() });
       if (!path) return;
       await api.performanceExport(path, storedFps());
       return t("performance.exported");

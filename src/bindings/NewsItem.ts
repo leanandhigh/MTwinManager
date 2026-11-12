@@ -10,7 +10,7 @@ export type NewsItem = {
  */
 id: string, source: NewsSource, title: string, 
 /**
- * Plain text; a RoALT release's notes as Markdown.
+ * Plain text; a MTwin Manager release's notes as Markdown.
  */
 summary: string, 
 /**
@@ -22,6 +22,6 @@ url: string,
  */
 published: string, 
 /**
- * A RoALT release's version (`x.y.z`).
+ * A MTwin Manager release's version (`x.y.z`).
  */
 version: string | null, };

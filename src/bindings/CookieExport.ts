@@ -13,6 +13,6 @@ path: string, count: number,
  */
 skipped: number, 
 /**
- * Unix ms when RoALT deletes it.
+ * Unix ms when MTwin Manager deletes it.
  */
 deletesAt: number, };

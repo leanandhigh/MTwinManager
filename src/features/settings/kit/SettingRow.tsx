@@ -39,7 +39,7 @@ export function EntryRow({ id }: { id: string }) {
  * entry's jump target (`set-{id}`). */
 export function SettingRow({ id, name, children, title, status, detail, more, below }: {
   id: string;
-  /** What the "More about" button calls the row, when its title isn't its label ("RoALT 0.9.2"). */
+  /** What the "More about" button calls the row, when its title isn't its label ("MTwin Manager 0.9.2"). */
   name?: string;
   /** The control, in place of the one the entry declares. */
   children?: ReactNode;

@@ -20,7 +20,7 @@ const SHAPE: Record<Level, string> = { error: "diamond", warn: "triangle", info:
 /** The filter as a case-blind match with one capture group, which LogView marks. */
 const finder = (q: string) => (q ? new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "i") : null);
 
-/** Everything RoALT logs (roalt.log), live: find the line that went wrong, or copy a report. */
+/** Everything MTwin Manager logs (roalt.log), live: find the line that went wrong, or copy a report. */
 export function DebugView() {
   const [shown, setShown] = useState<Record<Level, boolean>>({ error: true, warn: true, info: true, debug: false });
   const [query, setQuery] = useState("");
@@ -51,7 +51,7 @@ export function DebugView() {
   };
   const saveReport = async () => {
     try {
-      const path = await saveFile({ defaultPath: `RoALT-diagnostics-${new Date().toISOString().slice(0, 10)}.txt`, filters: [{ name: t("debug.reportFilter"), extensions: ["txt"] }] });
+      const path = await saveFile({ defaultPath: `MTwin-diagnostics-${new Date().toISOString().slice(0, 10)}.txt`, filters: [{ name: t("debug.reportFilter"), extensions: ["txt"] }] });
       if (!path) return;
       await api.diagnosticsSave(path);
       toast(t("debug.reportSaved"));

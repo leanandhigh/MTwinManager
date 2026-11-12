@@ -1,7 +1,7 @@
--- RoALT Progress reporter. RoALT serves this at http://localhost:16390/script.luau and puts
--- `local __PROGRESS_HOST = "host:port"` above this line, so it reports back to the same RoALT.
+-- MTwin Manager Progress reporter. MTwin Manager serves this at http://localhost:16390/script.luau and puts
+-- `local __PROGRESS_HOST = "host:port"` above this line, so it reports back to the same MTwin Manager.
 --
--- It knows no game by itself: what it reports comes from scripts you write in RoALT
+-- It knows no game by itself: what it reports comes from scripts you write in MTwin Manager
 -- (Progress > a game > Script), which it downloads and runs:
 --   "Every game": runs in every game first (by default it reads leaderstats).
 --   "This game":  runs in that game only.
@@ -15,11 +15,11 @@
 --   find("ReplicatedStorage.Modules.Data")         the object or table at a path
 --   num(v), P.require(module), P.player, P.report
 -- Pictures are only what you give: `image = <decal id>` in value/item, or the Catalog's Decal ID.
--- The Catalog's "Read from" paths are read after them. Errors go back to RoALT (Script tab).
+-- The Catalog's "Read from" paths are read after them. Errors go back to MTwin Manager (Script tab).
 --
 -- Config (all optional), set before loading:
 --   getgenv().ProgressConfig = {
---       PC_NAME = "PC1",                      -- groups accounts into machines in RoALT
+--       PC_NAME = "PC1",                      -- groups accounts into machines in MTwin Manager
 --       Interval = 10,                        -- seconds between reports
 --       Collect = function(report, P) end,    -- more code of your own, run last
 --   }
@@ -147,7 +147,7 @@ local function readPath(path)
 	return number(find(path))
 end
 
--- ---------- what RoALT asks for ----------
+-- ---------- what MTwin Manager asks for ----------
 
 local function getJson(path)
 	local ok, res = pcall(function()
@@ -310,7 +310,7 @@ task.spawn(function()
 			local sent = send(report)
 			if not sent and not warned then
 				warned = true
-				warn("[Progress] could not reach RoALT at http://" .. host .. " - is RoALT open?")
+				warn("[Progress] could not reach MTwin Manager at http://" .. host .. " - is MTwin Manager open?")
 			elseif sent then
 				warned = false
 			end
@@ -321,4 +321,4 @@ task.spawn(function()
 	end
 end)
 
-print("[Progress] reporting to RoALT at http://" .. host .. " as " .. tostring(config.PC_NAME or "Unnamed PC"))
+print("[Progress] reporting to MTwin Manager at http://" .. host .. " as " .. tostring(config.PC_NAME or "Unnamed PC"))

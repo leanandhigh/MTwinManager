@@ -16,7 +16,7 @@ catalog: { [key in string]?: Array<CatalogEntry> },
  */
 autoDeleteHours: number, server: ProgressServer, 
 /**
- * Unix ms, by RoALT's clock (`lastSeen` is too).
+ * Unix ms, by MTwin Manager's clock (`lastSeen` is too).
  */
 now: number, onlineMs: number, 
 /**

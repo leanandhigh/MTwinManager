@@ -1,16 +1,16 @@
-/* The start-up splash (Splash.tsx), in the app's own look: the canvas's violet and red glows, the
+/* The start-up splash (Splash.tsx), in the app's own look: the canvas's crimson glows, the
    mark afloat over a breathing halo, the name, and a bar that fills while the app loads under it.
    The window grows when the bar is full (`splash_done`, 5 s in), then the splash fades. Always
    dark: the window opens before any theme applies. */
 .splash {
-  --sp-accent: var(--splash-accent, #9b85ff);
+  --sp-accent: var(--splash-accent, #f0445a);
   position: fixed;
   inset: 0;
   z-index: 100;
   display: grid;
   place-items: center;
   overflow: hidden;
-  background: #08080d;
+  background: #0a0a0b;
   color: #f2f2f5;
   transition: opacity 300ms var(--ease-out);
 }
@@ -23,7 +23,7 @@
   animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-/* The canvas: violet from the top corner, the logo's red from the far one, drifting slowly. */
+/* The canvas: the accent from the top corner, the logo's red from the far one, drifting slowly. */
 .sp-aura {
   position: absolute;
   inset: -20%;

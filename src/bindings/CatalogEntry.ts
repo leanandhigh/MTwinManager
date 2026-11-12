@@ -2,7 +2,7 @@
 import type { CatalogKind } from "./CatalogKind";
 
 /**
- * A value or item added by hand for a game: its name, picture and rarity in RoALT, and, with a
+ * A value or item added by hand for a game: its name, picture and rarity in MTwin Manager, and, with a
  * `source`, where the script reads it.
  */
 export type CatalogEntry = { 

@@ -19,7 +19,7 @@ const KINDS: Record<CrashKind, Key> = {
   mem: "launch.crash.mem",
 };
 
-/** What RoALT recorded about an ended client: how it ended, what its log said, its log. */
+/** What MTwin Manager recorded about an ended client: how it ended, what its log said, its log. */
 function CrashDetails({ crash: c }: { crash: Crash }) {
   return (
     <div className="well flex flex-col gap-2 px-4 py-3 mt-1 mb-2.5">

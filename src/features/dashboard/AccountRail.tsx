@@ -11,7 +11,6 @@ import { lid, Num, SPRING, STAGGER, useFlip } from "../../ui/motion";
 import { accountName, Avatar } from "../accounts/shared";
 import { useLaunchActivity } from "../launch/launchQueue";
 import { isLive, STATES } from "../launch/Running";
-import { useNewsFeed } from "../news/news";
 import { LaunchMark, ReadyRing } from "./AccountTabs";
 import { byOrder, readyTabs, tabLaunch, type HomeTab, type HomeTabs } from "./homeLayout";
 import { Sortable, type DragProps } from "./Sortable";
@@ -112,10 +111,9 @@ export function AccountRail({ width, accounts, instances, home, onHome, onOpen, 
   const running = instances.filter(isLive).length;
   const byId = new Map(accounts.map((a) => [a.id, a]));
   const ready = new Set(readyTabs(home.tabs, byId, instances).map((tab) => tab.accountId));
-  const news = useNewsFeed().unread;
   const here = onHome ? (home.active === null ? "overview" : String(home.active)) : null;
   // The row that takes the Tab key: the one last focused, else the current one, while it is shown.
-  const keys = [...(needle ? [] : ["news", "overview"]), ...ids.map(String), "add"];
+  const keys = [...(needle ? [] : ["overview"]), ...ids.map(String), "add"];
   const stop = [focused, here].find((k) => k !== null && keys.includes(k)) ?? keys[0];
   const tab = (k: string) => (k === stop ? 0 : -1);
   const on = (k: string) => k === here && <motion.span layoutId={ON} className="home-rail-on" transition={SPRING.smooth} />;
@@ -163,16 +161,6 @@ export function AccountRail({ width, accounts, instances, home, onHome, onOpen, 
         />
       </div>
       <div ref={list} className="scroll flex-1 min-h-0 flex flex-col gap-0.5 px-2 pb-2" style={{ scrollbarWidth: "none" }} onKeyDown={(e) => rovingKeys(e, ROW, "vertical")}>
-        {!needle && (
-          <button type="button" className="rail-item" tabIndex={tab("news")} aria-current={here === "news" ? "page" : undefined} onFocus={() => setFocused("news")} onClick={() => (home.setActive("news"), onOpen())}>
-            {on("news")}
-            <span className="home-rail-face">
-              <Icon name="news" />
-            </span>
-            <span className="flex-1 min-w-0 truncate">{t("news.tab")}</span>
-            {news > 0 && <span className="news-count" aria-label={t("news.unreadCount", { n: news })}>{news}</span>}
-          </button>
-        )}
         {!needle && (
           <button type="button" className="rail-item" tabIndex={tab("overview")} aria-current={here === "overview" ? "page" : undefined} onFocus={() => setFocused("overview")} onClick={() => (home.setActive(null), onOpen())}>
             {on("overview")}

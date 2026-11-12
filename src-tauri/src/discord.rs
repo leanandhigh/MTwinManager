@@ -1,5 +1,5 @@
 //! Discord alerts (opt-in): what happens to the clients, posted to a webhook the user pastes.
-//! The only host besides Roblox RoALT talks to, and only once a webhook is set.
+//! The only host besides Roblox MTwin Manager talks to, and only once a webhook is set.
 //!
 //! The webhook URL holds its token, so it is a secret: kept in the vault (AES-GCM, `DISCORD_AAD`)
 //! as hex in the settings table, never logged, never sent to the UI (only its id's last digits).
@@ -168,8 +168,8 @@ impl Event {
                 "⛔ {}",
                 trn!(
                     *count,
-                    "**{name}**: MTwin Hub gave up after {n} relaunch in {minutes} min.",
-                    "**{name}**: MTwin Hub gave up after {n} relaunches in {minutes} min.",
+                    "**{name}**: MTwin Manager gave up after {n} relaunch in {minutes} min.",
+                    "**{name}**: MTwin Manager gave up after {n} relaunches in {minutes} min.",
                     name = name,
                     minutes = window_min
                 )
@@ -261,9 +261,9 @@ pub fn message(events: &[Event], ping: &str) -> Value {
         _ => 0xB4_F0_00,
     };
     let mut body = json!({
-        "username": "MTwin Hub",
+        "username": "MTwin Manager",
         "allowed_mentions": { "parse": [] },
-        "embeds": [{ "title": "MTwin Hub", "description": lines.join("\n"), "color": color }],
+        "embeds": [{ "title": "MTwin Manager", "description": lines.join("\n"), "color": color }],
     });
     if severity.is_some_and(|s| s > 0) {
         add_ping(&mut body, ping);
@@ -411,9 +411,9 @@ pub fn set(s: &App, url: Option<&str>) -> Result<DiscordStatus> {
 pub async fn test(s: &App) -> Result<()> {
     let hook = webhook(s)?.ok_or_else(|| AppError::Invalid(tr!("Set a webhook first.")))?;
     let mut body = json!({
-        "username": "MTwin Hub",
+        "username": "MTwin Manager",
         "allowed_mentions": { "parse": [] },
-        "embeds": [{ "title": "MTwin Hub", "description": format!("✅ {}", tr!("Test message: MTwin Hub's alerts reach this channel.")), "color": 0xB4_F0_00 }],
+        "embeds": [{ "title": "MTwin Manager", "description": format!("✅ {}", tr!("Test message: MTwin Manager's alerts reach this channel.")), "color": 0xB4_F0_00 }],
     });
     // The test pings too, so it shows the mention works.
     add_ping(&mut body, &ping(s));
@@ -687,7 +687,7 @@ mod tests {
         assert_eq!(t(inst(InGame, Some(HUNG)), inst(InGame, Some(HUNG))), None, "still hung");
         assert_eq!(t(inst(InGame, None), inst(Exited, Some(UNEXPECTED))), Some(CrashKind::Crash));
         assert_eq!(t(inst(Starting, None), inst(Exited, Some(UNEXPECTED))), Some(CrashKind::Crash));
-        // Ended after a disconnect (already told), closed by the user or RoALT, replaced.
+        // Ended after a disconnect (already told), closed by the user or MTwin Manager, replaced.
         assert_eq!(t(inst(Disconnected, None), inst(Exited, Some(UNEXPECTED))), None);
         assert_eq!(t(inst(InGame, None), inst(Exited, Some("Closed"))), None);
         assert_eq!(t(inst(InGame, Some(HUNG)), inst(Exited, Some("Closed"))), None);
@@ -713,7 +713,7 @@ mod tests {
     fn builds_one_embed_per_message() {
         let crash = Event::Crash { name: "Nova (@nova\\_builds)".into(), place_id: Some(1818) };
         let one = message(std::slice::from_ref(&crash), "");
-        assert_eq!(one["username"], "MTwin Hub");
+        assert_eq!(one["username"], "MTwin Manager");
         assert_eq!(one["allowed_mentions"]["parse"], json!([]));
         let embeds = one["embeds"].as_array().unwrap();
         assert_eq!(embeds.len(), 1);
@@ -760,7 +760,7 @@ mod tests {
         // News and no ping: no mention at all.
         let news = [Event::Launch { name: "A".into(), place_id: None }, Event::Restart { name: "A".into(), cause: CrashKind::Crash }];
         assert_eq!(message(&news, "<@123>").get("content"), None);
-        assert_eq!(message(&crash, ""), json!({ "username": "MTwin Hub", "allowed_mentions": { "parse": [] }, "embeds": message(&crash, "<@1>")["embeds"] }));
+        assert_eq!(message(&crash, ""), json!({ "username": "MTwin Manager", "allowed_mentions": { "parse": [] }, "embeds": message(&crash, "<@1>")["embeds"] }));
         // A disconnect among news still pings.
         let mixed = [news[0].clone(), Event::Disconnect { name: "B".into() }];
         assert_eq!(message(&mixed, "<@123>")["content"], "<@123>");

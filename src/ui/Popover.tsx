@@ -43,14 +43,14 @@ export function Popover({ id, anchor, placement = "below-start", role, label, cl
       data-up={placement.startsWith("above") || undefined}
       data-tauri-drag-region="false"
       style={{ positionAnchor: anchor, positionArea: AREA[placement], ...style } as CSSProperties}
-      onKeyDown={role === "menu" ? menuKeys : undefined}
+      onKeyDown={role === "menu" || role === "listbox" ? menuKeys : undefined}
       onToggle={(e) => {
         const open = (e as unknown as ToggleEvent).newState === "open";
-        // A menu opens on its checked item, else its first: the arrows start from there.
+        // A menu opens on its checked item (a list on its chosen one), else its first: the arrows start from there.
         const menu = e.currentTarget;
-        if (open && role === "menu")
+        if (open && (role === "menu" || role === "listbox"))
           requestAnimationFrame(() => {
-            const item = menu.querySelector<HTMLElement>("[role^=menuitem][aria-checked=true]:not(:disabled)") ?? menu.querySelector<HTMLElement>(".menu-item:not(:disabled), [role^=menuitem]:not(:disabled)");
+            const item = menu.querySelector<HTMLElement>("[role^=menuitem][aria-checked=true]:not(:disabled), [role=option][aria-selected=true]") ?? menu.querySelector<HTMLElement>(".menu-item:not(:disabled), [role^=menuitem]:not(:disabled)");
             item?.focus({ preventScroll: true });
             // In a long menu the checked item may sit below its fold; the page itself must not scroll.
             item?.scrollIntoView({ block: "nearest" });

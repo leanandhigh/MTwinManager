@@ -3,7 +3,7 @@
 //! - Check: `clientsettingscdn.roblox.com/v2/client-version/WindowsPlayer` → `clientVersionUpload`,
 //!   compared with the `Versions\version-…` folder the client is in. At start and every 30 min;
 //!   `roblox://client` carries the new `RobloxClient` when anything changed.
-//! - Staged rollouts: Roblox lists a version before every PC gets it. A client RoALT started asking
+//! - Staged rollouts: Roblox lists a version before every PC gets it. A client MTwin Manager started asking
 //!   for that version, which got into a game still on the old build, shows it isn't this PC's
 //!   update yet (`not_rolled_out`): no hold, no "out of date", for 30 min, then tested again.
 //! - Install (`roblox_install`, or auto-update): refused while any Roblox client runs (an update
@@ -38,7 +38,7 @@ pub const INSTALL_TIMEOUT: Duration = Duration::from_secs(10 * 60);
 /// Win32 `FILE_SHARE_READ`: others may read (and run) the file, never write or delete it.
 pub(crate) const FILE_SHARE_READ: u32 = 0x1;
 fn bootstrapper() -> String {
-    tr!("A bootstrapper (e.g. Bloxstrap) manages this Roblox install and keeps it up to date; MTwin Hub leaves it alone.")
+    tr!("A bootstrapper (e.g. Bloxstrap) manages this Roblox install and keeps it up to date; MTwin Manager leaves it alone.")
 }
 
 #[derive(Default)]
@@ -53,7 +53,7 @@ pub struct Updater {
     installing: AtomicBool,
     /// The version auto-update last tried: a failed install isn't retried every 30 minutes.
     auto_tried: Mutex<Option<String>>,
-    /// Clients RoALT started asking for production while its live build wasn't installed:
+    /// Clients MTwin Manager started asking for production while its live build wasn't installed:
     /// (pid, start time, that live version, when noted in Unix seconds). Each one is a test of
     /// whether Roblox updates here; one older than `NOT_HERE_FOR` no longer counts (a running
     /// client doesn't check again, so it can't see a rollout that came later).
@@ -232,7 +232,7 @@ fn not_here(s: &App, live: &str) -> bool {
     if crate::instances::process::installer_running() || !not_rolled_out(live, &probe_results(s)) {
         return false;
     }
-    log::info!("Roblox lists {live} as live, but a client RoALT started asking for it got into a game on an older build: not rolled out to this PC yet, launches go on");
+    log::info!("Roblox lists {live} as live, but a client MTwin Manager started asking for it got into a game on an older build: not rolled out to this PC yet, launches go on");
     *lock(&s.update.not_here) = Some((live.to_owned(), unix_now()));
     true
 }
@@ -253,7 +253,7 @@ fn probe_results(s: &App) -> Vec<(String, Option<String>, bool)> {
         .collect()
 }
 
-/// Roblox lists `live` before it reaches every PC (staged rollouts). A client RoALT started asking
+/// Roblox lists `live` before it reaches every PC (staged rollouts). A client MTwin Manager started asking
 /// for `live` without it installed, that got into a game still on an older build, wasn't updated
 /// by Roblox: `live` isn't this PC's update yet (pure). In a game, so it is past Roblox's update
 /// step. `probes`: (asked for, runs now, in a game).

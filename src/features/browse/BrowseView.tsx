@@ -55,7 +55,7 @@ const BLOCKED: Record<BrowseBlocked, Key> = {
 /** The tab a page belongs to; "" for none of them (a game, a profile). */
 const tabOf = (path: string) => PAGES.find((p) => path === p.path || path.startsWith(`${p.path}/`) || path.startsWith(`${p.path}?`))?.id ?? "";
 
-/** Browse: roblox.com inside RoALT as one of the accounts (its own session), with Roblox's main pages
+/** Browse: roblox.com inside MTwin Manager as one of the accounts (its own session), with Roblox's main pages
  * as tabs, back / forward / reload and a search. Create isn't there. `ask`: an account's "Open on
  * roblox.com" (each one new). */
 export function BrowseView({ accounts, ask }: { accounts: AccountSummary[]; ask: (BrowseRequest & { n: number }) | null }) {
@@ -70,7 +70,7 @@ export function BrowseView({ accounts, ask }: { accounts: AccountSummary[]; ask:
   const [error, setError] = useState<string | null>(null);
   const [kind, setKind] = useState<"people" | "games">("people");
   const [query, setQuery] = useState("");
-  // One of RoALT's own tabs, over Roblox's page (which stays where it was, hidden).
+  // One of MTwin Manager's own tabs, over Roblox's page (which stays where it was, hidden).
   const [native, setNative] = useState<Native | null>(null);
   // Counts Browse's page reports: a reload of the same page needs the profile card again.
   const [seq, setSeq] = useState(0);
@@ -105,7 +105,7 @@ export function BrowseView({ accounts, ask }: { accounts: AccountSummary[]; ask:
     return () => void un.then((f) => f());
   }, [accountId]);
 
-  // Play or Join on Roblox's page: RoALT launches the account (asking first when it already plays).
+  // Play or Join on Roblox's page: MTwin Manager launches the account (asking first when it already plays).
   const move = useMoveConfirm();
   const play = useRef<(p: BrowsePlay) => void>(() => {});
   play.current = ({ accountId: id, target }) => {

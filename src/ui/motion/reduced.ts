@@ -15,7 +15,7 @@ let installed = false;
 let pref: MotionPreference = "on";
 let apply = () => {};
 
-/** What an older RoALT stored: "full" and "system" (no key) are On now; "reduced" stays. */
+/** What an older MTwin Manager stored: "full" and "system" (no key) are On now; "reduced" stays. */
 function read(stored: string | null): MotionPreference {
   return stored === "reduced" || stored === "off" ? stored : "on";
 }

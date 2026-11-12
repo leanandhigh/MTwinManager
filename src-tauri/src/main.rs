@@ -16,7 +16,6 @@ mod performance;
 mod progress;
 mod roblox_api;
 mod news;
-mod online;
 mod rolimons;
 mod self_update;
 mod splash;
@@ -62,7 +61,7 @@ pub struct App {
     pub progress: progress::Progress,
     /// Whether a Public network is connected (`network`).
     pub network: network::Network,
-    /// When the shutdown RoALT scheduled is due (Unix ms; `commands::shutdown_schedule`).
+    /// When the shutdown MTwin Manager scheduled is due (Unix ms; `commands::shutdown_schedule`).
     pub shutdown: Mutex<Option<i64>>,
     /// Rotated cookies that arrived while the vault was locked, stored at the next unlock.
     pub rotated_later: Mutex<Vec<(i64, vault::Secret)>>,
@@ -138,7 +137,7 @@ fn chosen_dir(default: PathBuf, json: Option<&str>) -> std::result::Result<(Path
                 Ok((default, None))
             } else {
                 Err(tr!(
-                    "MTwin Hub's data folder {folder} isn't available (no {db}). Connect that drive and start MTwin Hub again, \
+                    "MTwin Manager's data folder {folder} isn't available (no {db}). Connect that drive and start MTwin Manager again, \
                      or delete {location} to start fresh in the default folder.",
                     folder = l.data_dir.display(),
                     db = DB_FILE,
@@ -151,7 +150,7 @@ fn chosen_dir(default: PathBuf, json: Option<&str>) -> std::result::Result<(Path
 }
 
 /// Writes location.json through a temporary file flushed to disk, so neither a crash nor a power
-/// cut leaves half of it (or an empty one, which would send RoALT to the default folder).
+/// cut leaves half of it (or an empty one, which would send MTwin Manager to the default folder).
 pub fn write_location(l: &Location) -> std::io::Result<()> {
     use std::io::Write;
     let dir = default_dir();
@@ -179,22 +178,22 @@ pub fn same_dir(a: &Path, b: &Path) -> bool {
 }
 
 /// Where a data folder move to `path` goes: a full path that isn't the current folder or
-/// inside it, and holds no RoALT database yet.
+/// inside it, and holds no MTwin Manager database yet.
 pub fn move_target(current: &Path, path: &str) -> Result<PathBuf> {
     let refuse = |why: String| Err(AppError::Invalid(why));
     let path = Path::new(path.trim());
     if !path.is_absolute() {
-        return refuse(tr!("Pick a full folder path, like D:\\MTwin Hub."));
+        return refuse(tr!("Pick a full folder path, like D:\\MTwin Manager."));
     }
     let target = std::path::absolute(path)?;
     if same_dir(&target, current) {
-        return refuse(tr!("MTwin Hub already keeps its data there."));
+        return refuse(tr!("MTwin Manager already keeps its data there."));
     }
     if path_key(&target).starts_with(&path_key(current)) {
         return refuse(tr!("Pick a folder outside the current data folder."));
     }
     if DB_FILES.iter().any(|f| target.join(f).exists()) {
-        return refuse(tr!("That folder already has a MTwin Hub database. Pick another one."));
+        return refuse(tr!("That folder already has a MTwin Manager database. Pick another one."));
     }
     Ok(target)
 }
@@ -236,7 +235,7 @@ fn main_window(app: &TauriApp, data_dir: &Path, skip_splash: bool) -> tauri::Res
     let bg = Color(10, 10, 10, 255);
 
     let mut builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
-        .title("MTwin Hub")
+        .title("MTwin Manager")
         .inner_size(splash::DEFAULT.0, splash::DEFAULT.1)
         // The minimum size is set once the splash has grown (`splash`); shown by it too.
         .visible(false)
@@ -267,7 +266,7 @@ pub(crate) fn cdp_args() -> Option<String> {
     None
 }
 
-/// Only the RoALT window: pages in Roblox windows are never to reach a command, whatever origin
+/// Only the MTwin Manager window: pages in Roblox windows are never to reach a command, whatever origin
 /// they manage to appear as.
 fn main_only(handler: impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static) -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static {
     move |invoke| {
@@ -280,7 +279,7 @@ fn main_only(handler: impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'stati
     }
 }
 
-/// The RoALT window stays on the app's own pages.
+/// The MTwin Manager window stays on the app's own pages.
 fn in_app(url: &url::Url) -> bool {
     let host = url.host_str();
     (host == Some("tauri.localhost") && url.port().is_none() && url.username().is_empty() && url.password().is_none())
@@ -289,7 +288,7 @@ fn in_app(url: &url::Url) -> bool {
         || (cfg!(debug_assertions) && host == Some("localhost"))
 }
 
-/// Keeps a folder RoALT creates from being writable by other users of the PC: what lands in it
+/// Keeps a folder MTwin Manager creates from being writable by other users of the PC: what lands in it
 /// includes the UI's WebView2 profile. A drive without permissions (exFAT) can't, and is left so.
 pub fn restrict_to_user(dir: &Path) {
     use std::os::windows::process::CommandExt;
@@ -356,7 +355,7 @@ fn fatal(message: &str) -> ! {
         let _ = writeln!(f, "[fatal] {message}");
     }
     // SAFETY: a plain modal message box with no owner window.
-    unsafe { MessageBoxW(None, &windows::core::HSTRING::from(message), windows::core::w!("MTwin Hub"), MB_ICONERROR | MB_OK) };
+    unsafe { MessageBoxW(None, &windows::core::HSTRING::from(message), windows::core::w!("MTwin Manager"), MB_ICONERROR | MB_OK) };
     std::process::exit(1)
 }
 
@@ -386,13 +385,13 @@ fn set_aside_unreadable(data_dir: &Path) -> bool {
     let secs = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs());
     let aside = data_dir.join(format!("unreadable-{secs}"));
     let text = tr!(
-        "Windows can't unlock MTwin Hub's database on this account. This happens after a Windows password \
+        "Windows can't unlock MTwin Manager's database on this account. This happens after a Windows password \
          reset or reinstall, or with a data folder copied from another PC.\n\nStart with an empty \
          database? The old files are kept in {path}.",
         path = aside.display()
     );
     // SAFETY: a plain modal message box with no owner window.
-    let answer = unsafe { MessageBoxW(None, &windows::core::HSTRING::from(text), windows::core::w!("MTwin Hub"), MB_ICONWARNING | MB_YESNO) };
+    let answer = unsafe { MessageBoxW(None, &windows::core::HSTRING::from(text), windows::core::w!("MTwin Manager"), MB_ICONWARNING | MB_YESNO) };
     if answer != IDYES {
         return false;
     }
@@ -415,7 +414,7 @@ fn init(app: &TauriApp, data_dir: &Path, moved_from: Option<&Path>) -> std::resu
         Err(AppError::Crypto) if set_aside_unreadable(data_dir) => storage::Db::open(&db_path),
         r => r,
     }
-    .map_err(|e| tr!("MTwin Hub can't open its database {path}: {why}", path = db_path.display(), why = e.message()))?;
+    .map_err(|e| tr!("MTwin Manager can't open its database {path}: {why}", path = db_path.display(), why = e.message()))?;
     // Not on a read error: every profile would look orphaned.
     if let Ok(accounts) = db.accounts() {
         webview::sweep_orphan_profiles(data_dir, &accounts.iter().map(|a| a.id).collect::<Vec<_>>());
@@ -426,8 +425,8 @@ fn init(app: &TauriApp, data_dir: &Path, moved_from: Option<&Path>) -> std::resu
     let vault = match record {
         Some(rec) => vault::Vault::open(&rec).map_err(|e| {
             tr!(
-                "MTwin Hub can't open its vault on this Windows account ({why}).\n\nIf this data folder came from another PC or \
-                 Windows account, rename {path} and import a .roalt backup.",
+                "MTwin Manager can't open its vault on this Windows account ({why}).\n\nIf this data folder came from another PC or \
+                 Windows account, rename {path} and import a backup file.",
                 why = e.message(),
                 path = db_path.display()
             )
@@ -491,12 +490,12 @@ fn init(app: &TauriApp, data_dir: &Path, moved_from: Option<&Path>) -> std::resu
     if let Err(e) = tray::setup(app.handle()) {
         log::warn!("no tray icon: {e}");
     }
-    // Before anything else is started, so a newer RoALT is offered as soon as possible.
+    // Before anything else is started, so a newer MTwin Manager is offered as soon as possible.
     self_update::spawn(app.handle().clone());
     app.manage(splash::Pending::default());
     main_window(app, data_dir, settings.skip_splash).map_err(|e| {
         tr!(
-            "MTwin Hub can't open its window ({why}).\n\nIf this PC was very busy, start MTwin Hub again. Otherwise it needs the Microsoft Edge WebView2 Runtime: \
+            "MTwin Manager can't open its window ({why}).\n\nIf this PC was very busy, start MTwin Manager again. Otherwise it needs the Microsoft Edge WebView2 Runtime: \
              https://go.microsoft.com/fwlink/p/?LinkId=2124703",
             why = e
         )
@@ -514,7 +513,7 @@ fn init(app: &TauriApp, data_dir: &Path, moved_from: Option<&Path>) -> std::resu
     Ok(())
 }
 
-/// Windows drops the bandwidth policy when it restarts; RoALT never sets it again on its own
+/// Windows drops the bandwidth policy when it restarts; MTwin Manager never sets it again on its own
 /// (that needs admin rights), so it says so once the window is up.
 fn remind_bandwidth(handle: AppHandle) {
     tauri::async_runtime::spawn(async move {
@@ -564,7 +563,7 @@ fn on_window_event(window: &tauri::Window, event: &WindowEvent) {
         let shown = window.is_visible().unwrap_or(true) && !window.is_minimized().unwrap_or(false);
         set_main_shown(window.app_handle(), shown);
     }
-    // A layout preview left on screen would keep RoALT running for its last seconds.
+    // A layout preview left on screen would keep MTwin Manager running for its last seconds.
     if let WindowEvent::Destroyed = event
         && window.label() == "main"
     {
@@ -603,7 +602,7 @@ fn main() {
     i18n::set("");
     let (data_dir, moved_from) = data_dir().unwrap_or_else(|e| fatal(&e));
     if let Err(e) = std::fs::create_dir_all(&data_dir) {
-        fatal(&tr!("MTwin Hub can't create its data folder {path}: {why}", path = data_dir.display(), why = e));
+        fatal(&tr!("MTwin Manager can't create its data folder {path}: {why}", path = data_dir.display(), why = e));
     }
     let log_dir = data_dir.join("logs");
     let _ = std::fs::create_dir_all(&log_dir);
@@ -626,7 +625,7 @@ fn main() {
                 .build(),
         )
         // The panic hotkey (`settings.panic_hotkey`, registered by `commands::set_panic_hotkey`),
-        // the only global shortcut RoALT registers, kills all.
+        // the only global shortcut MTwin Manager registers, kills all.
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, _key, e| {
@@ -742,7 +741,6 @@ fn main() {
             commands::roblox_client,
             commands::roblox_install,
             commands::news,
-            commands::online_ping,
             weao::roblox_versions,
             weao::executors_list,
             commands::client_bootstrappers,
@@ -793,7 +791,7 @@ fn main() {
             commands::network_status,
         ]))
         .build(tauri::generate_context!())
-        .unwrap_or_else(|e| fatal(&tr!("MTwin Hub failed to start: {why}", why = e)))
+        .unwrap_or_else(|e| fatal(&tr!("MTwin Manager failed to start: {why}", why = e)))
         .run(|app, event| {
             // Before the Exit event: the clipboard plugin has cleaned up by then.
             if let tauri::RunEvent::ExitRequested { code, api, .. } = &event {

@@ -18,7 +18,7 @@ export function setPreviewFps(f: PreviewFps) {
   window.dispatchEvent(new Event(CHANGED));
 }
 
-/** The preview rate, following changes made anywhere in RoALT. */
+/** The preview rate, following changes made anywhere in MTwin Manager. */
 export function usePreviewFps(): [PreviewFps, (f: PreviewFps) => void] {
   const [fps, setFps] = useState(storedFps);
   useEffect(() => {

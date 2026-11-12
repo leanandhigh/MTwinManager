@@ -34,6 +34,6 @@ otherMb: number, otherCores: number,
  */
 gpuPeak: number | null, caps: Caps, 
 /**
- * In the last 7 days: RoALT's memory restarts, crashes and hangs after a long run (`LONG_RUN_MS`).
+ * In the last 7 days: MTwin Manager's memory restarts, crashes and hangs after a long run (`LONG_RUN_MS`).
  */
 memRestarts: number, longCrashes: number, };

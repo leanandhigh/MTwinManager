@@ -128,7 +128,7 @@ export function CaptionGlyph({ name }: { name: "minimize" | "maximize" | "restor
   );
 }
 
-/** MTwin Hub's mark (src/assets/mtwin-logo.png, the app icon). */
+/** MTwin Manager's mark (src/assets/mtwin-logo.png, the app icon). */
 export function Logo({ size = 18 }: { size?: number }) {
   return <img src={logo} width={size} height={size} alt="" aria-hidden="true" draggable={false} style={{ objectFit: "contain" }} />;
 }

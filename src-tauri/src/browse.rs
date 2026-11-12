@@ -1,4 +1,4 @@
-//! Browse: roblox.com inside the RoALT window, as one stored account at a time. A child webview
+//! Browse: roblox.com inside the MTwin Manager window, as one stored account at a time. A child webview
 //! (`LABEL`) of the main window on that account's kept profile (`webview::session_profile`), set
 //! up as the sign-in window is (`webview::harden`: no context menu, accelerator keys or password
 //! saving; the account's cookie put in before the first page loads; navigation kept on Roblox and
@@ -130,7 +130,7 @@ fn spend_of(method: &str, url: &Url, body: Option<&[u8]>, me: i64) -> Option<Spe
     Some(if price == Some(0) { Spend::Free } else { Spend::Robux })
 }
 
-/// Roblox's Log Out (pure): it ends the very session RoALT keeps for the account (Browse runs on
+/// Roblox's Log Out (pure): it ends the very session MTwin Manager keeps for the account (Browse runs on
 /// the stored cookie), so it is never sent from Browse, lock or not.
 fn signs_out(method: &str, url: &Url) -> bool {
     method.eq_ignore_ascii_case("POST")
@@ -169,7 +169,7 @@ pub struct BrowsePage {
     pub path: String,
 }
 
-/// The card RoALT shows on a player's profile in Browse (`browse_card.js`).
+/// The card MTwin Manager shows on a player's profile in Browse (`browse_card.js`).
 const CARD_JS: &str = include_str!("browse_card.js");
 
 /// What the profile card shows, in the UI's language: label/value rows, a note, the most
@@ -385,7 +385,7 @@ fn create(app: &AppHandle, data_dir: &Path, account_id: i64, user_id: i64, cooki
             webview::allowed(url)
         })
         .on_new_window(move |url, _| {
-            // A new window or tab would be out of RoALT's hands: the link opens here instead.
+            // A new window or tab would be out of MTwin Manager's hands: the link opens here instead.
             if webview::allowed(&url)
                 && let Some(wv) = links.get_webview(LABEL)
                 && let Err(e) = wv.navigate(url)
@@ -397,7 +397,7 @@ fn create(app: &AppHandle, data_dir: &Path, account_id: i64, user_id: i64, cooki
         .on_download(|_, _| false)
         .on_page_load(move |_, p| {
             if p.event() == PageLoadEvent::Finished && p.url().host_str() == Some("www.roblox.com") {
-                // Browsing is using RoALT: the master password's auto-lock waits.
+                // Browsing is using MTwin Manager: the master password's auto-lock waits.
                 pages.state::<App>().vault.touch();
                 let _ = pages.emit("browse://page", BrowsePage { account_id, path: path_of(p.url()) });
             }
@@ -429,9 +429,9 @@ fn create(app: &AppHandle, data_dir: &Path, account_id: i64, user_id: i64, cooki
 }
 
 /// Play or Join on a Roblox page starts the client through a `roblox-player:` link: Browse never
-/// lets it out (the system would start Roblox past RoALT, with the page's own ticket). It is
+/// lets it out (the system would start Roblox past MTwin Manager, with the page's own ticket). It is
 /// cancelled, and its target goes to the UI (`browse://play`), which launches the account through
-/// RoALT. Top-frame links show in NavigationStarting (which `harden` cancels), others in
+/// MTwin Manager. Top-frame links show in NavigationStarting (which `harden` cancels), others in
 /// LaunchingExternalUriScheme (WebView2 1.0.1518+), which also keeps every other app's link in.
 fn watch_play(wv: &Webview, app: AppHandle, account_id: i64) -> Result<()> {
     use webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2_18;
@@ -586,7 +586,7 @@ unsafe fn read_stream(s: &windows::Win32::System::Com::IStream) -> Vec<u8> {
     out
 }
 
-/// `browse://play`: a Play or Join on Browse's page, for RoALT to launch.
+/// `browse://play`: a Play or Join on Browse's page, for MTwin Manager to launch.
 #[derive(Serialize, TS, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
@@ -603,7 +603,7 @@ fn play(app: &AppHandle, account_id: i64, uri: &str) {
         return;
     }
     let Some(target) = crate::launcher::uri::target_of_player_uri(uri) else {
-        log::info!("Browse: a Roblox launch link RoALT can't read was ignored");
+        log::info!("Browse: a Roblox launch link MTwin Manager can't read was ignored");
         return;
     };
     let key = format!("{target:?}");

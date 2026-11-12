@@ -36,7 +36,7 @@ function afterMarker(lines: string[], marker: string | null): string[] {
 
 const keep = (lines: Line[]) => (lines.length > KEEP ? lines.slice(-KEEP) : lines);
 
-/** roalt.log's tail, then each line as RoALT writes it. New lines land once per frame, so a burst is
+/** roalt.log's tail, then each line as MTwin Manager writes it. New lines land once per frame, so a burst is
  * one render; while `paused` they wait, counted in `held`. */
 export function useLogStream(paused: boolean) {
   const [lines, setLines] = useState<Line[]>([]);

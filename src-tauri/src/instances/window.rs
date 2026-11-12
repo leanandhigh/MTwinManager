@@ -8,7 +8,7 @@
 //!
 //! Minimizing a client really minimizes it. A minimized client draws nothing, so its preview is
 //! the last picture taken before, with its age; nothing wakes it for a new one. Clients an older
-//! RoALT left invisible (ghosts) or parked off-screen come back at startup (`recover`).
+//! MTwin Manager left invisible (ghosts) or parked off-screen come back at startup (`recover`).
 
 use std::collections::HashMap;
 use std::sync::{Arc, LazyLock, Mutex, MutexGuard};
@@ -117,10 +117,10 @@ pub fn preview(pid: Option<u32>, max_w: u32) -> Preview {
     Preview { status: status_of(Some(iconic), shot.is_some(), super::capture::unsupported()), hidden: iconic, shot }
 }
 
-/// An older RoALT's ghost: these extended style bits, drawn at alpha 1. Only ever read, to bring
+/// An older MTwin Manager's ghost: these extended style bits, drawn at alpha 1. Only ever read, to bring
 /// one back.
 const GHOST: u32 = WS_EX_LAYERED.0 | WS_EX_TRANSPARENT.0;
-/// An older RoALT parked clients this far left. Only ever read, to bring them back.
+/// An older MTwin Manager parked clients this far left. Only ever read, to bring them back.
 const OLD_PARK_LEFT: i32 = -15_000;
 const OLD_PARK_BACK: (i32, i32) = (100, 100);
 /// A restore is sent this many times, this far apart, in case the first is lost.
@@ -278,7 +278,7 @@ pub fn sweep(clients: &[(u32, Option<(u32, u32)>)]) {
         let mut t = tiny();
         t.retain(|e| clients.iter().any(|c| c.0 == e.0 && (c.1.is_some() || recent.contains(&e.0))));
         for &(pid, size) in clients {
-            // A size of its own (`micro`) stays; else it is a client from before RoALT restarted
+            // A size of its own (`micro`) stays; else it is a client from before MTwin Manager restarted
             // (nothing was set since then, so never `recent`).
             if let Some(size) = size
                 && !recent.contains(&pid)
@@ -343,7 +343,7 @@ pub fn show_all(pids: &[u32], what: Show) {
     });
 }
 
-/// At startup, for what an older RoALT left behind: ghosts (invisible, click-through) are made
+/// At startup, for what an older MTwin Manager left behind: ghosts (invisible, click-through) are made
 /// plain, and clients parked off-screen come back. Each waits for its own client only.
 pub fn recover() {
     let pids: Vec<u32> = process::roblox_processes().into_iter().map(|p| p.pid).collect();
@@ -397,15 +397,15 @@ pub fn show(pid: u32, what: Show) -> Result<()> {
             let hwnd = window_to_change(pid)?;
             unhide(pid, hwnd);
             if !afk::to_front(hwnd) {
-                return Err(AppError::Invalid(tr!("Windows didn't let MTwin Hub bring that client to the front.")));
+                return Err(AppError::Invalid(tr!("Windows didn't let MTwin Manager bring that client to the front.")));
             }
         }
     }
     Ok(())
 }
 
-/// Where each window RoALT resized was before, by (instance id, pid), so "Normal size" puts it
-/// back exactly; the first resize's wins. In memory only: after RoALT restarts, a small window
+/// Where each window MTwin Manager resized was before, by (instance id, pid), so "Normal size" puts it
+/// back exactly; the first resize's wins. In memory only: after MTwin Manager restarts, a small window
 /// stays small.
 static SAVED: Mutex<Vec<(String, u32, WINDOWPLACEMENT)>> = Mutex::new(Vec::new());
 
@@ -874,7 +874,7 @@ mod tests {
         sweep(&[(4_000_001, Some((320, 240))), (4_000_002, Some((320, 240))), (4_000_003, None)]);
         let of = |pid| tiny().iter().find(|e| e.0 == pid).map(|e| e.1);
         assert_eq!(of(4_000_001), Some((100, 80)), "the size it was made tiny at");
-        assert_eq!(of(4_000_002), Some((320, 240)), "from before RoALT restarted");
+        assert_eq!(of(4_000_002), Some((320, 240)), "from before MTwin Manager restarted");
         tiny().iter_mut().find(|e| e.0 == 4_000_001).unwrap().1 = (500, 400);
         sweep(&[(4_000_001, Some((320, 240))), (4_000_002, Some((320, 240)))]);
         assert_eq!(of(4_000_001), Some((500, 400)), "a size the user dragged it to stays too");

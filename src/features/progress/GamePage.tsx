@@ -24,7 +24,7 @@ type ItemSort = "rarity" | "amount" | "name";
 type Online = "all" | "online" | "offline";
 type Col = { key: string; label: string; val: (a: ProgressAccount) => number | string };
 
-/** Kept while RoALT runs. */
+/** Kept while MTwin Manager runs. */
 let lastTab: Tab = "items";
 
 export function GamePage({ s, gameId, accounts, onBack }: { s: ProgressState; gameId: string; accounts: AccountSummary[]; onBack: () => void }) {
@@ -151,7 +151,7 @@ export function GamePage({ s, gameId, accounts, onBack }: { s: ProgressState; ga
       {tab === "items" ? (
         <ItemsTab accounts={scoped} decals={decals} />
       ) : tab === "accounts" ? (
-        <AccountsTab s={s} list={scoped} roalt={accounts} decals={decals} />
+        <AccountsTab s={s} list={scoped} mine={accounts} decals={decals} />
       ) : tab === "machines" ? (
         <MachinesTab s={s} all={all} picked={picked} onPick={(m) => setPcs(picked.includes(m) ? picked.filter((p) => p !== m) : [...picked, m])} />
       ) : tab === "script" ? (
@@ -248,7 +248,7 @@ function ItemsTab({ accounts, decals }: { accounts: ProgressAccount[]; decals: R
 
 // ---------- accounts ----------
 
-function AccountsTab({ s, list, roalt, decals }: { s: ProgressState; list: ProgressAccount[]; roalt: AccountSummary[]; decals: Record<string, string> }) {
+function AccountsTab({ s, list, mine: own, decals }: { s: ProgressState; list: ProgressAccount[]; mine: AccountSummary[]; decals: Record<string, string> }) {
   const qc = useQueryClient();
   const [online, setOnline] = useState<Online>("all");
   const [search, setSearch] = useState("");
@@ -256,7 +256,7 @@ function AccountsTab({ s, list, roalt, decals }: { s: ProgressState; list: Progr
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState<string | null>(null);
   const [removing, setRemoving] = useState(false);
-  const byUser = new Map(roalt.map((a) => [a.userId, a]));
+  const byUser = new Map(own.map((a) => [a.userId, a]));
   const heads = useHeadshots(list.map((a) => a.userId));
 
   const terms = search.split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
@@ -424,7 +424,7 @@ function AccountDialog({ s, account: a, mine, head, decals, onClose }: { s: Prog
             {mine ? <Avatar account={mine} size={36} /> : <Decal url={head} name={a.displayName || a.name} size={36} round />}
             <StatusPill tone={isOnline(a, s) ? "ok" : "neutral"} label={t(isOnline(a, s) ? "progress.online" : "progress.offline")} detail={t("progress.lastReport", { ago: ago(s.now - a.lastSeen) })} />
             <span className="pg-pc"><Icon name="pc" size={12} />{a.pc}</span>
-            {mine && <span className="pg-pc"><Icon name="accounts" size={12} />{t("progress.inRoalt")}</span>}
+            {mine && <span className="pg-pc"><Icon name="accounts" size={12} />{t("progress.inApp")}</span>}
             {a.level !== null && <span className="pg-lvl"><Icon name="star" size={11} />{t("progress.levelN", { n: fmtNum(a.level) })}</span>}
           </div>
           {(a.values.length > 0 || a.stats.length > 0) && (

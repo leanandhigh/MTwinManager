@@ -1,4 +1,4 @@
-// Every setting RoALT has, as data: where its row lives, its words, its control and when it shows.
+// Every setting MTwin Manager has, as data: where its row lives, its words, its control and when it shows.
 // Settings renders from it, and one search covers Settings, Performance and Discord, plus
 // links to per-account, per-launch and per-client settings in other views.
 import { LANGUAGES, t, type Key } from "../../i18n";
@@ -192,7 +192,6 @@ const SETTINGS_ENTRIES: readonly Entry[] = [
   { id: "cleanLogs", place: data, label: "settings.cleanLogs", more: "settings.cleanLogsHint", field: "cleanLogs", control: CUSTOM, aliases: ["logs", "disk", "space"] },
   { id: "browserData", place: data, label: "settings.browserData", hint: "settings.browserDataShort", more: "settings.browserDataHint", control: ACTION, aliases: ["captcha", "webview", "reset"] },
 
-  { id: "onlineCount", place: about, label: "settings.onlineCount", more: "settings.onlineCountHint", field: "onlineCount", control: SWITCH, aliases: ["online", "users", "counter", "telemetry", "privacy"] },
   {
     id: "rolimons", place: about, label: "settings.rolimons", hint: "settings.rolimonsShort", more: "settings.rolimonsHint", field: "rolimonsValues",
     control: SWITCH, invalidates: ["values"], aliases: ["rolimons", "value", "rap", "limiteds", "trading", "privacy"],

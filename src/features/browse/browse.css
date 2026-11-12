@@ -24,7 +24,7 @@
     flex: 1 1 260px;
     min-width: 0;
   }
-  /* Roblox's page (in its box) and RoALT's own tabs over it share this place. */
+  /* Roblox's page (in its box) and MTwin Manager's own tabs over it share this place. */
   .browse-stage {
     position: relative;
     flex: 1;

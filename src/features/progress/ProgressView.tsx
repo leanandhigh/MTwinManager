@@ -17,7 +17,7 @@ import { DocsDialog } from "./DocsDialog";
 import { GamePage } from "./GamePage";
 import { Decal, isOnline, PORT_HOST, useProgress } from "./shared";
 
-/** The game open in Progress, kept while RoALT runs. */
+/** The game open in Progress, kept while MTwin Manager runs. */
 let lastGame: string | null = null;
 
 type GameCard = { id: string; name: string; iconUrl: string | null; playing: number | null; mine: number; online: number; supported: boolean };
@@ -120,7 +120,7 @@ function AutoDelete({ hours }: { hours: number }) {
   );
 }
 
-/** The loader for an executor's autoexec folder: waits for the game, then loads the reporter from RoALT until it runs. */
+/** The loader for an executor's autoexec folder: waits for the game, then loads the reporter from MTwin Manager until it runs. */
 function loader(pc: string, host: string) {
   const name = pc.replace(/["\\\n\r]/g, "") || "PC1";
   return `repeat task.wait() until game:IsLoaded()

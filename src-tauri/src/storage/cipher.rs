@@ -231,7 +231,7 @@ mod tests {
     fn a_plain_database_is_encrypted_with_its_data() {
         let dir = tmp();
         let path = dir.join("roalt.db");
-        // A plain database as an older RoALT left it: migrated schema, one account, WAL.
+        // A plain database as an older MTwin Manager left it: migrated schema, one account, WAL.
         std::fs::create_dir_all(&dir).unwrap();
         Db::open_in_memory().unwrap().copy_to(&path, || Ok(())).unwrap();
         put(&path, 42);

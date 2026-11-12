@@ -1,7 +1,7 @@
 //! Progress: what each alt has in game (level, values like coins or candy, items), reported by a
 //! script the executor runs in each client.
 //!
-//! RoALT listens on `http://127.0.0.1:16390` (this PC only):
+//! MTwin Manager listens on `http://127.0.0.1:16390` (this PC only):
 //! - `GET /script.luau`: the reporter (`progress.luau`), with this address filled in. The loader
 //!   the Progress view hands out (`Get script`) loads it from here, like an MCP bridge's autoexec.
 //! - `POST /report` (or `GET /report?d=<json>` for executors without `request`): one account's
@@ -145,7 +145,7 @@ pub enum CatalogKind {
     Item,
 }
 
-/// A value or item added by hand for a game: its name, picture and rarity in RoALT, and, with a
+/// A value or item added by hand for a game: its name, picture and rarity in MTwin Manager, and, with a
 /// `source`, where the script reads it.
 #[derive(Serialize, Deserialize, TS, Clone, Debug, PartialEq, Default)]
 #[serde(rename_all = "camelCase", default)]
@@ -166,7 +166,7 @@ pub struct CatalogEntry {
     pub source: String,
 }
 
-/// Whether RoALT is listening for reports.
+/// Whether MTwin Manager is listening for reports.
 #[derive(Serialize, TS, Clone, Debug, PartialEq, Default)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
@@ -188,7 +188,7 @@ pub struct ProgressState {
     /// Accounts that stopped reporting this long ago are removed; 0: never.
     pub auto_delete_hours: u32,
     pub server: ProgressServer,
-    /// Unix ms, by RoALT's clock (`lastSeen` is too).
+    /// Unix ms, by MTwin Manager's clock (`lastSeen` is too).
     pub now: i64,
     pub online_ms: i64,
     /// The Script tab's Luau by game id, "*" for every game (missing: `default_all`).
@@ -596,7 +596,7 @@ async fn serve(handle: &AppHandle, mut stream: TcpStream) {
             let game = req.query.get("game").map(String::as_str).unwrap_or_default();
             respond(&mut stream, "200 OK", JSON, &progress.catalog_for_script(game)).await;
         }
-        ("GET", "/") => respond(&mut stream, "200 OK", TEXT, "MTwin Hub Progress is running. Load /script.luau from your executor.").await,
+        ("GET", "/") => respond(&mut stream, "200 OK", TEXT, "MTwin Manager Progress is running. Load /script.luau from your executor.").await,
         _ => respond(&mut stream, "404 Not Found", TEXT, "not found").await,
     }
 }

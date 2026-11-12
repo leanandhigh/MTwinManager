@@ -1,6 +1,5 @@
 import type { KeyboardEvent } from "react";
-import { useOnline, useSettings } from "../data";
-import { fmtNum, t, type Key } from "../i18n";
+import { t, type Key } from "../i18n";
 import { Icon } from "../ui/Icon";
 import type { IslandLeaf, IslandModel } from "../ui/island/model";
 import { useStored } from "../ui/stored";
@@ -12,7 +11,7 @@ const GROUPS: { label: Key; ids: string[] }[] = [
   { label: "app.group.tools", ids: ["browse", "performance", "discord", "debug"] },
 ];
 
-/** MTwin Hub's navigation: a column of named places in three groups, Settings at its foot, then who's online and the version. It folds to a rail
+/** MTwin Manager's navigation: a column of named places in three groups, Settings and the fold key at its foot. It folds to a rail
  * of icons, where each icon's name is its tooltip. */
 export function Sidebar({ model }: { model: IslandModel }) {
   const [folded, setFolded] = useStored("mtwin.sidebarFolded", (v) => v === "1", (v) => (v ? "1" : "0"));
@@ -22,12 +21,6 @@ export function Sidebar({ model }: { model: IslandModel }) {
   const extra = [...all.keys()].filter((id) => !placed.has(id));
   const settings = model.groups.find((g) => g.id === "settings");
   const inSettings = !!settings?.children.some((c) => c.current);
-
-  const counting = useSettings().data?.onlineCount ?? false;
-  const online = useOnline(counting).data;
-  const n = counting ? online?.online ?? null : null;
-  const playing = n === null ? null : online?.playing ?? null;
-  const compact = (v: number) => fmtNum(v, { notation: "compact", maximumFractionDigits: 1 });
 
   // Up and down move between places (one Tab stop for the column).
   const keys = (e: KeyboardEvent<HTMLElement>) => {
@@ -58,50 +51,29 @@ export function Sidebar({ model }: { model: IslandModel }) {
 
       <div className="sb-foot">
         {settings && (
-          <div className="sb-group">
-            <button
-              type="button"
-              className="sb-item"
-              aria-label={settings.label}
-              aria-current={inSettings ? "page" : undefined}
-              data-tip={folded ? settings.label : undefined}
-              data-tip-kbd={folded ? settings.children[0]?.shortcut : undefined}
-              onClick={() => (inSettings ? undefined : settings.children[0]?.onSelect())}
-            >
-              <Icon name={settings.icon} size={17} />
-              <span className="sb-label">{settings.label}</span>
-            </button>
-          </div>
+          <button
+            type="button"
+            className="sb-item"
+            aria-label={settings.label}
+            aria-current={inSettings ? "page" : undefined}
+            data-tip={folded ? settings.label : undefined}
+            data-tip-kbd={folded ? settings.children[0]?.shortcut : undefined}
+            onClick={() => (inSettings ? undefined : settings.children[0]?.onSelect())}
+          >
+            <Icon name={settings.icon} size={17} />
+            <span className="sb-label">{settings.label}</span>
+          </button>
         )}
-        <div className="sb-status">
-          {n !== null && (
-            <span className="sb-online" data-tip={folded ? t("app.onlineNow", { count: n }) : undefined}>
-              <span className="sb-dot" aria-hidden="true" />
-              <span className="sb-label">
-                <b>{compact(n)}</b> {t("app.onlineShort")}
-                {playing !== null && (
-                  <>
-                    {" · "}
-                    <b>{compact(playing)}</b> {t("app.playingShort")}
-                  </>
-                )}
-              </span>
-            </span>
-          )}
-          <div className="sb-base">
-            <span className="sb-label sb-version">v{import.meta.env.APP_VERSION}</span>
-            <button
-              type="button"
-              className="sb-fold"
-              aria-label={t(folded ? "app.sidebarOpen" : "app.sidebarFold")}
-              aria-pressed={folded}
-              data-tip={t(folded ? "app.sidebarOpen" : "app.sidebarFold")}
-              onClick={() => setFolded(!folded)}
-            >
-              <Icon name="back" size={15} />
-            </button>
-          </div>
-        </div>
+        <button
+          type="button"
+          className="sb-fold"
+          aria-label={t(folded ? "app.sidebarOpen" : "app.sidebarFold")}
+          aria-pressed={folded}
+          data-tip={t(folded ? "app.sidebarOpen" : "app.sidebarFold")}
+          onClick={() => setFolded(!folded)}
+        >
+          <Icon name="back" size={15} />
+        </button>
       </div>
     </nav>
   );

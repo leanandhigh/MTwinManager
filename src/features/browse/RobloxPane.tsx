@@ -8,7 +8,7 @@ import { friendly } from "../../ui/Toast";
 const IDLE_CLOSE_MS = 5 * 60_000;
 let idleClose = 0;
 
-/** Whether a dialog or a menu is open: Roblox's page is a native view over RoALT's own, so it
+/** Whether a dialog or a menu is open: Roblox's page is a native view over MTwin Manager's own, so it
  * hides under them. */
 function useOverlayOpen() {
   const [open, setOpen] = useState(overlayOpen);
@@ -41,13 +41,13 @@ function useToastInset() {
   return inset;
 }
 
-/** Where Roblox's page goes: this element's box, less the toasts' room. RoALT keeps it there as the
+/** Where Roblox's page goes: this element's box, less the toasts' room. MTwin Manager keeps it there as the
  * window and the layout change, and hides it under dialogs and menus. `n` loads `path` again. */
 export function RobloxPane({ accountId, path, n, hidden, resume, onError }: {
   accountId: number;
   path: string;
   n: number;
-  /** One of RoALT's own tabs is up: the page stays as it is, out of sight. */
+  /** One of MTwin Manager's own tabs is up: the page stays as it is, out of sight. */
   hidden: boolean;
   /** The page last shown: where it opens again if it closed while hidden. */
   resume: string;
@@ -92,7 +92,7 @@ export function RobloxPane({ accountId, path, n, hidden, resume, onError }: {
   };
   useEffect(() => open(path), [accountId, path, n]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // On RoALT's own tabs the page closes too if it isn't shown again within a while. Back, it opens at
+  // On MTwin Manager's own tabs the page closes too if it isn't shown again within a while. Back, it opens at
   // `resume`, not `path`: that is the last page asked for, and the user may have gone on from it.
   useEffect(() => {
     if (!hidden) {

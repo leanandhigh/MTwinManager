@@ -1,4 +1,4 @@
-//! FFlags for the clients RoALT starts, in `<version folder>\ClientSettings\ClientAppSettings.json`:
+//! FFlags for the clients MTwin Manager starts, in `<version folder>\ClientSettings\ClientAppSettings.json`:
 //! lighter rendering (`Settings.lighter_rendering`; lowest geometry detail always, and what
 //! `Settings.render_flags` picks: less GPU memory and time per client), then the user's own
 //! (`Settings.custom_flags` or the account's), which win. Roblox honours only its allowlist

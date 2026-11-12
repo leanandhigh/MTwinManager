@@ -62,7 +62,7 @@ $perl = @("C:\Strawberry\perl\bin", "$env:ProgramFiles\Strawberry\perl\bin", $(i
 if (-not $perl) { Stop-Build 'Strawberry Perl was not found (OpenSSL, for the encrypted database, needs it to build)' 'winget install StrawberryPerl.StrawberryPerl, then run this again' }
 $env:PATH = "$perl;$env:PATH"
 
-Write-Host "Building RoALT $version (release)"
+Write-Host "Building MTwin Manager $version (release)"
 Push-Location $root
 try {
     if (-not (Test-Path node_modules)) {

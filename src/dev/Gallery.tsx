@@ -271,8 +271,8 @@ export function Gallery() {
           ) : (
             <div className="dlg-body flex flex-col gap-3">
               <p>Cookies exported: 3.</p>
-              <input className="field mono" readOnly value="C:\Users\you\Desktop\roalt-cookies.txt" />
-              <p className="text-fg-3 text-[13px]">RoALT deletes the file at 22:40.</p>
+              <input className="field mono" readOnly value="C:\Users\you\Desktop\cookies.txt" />
+              <p className="text-fg-3 text-[13px]">MTwin Manager deletes the file at 22:40.</p>
               <div className="flex flex-wrap justify-end gap-2"><Button icon="copy">Copy path</Button><Button variant="danger">Delete now</Button><Button variant="primary" data-autofocus onClick={() => { setDialog(false); setStep(0); }}>Done</Button></div>
             </div>
           )}

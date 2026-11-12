@@ -20,8 +20,6 @@ import { MultiNotice } from "../launch/MultiNotice";
 import { isLive, isRunning, STATE_TONE, STATES } from "../launch/Running";
 import { TargetField } from "../launch/TargetField";
 import { draftFor, readDraft, type Draft } from "../launch/target";
-import { useNewsFeed } from "../news/news";
-import { NewsView } from "../news/NewsView";
 import { homeSorted, readyTabs, storedText, tabLaunch, type HomeActive, type HomeTab, type HomeTabs } from "./homeLayout";
 import { AccountColumn } from "./AccountColumn";
 import { Sortable } from "./Sortable";
@@ -139,7 +137,7 @@ function TabBody({ tab, account: a, accounts, instances, status, block, why, onD
   );
 }
 
-/** Home's tabs (in the side layout the rail stands in for the strip): News, Overview, one tab per
+/** Home's tabs (in the side layout the rail stands in for the strip): Overview, one tab per
  * added account, each with its own game and options, "+", and a launch of every ready tab one after
  * another. `children` is Overview (what Home shows without a tab open); beside the rail it gets
  * "Play with N" for its header. */
@@ -181,8 +179,6 @@ export function AccountTabs({ accounts, home, onAdd, children }: { accounts: Acc
   const multiWhy = launchBlocked(true, multi, null);
   const said = (why: string | null) => (why === multiWhy ? null : why);
   const free = accounts.filter((a) => !ids.includes(a.id));
-  const news = useNewsFeed().unread;
-  // News is always there, so the strip is too.
   const showStrip = !side;
   /** After a tab was added or closed, once that is on screen: what had the focus is gone. */
   const focusSelected = () => requestAnimationFrame(() => strip.current?.querySelector<HTMLElement>("[role=tab][aria-selected=true]")?.focus());
@@ -247,12 +243,6 @@ export function AccountTabs({ accounts, home, onAdd, children }: { accounts: Acc
         <div className="home-strip">
           <div ref={strip} role="tablist" aria-label={t("dashboard.tabs.label")} className="tab-strip" onKeyDown={tabKeys}>
             <span ref={tabDrop} aria-hidden="true" className="home-tab-on lq-drop" />
-            <div className="tab">
-              <button type="button" role="tab" id={tabId("news")} aria-selected={active === "news"} aria-controls="home-tab-panel" tabIndex={active === "news" ? 0 : -1} onClick={() => home.setActive("news")}>
-                {t("news.tab")}
-                {news > 0 && <span className="news-count" aria-label={t("news.unreadCount", { n: news })}>{news}</span>}
-              </button>
-            </div>
             <div className="tab">
               <button type="button" role="tab" id={tabId(null)} aria-selected={active === null} aria-controls="home-tab-panel" tabIndex={active === null ? 0 : -1} onClick={() => home.setActive(null)}>
                 {t("dashboard.tabs.overview")}
@@ -326,9 +316,7 @@ export function AccountTabs({ accounts, home, onAdd, children }: { accounts: Acc
       {side && open && playAll && <div className="flex justify-end">{playAll}</div>}
       {(open || ready.length > 1 || allReplace) && <MultiNotice wanted={ready.length > 1} replaces={allReplace || (!!open && replaces(open))} />}
       <div role={showStrip ? "tabpanel" : undefined} id="home-tab-panel" aria-labelledby={showStrip ? tabId(active) : undefined} className="flex flex-col gap-6 min-w-0">
-        {active === "news" ? (
-          <NewsView />
-        ) : open ? (
+        {open ? (
           <TabBody
             key={open.accountId}
             tab={open}

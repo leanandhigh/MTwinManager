@@ -1,4 +1,4 @@
-/* RoALT's styles. Layer order first: our layers wrap Tailwind's, and utilities sit above them so a
+/* MTwin Manager's styles. Layer order first: our layers wrap Tailwind's, and utilities sit above them so a
    view can always adjust with a class; only the forced-colours rules (a11y) outrank utilities. Each
    feature's own sheet (features/<view>/<view>.css) sits in `views`. Tokens: styles/tokens.css. */
 @layer tokens, theme, base, components, views, brand, utilities, a11y;

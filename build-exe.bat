@@ -1,6 +1,6 @@
 @echo off
 setlocal
-rem Builds RoALT: dist-installer\RoALT-Setup-<version>.exe (the installer) and RoALT.exe next to
+rem Builds MTwin Manager: dist-installer\RoALT-Setup-<version>.exe (the installer) and RoALT.exe next to
 rem this file (the app itself, runs without installing). Run setup.bat once first.
 cd /d "%~dp0"
 

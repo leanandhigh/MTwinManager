@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 // localStorage, which can be missing, blocked or full: on this PC only. What it could not keep
-// lasts until RoALT closes, and is read first: storage that still reads but no longer writes holds
+// lasts until MTwin Manager closes, and is read first: storage that still reads but no longer writes holds
 // an older value.
 const unsaved = new Map<string, string | null>();
 

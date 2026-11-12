@@ -1,5 +1,5 @@
 //! Rolimons' values for limiteds, only while `settings.rolimons_values` is on. While an account's
-//! limiteds are counted, RoALT downloads Rolimons' public item list (one GET of
+//! limiteds are counted, MTwin Manager downloads Rolimons' public item list (one GET of
 //! api.rolimons.com, at most every 30 minutes; no user id, name or cookie is sent) and keeps it in
 //! the cache table. Rolimons isn't part of Roblox: values are their opinion, RAP stays Roblox's.
 
@@ -36,7 +36,7 @@ struct State {
 /// Held across a download: two counts at once download once.
 static STATE: LazyLock<tokio::sync::Mutex<State>> = LazyLock::new(Default::default);
 
-/// The list RoALT holds (seeded from the cache table, at any age). With `fetch` (a count), one
+/// The list MTwin Manager holds (seeded from the cache table, at any age). With `fetch` (a count), one
 /// older than 30 minutes is downloaded again first, unless a download failed in the last 5. None
 /// when there is no list at all.
 pub async fn items(db: &Db, now: i64, fetch: bool) -> Option<Arc<Items>> {
@@ -73,7 +73,7 @@ where
 /// The list's body, or None (logged).
 async fn download() -> Option<String> {
     let http = reqwest::Client::builder()
-        .user_agent(concat!("RoALT/", env!("CARGO_PKG_VERSION")))
+        .user_agent(concat!("MTwinManager/", env!("CARGO_PKG_VERSION")))
         .https_only(true)
         .redirect(Policy::none())
         .connect_timeout(Duration::from_secs(10))

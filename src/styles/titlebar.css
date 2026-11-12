@@ -73,7 +73,7 @@
   .app-menu-btn[aria-expanded="true"] .app-menu-chevron {
     rotate: 180deg;
   }
-  /* How many use RoALT now and their accounts playing (AppMenu): plain text beside the logo. */
+  /* How many use MTwin Manager now and their accounts playing (AppMenu): plain text beside the logo. */
   .online-count {
     display: inline-flex;
     align-items: center;

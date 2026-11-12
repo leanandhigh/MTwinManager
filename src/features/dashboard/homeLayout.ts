@@ -4,7 +4,6 @@ import { json, readStored, useStored, writeStored } from "../../ui/stored";
 import type { LaunchActivity } from "../launch/launchQueue";
 import { isLive } from "../launch/Running";
 import { EMPTY_DRAFT, readDraft, targetText, type Draft } from "../launch/target";
-import { useNewsFeed } from "../news/news";
 
 /** How Home lays out its clients; remembered on this PC, apart from the accounts' launch order. */
 const DETAILED = "roalt.homeDetailed";
@@ -52,7 +51,7 @@ export function byOrder<T>(list: readonly T[], order: readonly unknown[], key: (
 /** `list` in the remembered order of its accounts. */
 export const homeSorted = <T extends { accountId: number }>(list: T[], order: number[]) => byOrder(list, order, (i) => i.accountId);
 
-/** RoALT's sections in the order the user dragged them to, by name. */
+/** MTwin Manager's sections in the order the user dragged them to, by name. */
 export const useSectionOrder = () =>
   useStored(SECTIONS, (s) => {
     const v = json(s);
@@ -72,7 +71,7 @@ export function reordered<T>(order: T[], shown: T[], from: number, over: number)
 }
 
 /** What of a draft may be written to disk. Anyone with a private server's or a share link's code
- * can join, so those stay in memory until RoALT closes. Only known-harmless parses pass, rebuilt
+ * can join, so those stay in memory until MTwin Manager closes. Only known-harmless parses pass, rebuilt
  * from the parse and not the typed text: text that doesn't parse may be a mistyped link with a code,
  * and a bare job ID reads the same as a private server's access code. */
 export function storedText(d: Draft): string {
@@ -100,23 +99,14 @@ function storedTabs(): HomeTab[] {
 
 const unparsed = (d: Draft) => !!d.text.trim() && d.parsed?.text !== d.text;
 
-/** Home's open tab: an account's id, "news", or null for Overview. */
-export type HomeActive = number | "news" | null;
-/** Home opens on News once per start, the first time it knows of something unread. */
-let landed = false;
+/** Home's open tab: an account's id, or null for Overview. */
+export type HomeActive = number | null;
 
 /** Home's tabs. Shell owns them, so they and a launch in flight survive leaving Home, and a link
  * code in one goes with everything else when the vault locks. */
 export function useHomeTabs(accounts: AccountSummary[] | undefined) {
   const [tabs, setTabs] = useState(storedTabs);
   const [active, setActive] = useState<HomeActive>(null);
-  const { unread, query } = useNewsFeed();
-  // Only while Home is still on Overview: a tab picked meanwhile stays.
-  useEffect(() => {
-    if (landed || !query.isFetched) return;
-    landed = true;
-    if (unread) setActive((a) => (a === null ? "news" : a));
-  }, [query.isFetched, unread]);
   // One order for an account's client, tab and row, so sorting one sorts them all.
   const [order, setOrder] = useHomeOrder();
   const setDraft =(id: number, f: SetStateAction<Draft>) =>
@@ -157,7 +147,7 @@ export function useHomeTabs(accounts: AccountSummary[] | undefined) {
     tabs,
     order,
     setOrder,
-    active: active === "news" || tabs.some((tab) => tab.accountId === active) ? active : null,
+    active: tabs.some((tab) => tab.accountId === active) ? active : null,
     setActive,
     setDraft,
     add: (id: number) => {

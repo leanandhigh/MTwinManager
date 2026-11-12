@@ -72,7 +72,7 @@ pub fn player_uri(ticket: &Secret, launch_time_ms: i64, p: &PlaceLaunch, product
 
 /// Where a `roblox-player:` URI from a Roblox page (its Play or Join button, in Browse) would go
 /// (pure), read from its `placelauncherurl` alone: the ticket in it (`gameinfo`) is never read, so
-/// RoALT launches with its own. None for anything else, or a launcher URL off Roblox.
+/// MTwin Manager launches with its own. None for anything else, or a launcher URL off Roblox.
 pub fn target_of_player_uri(uri: &str) -> Option<crate::model::LaunchTarget> {
     use crate::model::LaunchTarget as T;
     let rest = uri.get(..14).filter(|p| p.eq_ignore_ascii_case("roblox-player:")).map(|_| &uri[14..])?;

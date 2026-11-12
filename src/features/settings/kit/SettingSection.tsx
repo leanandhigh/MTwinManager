@@ -13,7 +13,7 @@ export function SettingSection({ label, ids = [], children }: { label?: Key; ids
   const ctx = useCtx();
   const heading = useId();
   const body = useId();
-  // The card's icon is its area's (MTwin Hub's script window has one per section).
+  // The card's icon is its area's (MTwin Manager's script window has one per section).
   const area = AREAS.find((a) => a.groups.some((g) => ids.some((id) => g.ids.includes(id))));
   const [closed, setClosed] = useStored(`mtwin.closed.${label ?? area?.id ?? ids[0] ?? "rows"}`, (v) => v === "1", (v) => (v ? "1" : "0"));
   const title = label ? t(label) : area ? t(area.label) : null;

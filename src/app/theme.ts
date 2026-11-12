@@ -13,8 +13,8 @@ export const ACCENT_KEY = "roalt.accent";
  * what floats keep most, so their text stays readable over any picture. */
 const SEE_THROUGH: Record<string, number> = { "--ground": 50, "--surface-1": 72, "--surface-2": 84, "--surface-3": 88, "--island": 86, "--float": 92 };
 
-/** MTwin Hub's purple: the accent while none is chosen ("" in Settings). */
-export const BRAND_ACCENT = "#7857fc";
+/** MTwin Manager's crimson, the logo's: the accent while none is chosen ("" in Settings). */
+export const BRAND_ACCENT = "#e5243b";
 
 /** The grounds an accent is checked against: the CSS values (tokens.css), per theme. */
 const GROUND = { dark: "#0a0a0a", light: "#f3f3f3" } as const;
@@ -40,7 +40,7 @@ const mix = (hex: string, toward: string, share: number) => {
  * black and white contrasts more), a text shade moved toward white on dark (black on light) until it
  * reads at 4.5:1 on the ground, and an edge when the fill alone is under 3:1 against the island. */
 export function accentTokens(hex: string, theme: "dark" | "light") {
-  // MTwin purple takes white, as in its script window (4.6:1); any other accent, the better of the two.
+  // MTwin crimson takes white (4.6:1); any other accent, the better of the two.
   const ink = hex.toLowerCase() === BRAND_ACCENT ? "#ffffff" : contrast(hex, "#0a0a0a") >= contrast(hex, "#ffffff") ? "#0a0a0a" : "#ffffff";
   let text = hex;
   for (let s = 0.05; contrast(text, GROUND[theme]) < 4.5 && s <= 1; s += 0.05) text = mix(hex, theme === "dark" ? "#ffffff" : "#000000", s);

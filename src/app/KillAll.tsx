@@ -9,7 +9,7 @@ import { toast, toastError } from "../ui/Toast";
 const HOLD_MS = 1000;
 
 /** The panic button: held for a second (pointer, Space or Enter), it cancels the batch, stops
- * rejoins and restarts, and terminates every Roblox client at once, RoALT's or not. In the app menu
+ * rejoins and restarts, and terminates every Roblox client at once, MTwin Manager's or not. In the app menu
  * and the island's running sheet. */
 export function KillAllButton({ role, onFired }: { role?: "menuitem"; onFired?: () => void }) {
   const qc = useQueryClient();

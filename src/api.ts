@@ -43,14 +43,12 @@ import type { Limits } from "./bindings/Limits";
 import type { LogsCleaned } from "./bindings/LogsCleaned";
 import type { MultiInstanceStatus } from "./bindings/MultiInstanceStatus";
 import type { Notice } from "./bindings/Notice";
-import type { Online } from "./bindings/Online";
 import type { ParsedInput } from "./bindings/ParsedInput";
 import type { PrivateServerPage } from "./bindings/PrivateServerPage";
 import type { PrivateServerBuy } from "./bindings/PrivateServerBuy";
 import type { PrivateServerPatch } from "./bindings/PrivateServerPatch";
 import type { PrivateServerSettings } from "./bindings/PrivateServerSettings";
 import type { NetworkStatus } from "./bindings/NetworkStatus";
-import type { News } from "./bindings/News";
 import type { RobloxClient } from "./bindings/RobloxClient";
 import type { ServerOrder } from "./bindings/ServerOrder";
 import type { ServerPage } from "./bindings/ServerPage";
@@ -68,9 +66,6 @@ export type {
   ImportReport, InstallProgress, Settings, SettingsPatch, VaultMode, VaultStatus,
 };
 export type { AccountStatus } from "./bindings/AccountStatus";
-export type { News } from "./bindings/News";
-export type { NewsItem } from "./bindings/NewsItem";
-export type { NewsSource } from "./bindings/NewsSource";
 export type { Adaptive } from "./bindings/Adaptive";
 export type { Profile } from "./bindings/Profile";
 export type { SystemUsage } from "./bindings/SystemUsage";
@@ -188,7 +183,7 @@ export const api = {
   /** Master mode needs the password; DPAPI mode shows Windows Hello. */
   accountRevealCookie: (id: number, password?: string) => invoke<string>("account_reveal_cookie", { id, password }),
   accountCopyCookie: (id: number, password?: string) => invoke<void>("account_copy_cookie", { id, password }),
-  /** `username:cookie` lines in a file in RoALT's folder, selected in Explorer; all accounts with no ids. */
+  /** `username:cookie` lines in a file in MTwin Manager's folder, selected in Explorer; all accounts with no ids. */
   accountsExportCookies: (accountIds?: number[], password?: string) => invoke<CookieExport>("accounts_export_cookies", { accountIds, password }),
   cookieExportDelete: () => invoke<number>("cookie_export_delete"),
   cookieExportReveal: () => invoke<void>("cookie_export_reveal"),
@@ -253,9 +248,9 @@ export const api = {
   instancesShowAll: (what: Exclude<WindowShow, "focus">) => invoke<void>("instances_show_all", { what }),
   /** Makes the client's window 320×240 (or puts it back); resolves to the client area it got, [w, h]. */
   instanceMicro: (id: string, on: boolean, size?: [number, number]) => invoke<[number, number]>("instance_micro", { id, on, size }),
-  /** Lays every running client that isn't hidden or minimized out in a grid on RoALT's monitor; how many it laid out. */
+  /** Lays every running client that isn't hidden or minimized out in a grid on MTwin Manager's monitor; how many it laid out. */
   instancesTile: (micro: boolean) => invoke<number>("instances_tile", { micro }),
-  /** Draws the window layout's spots for launching these accounts (in order) over RoALT's monitor for a few seconds. */
+  /** Draws the window layout's spots for launching these accounts (in order) over MTwin Manager's monitor for a few seconds. */
   layoutPreview: (accountIds: number[], running: string) => invoke<void>("layout_preview", { accountIds, running }),
   /** Takes the layout preview off the screen before its time. */
   layoutPreviewStop: () => invoke<void>("layout_preview_stop"),
@@ -304,7 +299,7 @@ export const api = {
   gameInfo: (placeId: number) => invoke<GameInfo>("game_info", { placeId }),
   gameStats: (universeId: number) => invoke<GameStats>("game_stats", { universeId }),
 
-  /** Progress: what alts have in game, as the in-game reporter sends it to RoALT's local port. */
+  /** Progress: what alts have in game, as the in-game reporter sends it to MTwin Manager's local port. */
   progressState: () => invoke<ProgressState>("progress_state"),
   /** Bootstrappers installed on this PC (Bloxstrap, Fishstrap, ExploitStrap...). */
   /** Roblox's current, future and past builds per platform, from WEAO (cached a minute unless `refresh`). */
@@ -369,19 +364,17 @@ export const api = {
   robloxClient: () => invoke<RobloxClient>("roblox_client"),
   /** Downloads Roblox's installer, checks it is signed by Roblox Corporation, runs it; progress on onRobloxInstall. */
   robloxInstall: () => invoke<RobloxClient>("roblox_install"),
-  /** RoALT's version and the newer release the last check found (no network). */
-  news: () => invoke<News>("news"),
-  onlinePing: () => invoke<Online | null>("online_ping"),
+  /** MTwin Manager's version and the newer release the last check found (no network). */
   selfUpdateStatus: () => invoke<AppUpdate>("self_update_status"),
-  /** Asks GitHub for a newer RoALT now. */
+  /** Asks GitHub for a newer MTwin Manager now. */
   selfUpdateCheck: () => invoke<AppUpdate>("self_update_check"),
-  /** Downloads the newer RoALT, checks its signature, runs its installer and quits (the installer starts RoALT again). */
+  /** Downloads the newer MTwin Manager, checks its signature, runs its installer and quits (the installer starts MTwin Manager again). */
   selfUpdateInstall: () => invoke<void>("self_update_install"),
   dataDirInfo: () => invoke<DataDir>("data_dir_info"),
   dataDirOpen: () => invoke<void>("data_dir_open"),
-  /** Copies the database to `path` and restarts RoALT to use it (resolves only on failure). */
+  /** Copies the database to `path` and restarts MTwin Manager to use it (resolves only on failure). */
   dataDirMove: (path: string) => invoke<void>("data_dir_move", { path }),
-  /** RoALT's own log folder (data folder\logs) in Explorer. */
+  /** MTwin Manager's own log folder (data folder\logs) in Explorer. */
   logsOpen: () => invoke<void>("logs_open"),
   /** The last lines of roalt.log, oldest first. */
   debugTail: (lines: number) => invoke<string[]>("debug_tail", { lines }),
@@ -395,7 +388,7 @@ export const api = {
   shutdownSchedule: (when: { atMs?: number; inSecs?: number }, closeClients: boolean) =>
     invoke<number | null>("shutdown_schedule", { atMs: when.atMs ?? null, inSecs: when.inSecs ?? null, closeClients }),
   shutdownCancel: () => invoke<number | null>("shutdown_cancel"),
-  /** The deadline of the shutdown RoALT scheduled, or null. */
+  /** The deadline of the shutdown MTwin Manager scheduled, or null. */
   shutdownStatus: () => invoke<number | null>("shutdown_status"),
 
   /** Whether a Public network is connected; app://network sends changes. */
@@ -414,7 +407,7 @@ export const events = {
   onBulkProgress: (f: (p: BulkProgress) => void): Promise<UnlistenFn> => listen<BulkProgress>("bulk://progress", (e) => f(e.payload)),
   /** The client or its versions changed (version check at start and every 30 min, an install). */
   onRobloxClient: (f: (c: RobloxClient) => void): Promise<UnlistenFn> => listen<RobloxClient>("roblox://client", (e) => f(e.payload)),
-  /** A newer RoALT is out (checked 10 s after start and every 6 h). */
+  /** A newer MTwin Manager is out (checked 10 s after start and every 6 h). */
   onAppUpdate: (f: (u: AppUpdate) => void): Promise<UnlistenFn> => listen<AppUpdate>("app://update", (e) => f(e.payload)),
   onRobloxInstall: (f: (p: InstallProgress) => void): Promise<UnlistenFn> => listen<InstallProgress>("roblox://install", (e) => f(e.payload)),
   /** Joined or left a Public network (checked every 10 s). */

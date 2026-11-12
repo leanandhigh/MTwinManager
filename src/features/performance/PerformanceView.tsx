@@ -150,7 +150,7 @@ const RENDERERS: RowRenderers = {
 };
 
 /** The groups of rows in screen order; each lists its entries' top rows (entries.ts order). */
-const GROUPS = (["performance.fineTune", "performance.section.cpuMemory", "performance.section.roalt", "performance.section.network"] as const).map((group: Key) => ({
+const GROUPS = (["performance.fineTune", "performance.section.cpuMemory", "performance.section.app", "performance.section.network"] as const).map((group: Key) => ({
   group,
   ids: PERFORMANCE_ENTRIES.filter((e) => "group" in e.place && e.place.group === group && !e.parent).map((e) => e.id),
 }));
@@ -191,7 +191,7 @@ function PresetCard({ preset: p, active, onPick }: { preset: Preset; active: boo
   );
 }
 
-/** How hard RoALT works this PC: a preset or this PC's own suggestions, each reviewed before it
+/** How hard MTwin Manager works this PC: a preset or this PC's own suggestions, each reviewed before it
  * applies, then every setting behind them, then a profile to share. */
 export function PerformanceView() {
   // From the query, not Shell's prop: the prop can lag a render behind the accounts below, and the pill then named a mix of both.
