@@ -80,7 +80,15 @@ pub fn find() -> Result<ClientExe> {
         .into_iter()
         .filter_map(|(root, key)| reg_string(root, key, Some("version")))
         .flat_map(|v| versions_dirs().into_iter().map(move |d| d.join(&v).join(PLAYER)));
+    // Automatic is Roblox's own client: a bootstrapper is used only when chosen in Settings, or
+    // when Roblox itself isn't installed.
+    let (own, named): (Vec<PathBuf>, Vec<PathBuf>) = (own.collect(), named.collect());
+    let vanilla = |p: &&PathBuf| p.is_file() && is_player(p) && !in_bootstrapper_folder(p) && !in_store(p);
+    if let Some(p) = own.iter().chain(&named).find(vanilla).cloned().or_else(|| newest(roblox_dirs().iter().flat_map(|d| players_in(d)).filter(|(p, _)| !in_store(p)))) {
+        return Ok(client_exe(p));
+    }
     let path = own
+        .into_iter()
         .chain(handlers())
         .chain(named)
         .find(|p| p.is_file() && !in_store(p))
@@ -174,6 +182,11 @@ fn in_store(path: &Path) -> bool {
 /// bootstrapper's copy, whatever it is called: any `%LOCALAPPDATA%\<name>\Versions` (Bloxstrap,
 /// Fishstrap, Froststrap, Voidstrap and the rest keep theirs there), and the one beside the
 /// program chosen in Settings or opening `roblox-player:` links.
+/// Roblox's own `Versions` folders (never a bootstrapper's).
+fn roblox_dirs() -> Vec<PathBuf> {
+    ["LOCALAPPDATA", "ProgramFiles(x86)", "ProgramFiles"].iter().filter_map(std::env::var_os).map(|d| PathBuf::from(d).join("Roblox").join("Versions")).filter(|d| d.is_dir()).collect()
+}
+
 pub(super) fn versions_dirs() -> Vec<PathBuf> {
     let roblox = ["LOCALAPPDATA", "ProgramFiles(x86)", "ProgramFiles"].iter().filter_map(std::env::var_os).map(|d| PathBuf::from(d).join("Roblox"));
     let local = std::env::var_os("LOCALAPPDATA").map(PathBuf::from);

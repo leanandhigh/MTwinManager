@@ -342,7 +342,6 @@ function ClientPathControl() {
   useEffect(() => {
     if (current && found.length && !known) setOther(true);
   }, [current, known, found.length]);
-  const registered = found.find((b) => b.registered);
   const save = (clientPath: string) => write({ clientPath }).then(() => qc.invalidateQueries({ queryKey: qk.client }));
   const value = other ? OTHER : known ? found.find((b) => b.path.toLowerCase() === current.toLowerCase())!.path : AUTO;
   return (
@@ -353,7 +352,7 @@ function ClientPathControl() {
         aria-describedby={describedBy}
         className="min-w-[220px]"
         options={[
-          { value: AUTO, label: registered ? t("settings.clientPathAutoNamed", { name: registered.name }) : t("settings.clientPathAuto") },
+          { value: AUTO, label: t("settings.clientPathAuto") },
           ...found.map((b) => ({ value: b.path, label: b.name })),
           { value: OTHER, label: t("settings.clientPathOther") },
         ]}
