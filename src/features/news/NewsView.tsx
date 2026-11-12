@@ -3,7 +3,9 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { fmtDate, fmtList, t } from "../../i18n";
 import { Chip, Skeleton } from "../../ui/Bits";
 import { Button, IconButton } from "../../ui/Button";
+import { Icon } from "../../ui/Icon";
 import { toastError } from "../../ui/Toast";
+import logo from "../../assets/mtwin-logo.png";
 import { ago } from "../accounts/shared";
 import { useUpdateInstall, useUpdateOffer } from "../settings/UpdateBanner";
 import { markRead, useNewsFeed, type FeedItem } from "./news";
@@ -49,42 +51,45 @@ function Lead({ item, now }: { item: FeedItem; now: number }) {
     })
     .filter((s) => s.lines.length);
   return (
-    <article className="panel news-lead" aria-labelledby="news-lead-title">
-      <p className="news-meta">
-        {item.unread && <span className="news-dot" role="img" aria-label={t("news.unread")} />}
-        <b>{t(LABEL.roalt)}</b>
-        <span>{when(item.published, now)}</span>
-      </p>
-      <h2 id="news-lead-title">{item.title}</h2>
-      {shown.length > 0 && (
-        <div className="news-notes">
-          {shown.map((s, i) => (
-            <section key={i}>
-              {s.title && <h3>{s.title}</h3>}
-              <ul>
-                {s.lines.map((l, j) => (
-                  <li key={j}>{l}</li>
-                ))}
-              </ul>
-            </section>
-          ))}
+    <article className="news-hero" aria-labelledby="news-lead-title">
+      <div className="min-w-0">
+        <p className="news-eyebrow">
+          <b>{t("news.latestRelease")}</b>
+          <span>{when(item.published, now)}</span>
+          {item.unread && <span className="news-new" style={{ marginInlineStart: 0 }} role="img" aria-label={t("news.unread")} />}
+        </p>
+        <h2 id="news-lead-title">{item.title}</h2>
+        {shown.length > 0 && (
+          <div className="news-notes">
+            {shown.map((s, i) => (
+              <section key={i}>
+                {s.title && <h3>{s.title}</h3>}
+                <ul>
+                  {s.lines.map((l, j) => (
+                    <li key={j}>{l}</li>
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </div>
+        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {offer && offer === item.version && (
+            <Button variant="primary" icon="download" busy={update.busy} onClick={update.start}>
+              {t("settings.updateNow")}
+            </Button>
+          )}
+          {total > SHORT && (
+            <Button size="md" aria-expanded={all} onClick={() => setAll((a) => !a)}>
+              {all ? t("news.fewerNotes") : t("news.allNotes")}
+            </Button>
+          )}
+          <Button size="md" variant="ghost" iconEnd="external" onClick={() => open(item)}>
+            {t("news.releasePage")}
+          </Button>
         </div>
-      )}
-      <div className="flex flex-wrap items-center gap-2">
-        {offer && offer === item.version && (
-          <Button variant="primary" icon="download" busy={update.busy} onClick={update.start}>
-            {t("settings.updateNow")}
-          </Button>
-        )}
-        {total > SHORT && (
-          <Button size="md" aria-expanded={all} onClick={() => setAll((a) => !a)}>
-            {all ? t("news.fewerNotes") : t("news.allNotes")}
-          </Button>
-        )}
-        <Button size="md" variant="ghost" iconEnd="external" onClick={() => open(item)}>
-          {t("news.releasePage")}
-        </Button>
       </div>
+      <img className="news-hero-art" src={logo} alt="" draggable={false} />
       {update.dialog}
     </article>
   );
@@ -93,22 +98,24 @@ function Lead({ item, now }: { item: FeedItem; now: number }) {
 function Row({ item, now }: { item: FeedItem; now: number }) {
   const body = (
     <>
-      <span className="news-dot" data-on={item.unread || undefined} role={item.unread ? "img" : undefined} aria-label={item.unread ? t("news.unread") : undefined} />
-      <span className="min-w-0 flex flex-col gap-1">
-        <span className="news-meta">
-          <b>{t(LABEL[item.source])}</b>
-          <span>{when(item.published, now)}</span>
-        </span>
-        <span className="news-title">{item.title}</span>
-        {item.summary && <span className="news-sum">{item.summary}</span>}
+      <span className="news-card-top">
+        <span className="news-src">{t(LABEL[item.source])}</span>
+        <span>{when(item.published, now)}</span>
+        {item.unread && <span className="news-new" role="img" aria-label={t("news.unread")} />}
       </span>
+      <span className="news-title">{item.title}</span>
+      {item.summary && <span className="news-sum">{item.summary}</span>}
     </>
   );
-  // The client update has nowhere to go: RoALT already uses it.
-  if (!item.url) return <div className="news-row" data-unread={item.unread || undefined}>{body}</div>;
+  // The client update has nowhere to go: MTwin Hub already uses it.
+  if (!item.url) return <div className="news-card" data-src={item.source}>{body}</div>;
   return (
-    <button type="button" className="news-row" data-unread={item.unread || undefined} data-tip={t("news.open")} onClick={() => open(item)}>
+    <button type="button" className="news-card" data-src={item.source} onClick={() => open(item)}>
       {body}
+      <span className="news-card-go">
+        {t("news.open")}
+        <Icon name="external" size={12} />
+      </span>
     </button>
   );
 }
@@ -158,32 +165,30 @@ export function NewsView() {
           </Button>
         </div>
       )}
-      <div className="news-grid">
-        {lead ? <Lead item={lead} now={now} /> : query.isPending && <div className="panel news-lead"><Skeleton width="40%" height={32} /><Skeleton width="90%" /><Skeleton width="75%" /></div>}
-        <div className="panel news-feed">
-          {sources.length > 1 && (
-            <div className="news-filters" role="group" aria-label={t("news.sources")}>
-              <Chip small pressed={filter === "all"} count={count("all")} onClick={() => setFilter("all")}>{t("news.all")}</Chip>
-              {sources.map((s) => (
-                <Chip key={s} small pressed={filter === s} count={count(s)} onClick={() => setFilter(s)}>{t(LABEL[s])}</Chip>
-              ))}
-            </div>
-          )}
-          {query.isPending
-            ? [78, 64, 84, 58].map((w) => (
-                <div key={w} className="news-row" aria-hidden="true">
-                  <span />
-                  <span className="flex flex-col gap-2">
-                    <Skeleton width={96} height={10} />
-                    <Skeleton width={`${w}%`} height={13} />
-                    <Skeleton width="92%" height={11} />
-                  </span>
-                </div>
-              ))
-            : feed.map((i) => <Row key={i.id} item={i} now={now} />)}
-          {!query.isPending && !feed.length && <p className="news-empty">{t("news.empty")}</p>}
-        </div>
+      {lead ? <Lead item={lead} now={now} /> : query.isPending && <div className="news-hero"><div className="flex flex-col gap-3"><Skeleton width="40%" height={32} /><Skeleton width="90%" /><Skeleton width="75%" /></div></div>}
+      <div className="news-bar">
+        <h2 className="section-title">{t("news.stories")}</h2>
+        {sources.length > 1 && (
+          <div className="news-filters" role="group" aria-label={t("news.sources")}>
+            <Chip small pressed={filter === "all"} count={count("all")} onClick={() => setFilter("all")}>{t("news.all")}</Chip>
+            {sources.map((s) => (
+              <Chip key={s} small pressed={filter === s} count={count(s)} onClick={() => setFilter(s)}>{t(LABEL[s])}</Chip>
+            ))}
+          </div>
+        )}
       </div>
+      <div className="news-cards">
+        {query.isPending
+          ? [78, 64, 84, 58].map((w) => (
+              <div key={w} className="news-card" aria-hidden="true">
+                <Skeleton width={96} height={10} />
+                <Skeleton width={`${w}%`} height={14} />
+                <Skeleton width="92%" height={11} />
+              </div>
+            ))
+          : feed.map((i) => <Row key={i.id} item={i} now={now} />)}
+      </div>
+      {!query.isPending && !feed.length && <p className="text-fg-2">{t("news.empty")}</p>}
     </section>
   );
 }

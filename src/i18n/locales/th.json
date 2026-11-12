@@ -1734,5 +1734,7 @@
   "app.group.track": "ติดตาม",
   "app.group.tools": "เครื่องมือ",
   "app.sidebarFold": "ย่อแถบข้าง",
-  "app.sidebarOpen": "ขยายแถบข้าง"
+  "app.sidebarOpen": "ขยายแถบข้าง",
+  "news.latestRelease": "เวอร์ชันล่าสุด",
+  "news.stories": "ข่าวล่าสุด"
 }

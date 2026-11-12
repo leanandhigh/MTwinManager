@@ -1791,5 +1791,7 @@
   "app.group.track": "Track",
   "app.group.tools": "Tools",
   "app.sidebarFold": "Collapse sidebar",
-  "app.sidebarOpen": "Expand sidebar"
+  "app.sidebarOpen": "Expand sidebar",
+  "news.latestRelease": "Latest release",
+  "news.stories": "Latest stories"
 }

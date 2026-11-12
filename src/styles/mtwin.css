@@ -1,98 +1,98 @@
-/* MTwin Hub's look, after its in-game script window: a monospace face, deep grey panels with
-   hairlines, tight corners, purple for what's on, an icon column down the left and a status line at
-   the foot. In its own layer above the views and below the utilities, so it restyles RoALT's
-   components without editing them, and a view's utility class still wins. */
+/* MTwin Hub's design: a near-black canvas lit by a violet glow, a floating sidebar, soft glass cards
+   with generous corners, pill filters and one glowing violet action per screen. In its own layer
+   above the views and below the utilities, so it restyles the components without editing them, and
+   a view's utility class still wins. */
 @layer brand {
-  /* A sans face for reading; the mono one marks labels, numbers and code. */
   :root {
     --font-label: "Geist Mono Variable", ui-monospace, "Cascadia Mono", Consolas, monospace;
-    --r-xl: 14px;
-    --r-lg: 10px;
-    --r-md: 8px;
-    --r-sm: 6px;
-    --r-xs: 4px;
-    --fs-title: 22px;
+    --r-xl: 24px;
+    --r-lg: 18px;
+    --r-md: 12px;
+    --r-sm: 10px;
+    --r-xs: 6px;
+    --fs-title: 28px;
+    --glow: color-mix(in srgb, var(--accent) 60%, transparent);
+    --card: color-mix(in srgb, var(--surface-1) 78%, transparent);
   }
   :root:not([data-theme="light"]) {
-    --ground: #121214;
-    --surface-1: #1a1a1e;
-    --surface-2: #222227;
-    --surface-3: #2b2b31;
-    --island: #1a1a1e;
-    --float: #1d1d22;
-    --line: rgb(255 255 255 / 0.085);
-    --hover: rgb(255 255 255 / 0.05);
+    --ground: #08080d;
+    --surface-1: #12121a;
+    --surface-2: #1a1a25;
+    --surface-3: #242432;
+    --island: #14141d;
+    --float: #16161f;
+    --line: rgb(255 255 255 / 0.07);
+    --edge: rgb(255 255 255 / 0.16);
+    --hover: rgb(255 255 255 / 0.055);
     --sel: color-mix(in srgb, var(--accent) 14%, transparent);
   }
 
-  /* Panels: a fill and a visible hairline, like the script window's sections. */
-  .panel {
-    border-radius: var(--r-lg);
-    background: var(--surface-1);
-    box-shadow: inset 0 0 0 1px var(--line);
-  }
-
-  .app-menu-btn .wordmark {
-    font-weight: 700;
-    letter-spacing: 0.01em;
-  }
-  /* What's live (launches, clients, notices) sits in the middle; nothing shows when nothing is. */
-  .island-live {
-    background: transparent;
-    box-shadow: none;
-    padding: 0;
-  }
-  .island-live:has(.island-row:empty) {
-    display: none;
-  }
-
-  /* The frame: the title bar and the sidebar are one piece of chrome; the page is a sheet set into
-     it, its top corner rounded. */
-  .shell {
-    background: var(--surface-1);
-  }
-  .stage {
+  /* ---- The canvas and the frame ---- */
+  body {
     background: var(--ground);
-    border-start-start-radius: var(--r-xl);
-    box-shadow: inset 1px 1px 0 var(--line);
-    overflow: hidden;
+  }
+  /* A violet glow from the top corner and the logo's red, faint, from the far one. */
+  :root:not([data-theme="light"]) body {
+    background:
+      radial-gradient(900px 520px at 12% -12%, color-mix(in srgb, var(--accent) 26%, transparent), transparent 70%),
+      radial-gradient(760px 520px at 104% 108%, rgb(225 40 60 / 0.11), transparent 70%),
+      var(--ground);
+    background-attachment: fixed;
+  }
+  .titlebar,
+  .shell,
+  .stage {
+    background: transparent;
   }
   .titlebar {
     border-bottom: 0;
   }
+  .app-menu-btn {
+    border-radius: var(--r-md);
+  }
+  .app-menu-btn .wordmark {
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
 
-  /* The sidebar: named places in groups; Settings, who's online and the version at its foot. */
+  /* ---- Sidebar: a floating card of named places ---- */
   .sidebar {
     flex: none;
     display: flex;
     flex-direction: column;
-    width: 212px;
-    padding: 6px 10px 10px;
-    background: var(--surface-1);
+    width: 224px;
+    margin: 2px 4px 12px 12px;
+    padding: 12px 10px 10px;
+    border-radius: var(--r-xl);
+    background: var(--card);
+    box-shadow:
+      inset 0 0 0 1px var(--line),
+      0 24px 48px -28px rgb(0 0 0 / 0.8);
     transition: width var(--dur-base) var(--ease-out);
   }
   .sidebar[data-folded] {
-    width: 60px;
+    width: 64px;
   }
   .sb-scroll {
     flex: 1;
     min-height: 0;
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 16px;
     overflow-y: auto;
     scrollbar-width: none;
   }
   .sb-group {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 3px;
   }
   .sb-heading {
-    padding: 6px 10px 4px;
+    padding: 4px 12px 5px;
     color: var(--fg-3);
-    font: 700 10.5px/1 var(--font-label);
-    letter-spacing: 0.14em;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     white-space: nowrap;
   }
@@ -100,13 +100,13 @@
     position: relative;
     display: flex;
     align-items: center;
-    gap: 11px;
+    gap: 12px;
     width: 100%;
-    height: 34px;
-    padding: 0 10px;
+    height: 38px;
+    padding: 0 12px;
     border-radius: var(--r-md);
     color: var(--fg-2);
-    font-size: 13.5px;
+    font-size: 14px;
     font-weight: 500;
     text-align: start;
     white-space: nowrap;
@@ -126,23 +126,15 @@
   .sb-item:hover > svg {
     color: var(--fg);
   }
+  /* The place on screen: a violet slab that fades across, lit at its edge. */
   .sb-item[aria-current="page"] {
-    background: color-mix(in srgb, var(--accent) 16%, transparent);
+    background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 34%, transparent), color-mix(in srgb, var(--accent) 8%, transparent));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 38%, transparent);
     color: var(--fg);
     font-weight: 600;
   }
   .sb-item[aria-current="page"] > svg {
-    color: var(--accent-text);
-  }
-  /* The place on screen: a purple bar at the sidebar's edge. */
-  .sb-item[aria-current="page"]::before {
-    content: "";
-    position: absolute;
-    inset-block: 8px;
-    inset-inline-start: -10px;
-    width: 3px;
-    border-radius: 0 3px 3px 0;
-    background: var(--accent);
+    color: var(--fg);
   }
   .sb-label {
     flex: 1;
@@ -151,11 +143,13 @@
     text-overflow: ellipsis;
   }
   .sb-count {
-    padding: 1px 6px;
-    border-radius: var(--r-xs);
-    background: var(--surface-3);
+    padding: 1px 7px;
+    border-radius: var(--r-pill);
+    background: rgb(255 255 255 / 0.08);
     color: var(--fg-2);
-    font: 600 11px/1.4 var(--font-label);
+    font-size: 11.5px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
   }
   .sb-badge {
     min-width: 16px;
@@ -180,8 +174,9 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
-    padding: 10px 10px 2px;
-    border-top: 1px solid var(--line);
+    padding: 10px 12px 10px;
+    border-radius: var(--r-md);
+    background: rgb(255 255 255 / 0.04);
     color: var(--fg-3);
     font-size: 12px;
     white-space: nowrap;
@@ -201,7 +196,7 @@
     height: 7px;
     border-radius: 50%;
     background: var(--ok);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 22%, transparent);
+    box-shadow: 0 0 8px var(--ok);
   }
   .sb-base {
     display: flex;
@@ -215,17 +210,16 @@
   .sb-fold {
     display: grid;
     place-items: center;
-    width: 26px;
-    height: 26px;
-    margin-inline-end: -6px;
-    border-radius: var(--r-sm);
+    width: 24px;
+    height: 24px;
+    margin-inline-end: -4px;
+    border-radius: var(--r-xs);
     color: var(--fg-3);
   }
   .sb-fold:hover {
     background: var(--hover);
     color: var(--fg);
   }
-  /* Folded: a rail of icons. */
   .sidebar[data-folded] .sb-label,
   .sidebar[data-folded] .sb-count,
   .sidebar[data-folded] .sb-heading {
@@ -245,6 +239,7 @@
   .sidebar[data-folded] .sb-status {
     align-items: center;
     padding-inline: 0;
+    background: transparent;
   }
   .sidebar[data-folded] .sb-base {
     justify-content: center;
@@ -254,60 +249,390 @@
     rotate: 180deg;
   }
 
-  /* Labels in the mono face: what marks MTwin Hub's look without costing readability. */
-  .app-menu-btn .wordmark,
-  .section-title,
-  .kbd,
-  .tag,
-  .status-pill,
-  .lang-btn,
-  .set-card-title,
-  .pg-strip-k,
-  .pg-kind,
-  .capsule-count {
-    font-family: var(--font-label);
+  /* ---- Pages ---- */
+  .page-title {
+    font-size: var(--fs-title);
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.025em;
+  }
+  .page-sub {
+    margin-top: 6px;
+    max-width: 80ch;
+    color: var(--fg-3);
+    font-size: 14px;
+  }
+  .section-title {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+  }
+  /* Every page starts at the same spot; forms one width, data pages a wider one. */
+  .set-page,
+  .dc-page,
+  .perf-page {
+    max-width: 920px;
+    margin-inline: 0;
+  }
+  .up-page,
+  .pg-page {
+    max-width: 1280px;
+    margin-inline: 0;
   }
 
-  /* Settings' sections as the script window's collapsible cards: icon, name, chevron. */
+  /* ---- Cards ---- */
+  .panel {
+    border-radius: var(--r-lg);
+    background: var(--card);
+    box-shadow:
+      inset 0 0 0 1px var(--line),
+      0 20px 40px -30px rgb(0 0 0 / 0.9);
+  }
+  .well {
+    border-radius: var(--r-md);
+  }
+
+  /* ---- Buttons: soft corners; one glowing violet action ---- */
+  .btn {
+    border-radius: var(--r-md);
+    background: rgb(255 255 255 / 0.06);
+    box-shadow: inset 0 0 0 1px var(--line);
+    font-weight: 600;
+  }
+  .btn:hover:not(:disabled, [aria-disabled="true"]) {
+    background: rgb(255 255 255 / 0.1);
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 82%, #fff), var(--accent) 55%, color-mix(in srgb, var(--accent) 80%, #2a0a8a));
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.22),
+      0 8px 22px -8px var(--glow);
+    color: var(--on-accent);
+  }
+  .btn-primary:hover:not(:disabled, [aria-disabled="true"]) {
+    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 70%, #fff), color-mix(in srgb, var(--accent) 90%, #fff) 55%, var(--accent));
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.25),
+      0 10px 28px -8px var(--glow);
+  }
+  .btn-primary:disabled,
+  .btn-primary[aria-disabled="true"] {
+    background: rgb(255 255 255 / 0.04);
+    box-shadow: inset 0 0 0 1px var(--line);
+    color: var(--fg-3);
+  }
+  .btn-danger {
+    background: color-mix(in srgb, var(--err) 12%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--err) 35%, transparent);
+  }
+  .btn-ghost {
+    background: transparent;
+    box-shadow: none;
+  }
+  .btn-play {
+    min-height: 56px;
+    border-radius: var(--r-lg);
+    font-size: 16px;
+  }
+
+  /* ---- Filters: pills; the picked one filled violet ---- */
+  .chip {
+    border-radius: var(--r-pill);
+    background: rgb(255 255 255 / 0.05);
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+  .chip:hover {
+    background: rgb(255 255 255 / 0.09);
+  }
+  .chip[aria-pressed="true"],
+  .chip[data-on] {
+    background: color-mix(in srgb, var(--accent) 26%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 60%, transparent);
+    color: var(--fg);
+  }
+  .tag {
+    border-radius: var(--r-xs);
+    background: rgb(255 255 255 / 0.07);
+  }
+
+  /* Segmented controls: a soft track, a violet thumb. */
+  .seg-group {
+    padding: 4px;
+    border-radius: var(--r-md);
+    background: rgb(255 255 255 / 0.04);
+  }
+  .seg {
+    border-radius: 9px;
+  }
+  .seg-thumb,
+  .seg[aria-pressed="true"],
+  .seg[aria-checked="true"] {
+    border-radius: 9px;
+    background: color-mix(in srgb, var(--accent) 30%, var(--surface-2));
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--accent) 50%, transparent),
+      0 4px 12px -6px var(--glow);
+  }
+  .seg-group[data-thumb] .seg[aria-pressed="true"],
+  .seg-group[data-thumb] .seg[aria-checked="true"] {
+    background: transparent;
+    box-shadow: none;
+  }
+
+  /* Home's tabs. */
+  .home-strip .tab {
+    border-radius: var(--r-pill);
+    background: rgb(255 255 255 / 0.05);
+  }
+  .home-tab-on {
+    border-radius: var(--r-pill);
+    box-shadow: 0 6px 18px -8px var(--glow);
+  }
+
+  /* ---- Fields: soft wells; focus is a violet halo ---- */
+  .field {
+    border-radius: var(--r-md);
+    border-color: var(--line);
+    background: rgb(255 255 255 / 0.04);
+  }
+  .field:hover:not(:disabled, :focus) {
+    border-color: var(--edge);
+  }
+  .field:focus,
+  .field:focus-within {
+    border-color: var(--accent);
+    outline: none;
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 20%, transparent);
+  }
+
+  /* ---- Small parts ---- */
+  .status-pill {
+    border-radius: var(--r-pill);
+    font-weight: 600;
+  }
+  .cb {
+    border-radius: 6px;
+  }
+  .num {
+    border-radius: var(--r-sm);
+    background: rgb(255 255 255 / 0.06);
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+  .num-done {
+    background: var(--accent);
+    box-shadow: 0 0 16px -2px var(--glow);
+  }
+  .meter-fill,
+  .meter > span {
+    background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 70%, #fff), var(--accent));
+  }
+  .menu-item {
+    border-radius: var(--r-sm);
+  }
+  .toast {
+    border-radius: var(--r-lg);
+    box-shadow:
+      inset 0 0 0 1px var(--line),
+      0 16px 40px -14px rgb(0 0 0 / 0.8);
+  }
+  .pill-toolbar {
+    border-radius: var(--r-lg);
+    background: var(--card);
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+  .play-who-sum,
+  .launch-pill {
+    border-radius: var(--r-md);
+  }
+
+  /* Table rows: rounded, the selected one tinted with a violet bar. */
+  .row > td:first-child {
+    border-start-start-radius: var(--r-md);
+    border-end-start-radius: var(--r-md);
+  }
+  .row > td:last-child {
+    border-start-end-radius: var(--r-md);
+    border-end-end-radius: var(--r-md);
+  }
+  .row[data-selected] > td:first-child {
+    box-shadow: inset 3px 0 0 var(--accent);
+  }
+
+  /* ---- Title bar: what's live, and the language ---- */
+  .island-live {
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
+  }
+  .island-live:has(.island-row:empty) {
+    display: none;
+  }
+  .island-live .island-row {
+    gap: 6px;
+  }
+  .island-live .island-sep {
+    display: none;
+  }
+  .island-live .island-capsule {
+    height: 32px;
+    padding-inline: 12px 14px;
+    gap: 7px;
+    border-radius: var(--r-pill);
+    background: rgb(255 255 255 / 0.06);
+    box-shadow: inset 0 0 0 1px var(--line);
+    color: var(--fg);
+    font-size: 12.5px;
+    font-weight: 600;
+  }
+  .island-live .island-capsule:hover {
+    background: rgb(255 255 255 / 0.1);
+  }
+  .island-live .island-capsule[aria-expanded="true"] {
+    background: color-mix(in srgb, var(--accent) 22%, transparent);
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
+  .island-live .capsule-count {
+    font-weight: 700;
+  }
+  .island-live .capsule-word {
+    color: var(--fg-2);
+    font-weight: 500;
+  }
+  .island-live .island-capsule:has(.capsule-word[data-kind="update"]) {
+    background: color-mix(in srgb, var(--accent) 24%, transparent);
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--accent) 60%, transparent),
+      0 6px 18px -8px var(--glow);
+    color: var(--fg);
+  }
+  .island-live .island-capsule:has(.capsule-word[data-kind="update"]) .capsule-word {
+    color: var(--fg);
+    font-weight: 600;
+  }
+  .island-live .island-capsule:has(.capsule-word[data-kind="network"]) {
+    color: var(--attention);
+  }
+  .lang-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    padding: 0 10px 0 11px;
+    margin-inline-end: 6px;
+    border-radius: var(--r-pill);
+    background: rgb(255 255 255 / 0.06);
+    box-shadow: inset 0 0 0 1px var(--line);
+    color: var(--fg-2);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+  .lang-btn:hover {
+    color: var(--fg);
+    background: rgb(255 255 255 / 0.1);
+  }
+  .lang-btn:has(+ .lang-menu:popover-open) {
+    color: var(--fg);
+    background: color-mix(in srgb, var(--accent) 22%, transparent);
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
+  .lang-btn .lang-code {
+    color: var(--fg);
+  }
+  .lang-chev {
+    color: var(--fg-3);
+  }
+  .lang-menu {
+    width: 220px;
+    max-height: min(420px, 70vh);
+    overflow-y: auto;
+  }
+  .lang-menu .menu-item[aria-checked="true"] {
+    color: var(--fg);
+    background: color-mix(in srgb, var(--accent) 20%, transparent);
+  }
+  .lang-item-code {
+    width: 26px;
+    color: var(--fg-3);
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  /* ---- Settings ---- */
+  .set-tabs {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 22px;
+    padding: 4px;
+    border-radius: var(--r-lg);
+    background: rgb(255 255 255 / 0.04);
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+  .set-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 36px;
+    padding: 0 14px;
+    border-radius: var(--r-md);
+    color: var(--fg-2);
+    font-size: 13.5px;
+    font-weight: 500;
+    transition:
+      background-color var(--dur-fast) var(--ease-out),
+      color var(--dur-fast) var(--ease-out);
+  }
+  .set-tab:hover {
+    color: var(--fg);
+    background: var(--hover);
+  }
+  .set-tab[aria-selected="true"] {
+    background: color-mix(in srgb, var(--accent) 30%, var(--surface-2));
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--accent) 50%, transparent),
+      0 4px 14px -6px var(--glow);
+    color: var(--fg);
+    font-weight: 600;
+  }
   .set-card .set-group {
     overflow: hidden;
   }
   .set-card-head {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     width: 100%;
-    padding: 11px 16px;
+    padding: 16px 20px 12px;
     text-align: start;
-    border-bottom: 1px solid var(--line);
   }
-  .set-card-head[aria-expanded="false"] {
-    border-bottom-color: transparent;
-  }
-  .set-card-head:hover {
-    background: var(--hover);
+  .set-card-head:hover .set-card-title {
+    color: var(--fg);
   }
   .set-card-icon {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border-radius: var(--r-sm);
+    background: color-mix(in srgb, var(--accent) 20%, transparent);
     color: var(--accent-text);
   }
   .set-card-title {
     flex: 1;
     min-width: 0;
-    font-size: var(--fs-body);
+    font-size: 15px;
     font-weight: 600;
   }
   .set-card-chevron {
     color: var(--fg-3);
     transition: rotate var(--dur-base) var(--ease-out);
   }
+  .set-card-head[aria-expanded="false"] {
+    padding-bottom: 16px;
+  }
   .set-card-head[aria-expanded="false"] .set-card-chevron {
     rotate: -90deg;
-  }
-
-  /* Bars and meters fill with the accent, as the script window's sliders do. */
-  .meter-fill,
-  .meter > span {
-    background: var(--accent);
   }
 
   /* Settings > About: the update card. */
@@ -316,10 +641,10 @@
     flex-direction: column;
     gap: 14px;
     margin-top: 12px;
-    padding: 16px;
+    padding: 18px;
     border-radius: var(--r-lg);
-    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 12%, var(--surface-2)), var(--surface-2) 60%);
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 28%, var(--line));
+    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 22%, transparent), rgb(255 255 255 / 0.03) 65%);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 30%, var(--line));
   }
   .upd-main {
     display: flex;
@@ -333,12 +658,12 @@
     width: 52px;
     height: 52px;
     border-radius: var(--r-md);
-    background: var(--surface-1);
+    background: rgb(0 0 0 / 0.35);
     box-shadow: inset 0 0 0 1px var(--line);
   }
   .upd-name {
     display: block;
-    font-size: var(--fs-section);
+    font-size: 17px;
     font-weight: 700;
   }
   .upd-ver {
@@ -363,360 +688,191 @@
     font-size: var(--fs-small);
     cursor: pointer;
   }
-
-  /* Discord's own colour on its button. */
   .discord-btn {
     background: #5865f2;
     color: #fff;
-    box-shadow: none;
+    box-shadow: 0 8px 20px -10px #5865f2;
   }
   .discord-btn:hover {
     background: #4752c4;
   }
 
-  /* What's live in the title bar: chips like the rest, not pills; words beside the marks. */
-  .island-live .island-row {
-    gap: 6px;
-  }
-  .island-live .island-sep {
-    display: none;
-  }
-  .island-live .island-capsule {
-    height: 30px;
-    padding-inline: 10px 12px;
-    gap: 7px;
-    border-radius: var(--r-md);
-    background: var(--surface-2);
-    box-shadow: inset 0 0 0 1px var(--line);
-    color: var(--fg);
-    font-size: 12px;
-    font-weight: 600;
-  }
-  .island-live .island-capsule:hover {
-    background: var(--surface-3);
-    box-shadow: inset 0 0 0 1px var(--edge);
-  }
-  /* Open: the purple outline, not a solid fill. */
-  .island-live .island-capsule[aria-expanded="true"] {
-    background: color-mix(in srgb, var(--accent) 16%, var(--surface-2));
-    box-shadow: inset 0 0 0 1px var(--accent);
-    color: var(--fg);
-  }
-  .island-live .capsule-count {
-    font-weight: 700;
-  }
-  .island-live .capsule-word {
-    color: var(--fg-2);
-    font-weight: 500;
-  }
-  /* An update on offer: purple-tinted, so it reads as the one thing to do. */
-  .island-live .island-capsule:has(.capsule-word[data-kind="update"]) {
-    background: color-mix(in srgb, var(--accent) 18%, var(--surface-2));
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent);
-    color: var(--accent-text);
-  }
-  .island-live .island-capsule:has(.capsule-word[data-kind="update"]) .capsule-word {
-    color: var(--accent-text);
-    font-weight: 600;
-  }
-  .island-live .island-capsule:has(.capsule-word[data-kind="network"]) {
-    color: var(--attention);
-  }
-
-  /* The language: one chip, a globe, the code; the menu lists every language in its own name. */
-  .lang-btn {
-    display: inline-flex;
+  /* ---- Home > News: the newest release as a banner, then the stories as cards ---- */
+  .news-hero {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 24px 40px;
     align-items: center;
-    gap: 6px;
-    height: 30px;
-    padding: 0 9px 0 10px;
-    margin-inline-end: 6px;
-    border-radius: var(--r-md);
-    background: var(--surface-2);
-    box-shadow: inset 0 0 0 1px var(--line);
+    padding: 30px 34px;
+    border-radius: var(--r-xl);
+    background:
+      radial-gradient(600px 300px at 0% 0%, color-mix(in srgb, var(--accent) 42%, transparent), transparent 70%),
+      linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, var(--surface-1)), var(--surface-1) 70%);
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--accent) 32%, var(--line)),
+      0 30px 60px -36px var(--glow);
+    overflow: hidden;
+  }
+  .news-hero-art {
+    width: 150px;
+    height: 150px;
+    object-fit: contain;
+    filter: drop-shadow(0 14px 30px rgb(225 40 60 / 0.4));
+  }
+  .news-eyebrow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 10px;
     color: var(--fg-2);
-    font-size: 12px;
+    font-size: 12.5px;
+  }
+  .news-eyebrow b {
+    padding: 3px 10px;
+    border-radius: var(--r-pill);
+    background: color-mix(in srgb, var(--accent) 34%, transparent);
+    color: var(--fg);
+    font-size: 11px;
     font-weight: 700;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
   }
-  .lang-btn:hover {
-    color: var(--fg);
-    box-shadow: inset 0 0 0 1px var(--edge);
+  .news-hero h2 {
+    margin: 0 0 16px;
+    font-size: 38px;
+    line-height: 1.05;
+    font-weight: 800;
+    letter-spacing: -0.035em;
   }
-  .lang-btn:has(+ .lang-menu:popover-open) {
-    color: var(--fg);
-    background: color-mix(in srgb, var(--accent) 16%, var(--surface-2));
-    box-shadow: inset 0 0 0 1px var(--accent);
+  .news-hero .news-notes {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 14px 32px;
+    margin-bottom: 20px;
   }
-  .lang-btn .lang-code {
-    color: var(--fg);
+  .news-hero .news-notes section {
+    display: block;
   }
-  .lang-chev {
-    color: var(--fg-3);
-  }
-  .lang-menu {
-    width: 220px;
-    max-height: min(420px, 70vh);
-    overflow-y: auto;
-  }
-  .lang-menu .menu-item[aria-checked="true"] {
+  .news-hero .news-notes h3 {
+    margin: 0 0 8px;
+    padding: 0;
     color: var(--accent-text);
-    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
   }
-  .lang-item-code {
-    width: 26px;
+  .news-hero .news-notes ul {
+    padding-inline-start: 18px;
+    color: var(--fg-2);
+    font-size: 14px;
+  }
+  .news-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px 16px;
+  }
+  .news-bar .news-filters {
+    padding: 0;
+    gap: 6px;
+  }
+  .news-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 14px;
+  }
+  .news-card {
+    --src: var(--accent);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 150px;
+    padding: 18px 20px;
+    border-radius: var(--r-lg);
+    background: var(--card);
+    box-shadow: inset 0 0 0 1px var(--line);
+    color: var(--fg);
+    text-align: start;
+    transition:
+      translate var(--dur-fast) var(--ease-out),
+      box-shadow var(--dur-fast) var(--ease-out),
+      background-color var(--dur-fast) var(--ease-out);
+  }
+  .news-card[data-src="devforum"] {
+    --src: #38bdf8;
+  }
+  .news-card[data-src="newsroom"] {
+    --src: #f59e0b;
+  }
+  .news-card[data-src="client"] {
+    --src: #34d399;
+  }
+  button.news-card:hover {
+    translate: 0 -2px;
+    background: color-mix(in srgb, var(--src) 7%, var(--surface-1));
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--src) 45%, transparent),
+      0 18px 32px -22px color-mix(in srgb, var(--src) 70%, transparent);
+  }
+  .news-card-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     color: var(--fg-3);
+    font-size: 12px;
+  }
+  .news-src {
+    padding: 2px 9px;
+    border-radius: var(--r-pill);
+    background: color-mix(in srgb, var(--src) 18%, transparent);
+    color: var(--src);
     font-size: 11px;
     font-weight: 700;
   }
-
-
-  /* ======== Inside the pages: the script window's controls ========
-     Squared corners instead of pills, uppercase tracked labels over sections, tinted hairline
-     badges, purple for what's on. */
-
-  /* Page heads: a purple tick before the title; section titles as small caps labels. */
-  .page-title {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 20px;
-    font-weight: 700;
-    letter-spacing: 0;
+  .news-new {
+    width: 8px;
+    height: 8px;
+    margin-inline-start: auto;
+    border-radius: 50%;
+    background: var(--src);
+    box-shadow: 0 0 10px var(--src);
   }
-  .page-title::before {
-    content: "";
-    flex: none;
-    width: 3px;
-    height: 0.95em;
-    border-radius: 2px;
-    background: var(--accent);
-    box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 60%, transparent);
-  }
-  .page-sub {
-    color: var(--fg-3);
-    font-size: var(--fs-small);
-  }
-  .section-title {
-    color: var(--fg-2);
-    font-size: 11.5px;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-  }
-
-  /* Buttons: tight corners; the primary a purple slab with a lit top edge. */
-  .btn {
-    border-radius: var(--r-sm);
+  .news-card .news-title {
+    font-size: 15.5px;
     font-weight: 600;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
-  .btn-primary {
-    background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 88%, #fff), var(--accent));
-    box-shadow:
-      inset 0 0 0 1px color-mix(in srgb, var(--accent) 70%, #fff 0%),
-      inset 0 1px 0 rgb(255 255 255 / 0.18),
-      0 4px 14px -6px color-mix(in srgb, var(--accent) 80%, transparent);
+  .news-card .news-sum {
+    -webkit-line-clamp: 3;
+    font-size: 13px;
   }
-  .btn-primary:hover:not(:disabled, [aria-disabled="true"]) {
-    background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 78%, #fff), color-mix(in srgb, var(--accent) 92%, #fff));
-  }
-  .btn-danger {
-    background: color-mix(in srgb, var(--err) 10%, var(--surface-2));
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--err) 40%, transparent);
-  }
-  .btn-ghost {
-    box-shadow: none;
-    background: transparent;
-  }
-  .btn-play {
-    min-height: 54px;
-    border-radius: var(--r-md);
-    font-size: 15px;
-    letter-spacing: 0.04em;
-  }
-
-  /* Chips: squared tags; picked ones tinted purple with a purple edge. */
-  .chip {
-    border-radius: var(--r-sm);
-  }
-  .chip[aria-pressed="true"],
-  .chip[data-on] {
-    background: color-mix(in srgb, var(--accent) 16%, var(--surface-2));
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 60%, transparent);
-    color: var(--fg);
-  }
-  .tag {
-    border-radius: var(--r-xs);
-    background: var(--surface-2);
-    box-shadow: inset 0 0 0 1px var(--line);
-  }
-
-  /* Segmented controls and tab strips: a squared track; the chosen one tinted purple. */
-  .seg-group {
-    border-radius: var(--r-md);
-    padding: 3px;
-    background: var(--ground);
-  }
-  .seg {
-    border-radius: var(--r-sm);
-  }
-  .seg-thumb,
-  .seg[aria-pressed="true"],
-  .seg[aria-checked="true"] {
-    border-radius: var(--r-sm);
-    background: color-mix(in srgb, var(--accent) 18%, var(--surface-2));
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent);
-  }
-  .seg-group[data-thumb] .seg[aria-pressed="true"],
-  .seg-group[data-thumb] .seg[aria-checked="true"] {
-    background: transparent;
-    box-shadow: none;
-  }
-
-  /* Home's tabs: squared, the chosen one a purple slab. */
-  .home-strip .tab {
-    border-radius: var(--r-sm);
-    background: var(--surface-2);
-  }
-  .home-tab-on {
-    border-radius: var(--r-sm);
-  }
-
-  /* Fields: a sunken well with a hairline; focus lights the edge purple instead of an outline. */
-  .field {
-    border-radius: var(--r-sm);
-    border-color: var(--line);
-    background: var(--ground);
-  }
-  .field:hover:not(:disabled, :focus) {
-    border-color: var(--edge);
-  }
-  .field:focus,
-  .field:focus-within {
-    border-color: var(--accent);
-    outline: none;
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
-  }
-
-  /* Badges: tinted, with an edge in their own colour. */
-  .status-pill {
-    border-radius: var(--r-xs);
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 35%, transparent);
-    font-weight: 600;
-  }
-
-  /* Checkboxes: squared. */
-  .cb {
-    border-radius: var(--r-xs);
-  }
-
-  /* Numbered steps: squared tiles. */
-  .num {
-    border-radius: var(--r-sm);
-    background: var(--surface-2);
-    box-shadow: inset 0 0 0 1px var(--line);
-  }
-  .num-done {
-    background: var(--accent);
-    box-shadow: 0 0 12px -2px color-mix(in srgb, var(--accent) 70%, transparent);
-  }
-
-  /* Panels: a lit top edge, like the script window's sections. */
-  .panel {
-    background: linear-gradient(180deg, color-mix(in srgb, var(--surface-1) 92%, #fff), var(--surface-1) 48px);
-  }
-  .well {
-    border-radius: var(--r-sm);
-  }
-
-  /* Table rows: the selected one marked with a purple bar at its start. */
-  .row > td:first-child {
-    border-start-start-radius: var(--r-sm);
-    border-end-start-radius: var(--r-sm);
-  }
-  .row > td:last-child {
-    border-start-end-radius: var(--r-sm);
-    border-end-end-radius: var(--r-sm);
-  }
-  .row[data-selected] > td:first-child {
-    box-shadow: inset 3px 0 0 var(--accent);
-  }
-
-  /* Menus and popovers: squared items. */
-  .menu-item {
-    border-radius: var(--r-xs);
-  }
-
-  /* A disabled primary reads as off, not as a faded purple. */
-  .btn-primary:disabled,
-  .btn-primary[aria-disabled="true"] {
-    background: var(--surface-2);
-    box-shadow: inset 0 0 0 1px var(--line);
-    color: var(--fg-3);
-  }
-
-  /* Docked toolbars and Play's pickers: squared like the rest. */
-  .pill-toolbar {
-    border-radius: var(--r-md);
-    background: var(--surface-1);
-    box-shadow: inset 0 0 0 1px var(--line), 0 8px 24px -12px rgb(0 0 0 / 0.6);
-  }
-  .play-who-sum,
-  .launch-pill {
-    border-radius: var(--r-sm);
-  }
-  .toast {
-    border-radius: var(--r-md);
-    box-shadow: inset 0 0 0 1px var(--line), 0 10px 30px -12px rgb(0 0 0 / 0.7);
-  }
-
-  /* Every page starts at the same spot, so the title doesn't jump between tabs: left-aligned,
-     forms (Settings, Discord, Performance) one width, data pages one wider one. */
-  .set-page,
-  .dc-page,
-  .perf-page {
-    max-width: 920px;
-    margin-inline: 0;
-  }
-  .up-page,
-  .pg-page {
-    max-width: 1280px;
-    margin-inline: 0;
-  }
-  .page-sub {
-    margin-top: 6px;
-    max-width: 80ch;
-  }
-
-  /* Settings' areas: tabs under its title. */
-  .set-tabs {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    margin-bottom: 20px;
-    border-bottom: 1px solid var(--line);
-  }
-  .set-tab {
+  .news-card-go {
+    margin-top: auto;
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    height: 38px;
-    padding: 0 12px;
-    margin-bottom: -1px;
-    border-bottom: 2px solid transparent;
-    color: var(--fg-2);
-    font-size: 13.5px;
-    font-weight: 500;
-  }
-  .set-tab:hover {
-    color: var(--fg);
-  }
-  .set-tab[aria-selected="true"] {
-    border-bottom-color: var(--accent);
-    color: var(--fg);
+    gap: 6px;
+    color: var(--fg-3);
+    font-size: 12px;
     font-weight: 600;
   }
-  .set-tab[aria-selected="true"] > svg {
-    color: var(--accent-text);
+  button.news-card:hover .news-card-go {
+    color: var(--src);
+  }
+  @media (max-width: 900px) {
+    .news-hero {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .news-hero-art {
+      display: none;
+    }
   }
 }
