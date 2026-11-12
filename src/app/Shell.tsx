@@ -367,9 +367,6 @@ export function Shell({ vault, settings, islandSlot }: { vault: VaultStatus; set
           )}
         </ViewTransition>
         </Suspense>
-        <footer className="statusbar" aria-hidden="true">
-          {viewName} <span className="statusbar-sep">|</span> MTwin Hub v{import.meta.env.APP_VERSION}
-        </footer>
       </div>
 
       <AddAccountDialog

@@ -1786,5 +1786,10 @@
   "app.publicWord": "Public network",
   "play.sub": "Pick who plays and where, then launch.",
   "monitor.sub": "CPU, memory and state of every client you launched, live.",
-  "servers.sub": "See a game's servers, then join one with any of your accounts."
+  "servers.sub": "See a game's servers, then join one with any of your accounts.",
+  "app.group.play": "Play",
+  "app.group.track": "Track",
+  "app.group.tools": "Tools",
+  "app.sidebarFold": "Collapse sidebar",
+  "app.sidebarOpen": "Expand sidebar"
 }

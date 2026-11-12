@@ -3,18 +3,15 @@
    the foot. In its own layer above the views and below the utilities, so it restyles RoALT's
    components without editing them, and a view's utility class still wins. */
 @layer brand {
+  /* A sans face for reading; the mono one marks labels, numbers and code. */
   :root {
-    --font-ui: "Geist Mono Variable", ui-monospace, "Cascadia Mono", Consolas, monospace;
+    --font-label: "Geist Mono Variable", ui-monospace, "Cascadia Mono", Consolas, monospace;
     --r-xl: 14px;
     --r-lg: 10px;
     --r-md: 8px;
     --r-sm: 6px;
     --r-xs: 4px;
     --fs-title: 22px;
-  }
-  /* Scripts the mono face lacks fall back per language, as tokens.css does for the sans one. */
-  :root:lang(th) {
-    --font-ui: "Geist Mono Variable", "Leelawadee UI", "Segoe UI", ui-monospace, monospace;
   }
   :root:not([data-theme="light"]) {
     --ground: #121214;
@@ -35,11 +32,6 @@
     box-shadow: inset 0 0 0 1px var(--line);
   }
 
-  /* Title bar: one solid strip over everything, its foot ruled. */
-  .titlebar {
-    background: var(--surface-1);
-    border-bottom: 1px solid var(--line);
-  }
   .app-menu-btn .wordmark {
     font-weight: 700;
     letter-spacing: 0.01em;
@@ -54,95 +46,226 @@
     display: none;
   }
 
-  /* The icon column. */
+  /* The frame: the title bar and the sidebar are one piece of chrome; the page is a sheet set into
+     it, its top corner rounded. */
+  .shell {
+    background: var(--surface-1);
+  }
+  .stage {
+    background: var(--ground);
+    border-start-start-radius: var(--r-xl);
+    box-shadow: inset 1px 1px 0 var(--line);
+    overflow: hidden;
+  }
+  .titlebar {
+    border-bottom: 0;
+  }
+
+  /* The sidebar: named places in groups; Settings, who's online and the version at its foot. */
   .sidebar {
     flex: none;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    width: 56px;
-    padding: 10px 8px;
+    width: 212px;
+    padding: 6px 10px 10px;
     background: var(--surface-1);
-    border-inline-end: 1px solid var(--line);
+    transition: width var(--dur-base) var(--ease-out);
+  }
+  .sidebar[data-folded] {
+    width: 60px;
+  }
+  .sb-scroll {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
     overflow-y: auto;
     scrollbar-width: none;
   }
-  .sb-list,
-  .sb-foot,
-  .sb-sub {
+  .sb-group {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 6px;
+    gap: 2px;
   }
-  .sb-sub {
-    padding: 6px 0;
-    margin-bottom: 4px;
-    border-radius: var(--r-md);
-    background: var(--surface-2);
-    width: 100%;
+  .sb-heading {
+    padding: 6px 10px 4px;
+    color: var(--fg-3);
+    font: 700 10.5px/1 var(--font-label);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    white-space: nowrap;
   }
   .sb-item {
     position: relative;
-    display: grid;
-    place-items: center;
-    width: 40px;
-    height: 40px;
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    width: 100%;
+    height: 34px;
+    padding: 0 10px;
     border-radius: var(--r-md);
-    color: var(--fg-3);
+    color: var(--fg-2);
+    font-size: 13.5px;
+    font-weight: 500;
+    text-align: start;
+    white-space: nowrap;
     transition:
       background-color var(--dur-fast) var(--ease-out),
       color var(--dur-fast) var(--ease-out);
   }
-  .sb-item.sb-small {
-    width: 32px;
-    height: 32px;
+  .sb-item > svg {
+    flex: none;
+    color: var(--fg-3);
+    transition: color var(--dur-fast) var(--ease-out);
   }
   .sb-item:hover {
     background: var(--hover);
     color: var(--fg);
   }
+  .sb-item:hover > svg {
+    color: var(--fg);
+  }
   .sb-item[aria-current="page"] {
-    background: color-mix(in srgb, var(--accent) 20%, transparent);
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+    color: var(--fg);
+    font-weight: 600;
+  }
+  .sb-item[aria-current="page"] > svg {
     color: var(--accent-text);
   }
-  .sb-sep {
-    width: 24px;
-    height: 1px;
-    margin: 4px 0;
-    background: var(--line);
+  /* The place on screen: a purple bar at the sidebar's edge. */
+  .sb-item[aria-current="page"]::before {
+    content: "";
+    position: absolute;
+    inset-block: 8px;
+    inset-inline-start: -10px;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: var(--accent);
+  }
+  .sb-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .sb-count {
+    padding: 1px 6px;
+    border-radius: var(--r-xs);
+    background: var(--surface-3);
+    color: var(--fg-2);
+    font: 600 11px/1.4 var(--font-label);
   }
   .sb-badge {
-    position: absolute;
-    top: 3px;
-    inset-inline-end: 3px;
-    min-width: 15px;
-    height: 15px;
+    min-width: 16px;
+    height: 16px;
     padding: 0 4px;
     border-radius: var(--r-pill);
     background: var(--accent);
     color: var(--on-accent);
-    font-size: 9.5px;
+    font-size: 10px;
     font-weight: 700;
-    line-height: 15px;
+    line-height: 16px;
+    text-align: center;
   }
-
-  /* The status line under every view. */
-  .statusbar {
+  .sb-foot {
     flex: none;
-    height: 26px;
     display: flex;
-    align-items: center;
-    justify-content: center;
+    flex-direction: column;
     gap: 8px;
-    background: var(--surface-1);
+    padding-top: 8px;
+  }
+  .sb-status {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 10px 2px;
     border-top: 1px solid var(--line);
     color: var(--fg-3);
-    font-size: 11.5px;
+    font-size: 12px;
+    white-space: nowrap;
   }
-  .statusbar-sep {
-    opacity: 0.5;
+  .sb-online {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .sb-online b {
+    color: var(--fg);
+    font-weight: 600;
+  }
+  .sb-dot {
+    flex: none;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--ok);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 22%, transparent);
+  }
+  .sb-base {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .sb-version {
+    font-family: var(--font-label);
+    font-size: 11px;
+  }
+  .sb-fold {
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    margin-inline-end: -6px;
+    border-radius: var(--r-sm);
+    color: var(--fg-3);
+  }
+  .sb-fold:hover {
+    background: var(--hover);
+    color: var(--fg);
+  }
+  /* Folded: a rail of icons. */
+  .sidebar[data-folded] .sb-label,
+  .sidebar[data-folded] .sb-count,
+  .sidebar[data-folded] .sb-heading {
+    display: none;
+  }
+  .sidebar[data-folded] .sb-group + .sb-group {
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+  }
+  .sidebar[data-folded] .sb-scroll {
+    gap: 12px;
+  }
+  .sidebar[data-folded] .sb-item {
+    justify-content: center;
+    padding: 0;
+  }
+  .sidebar[data-folded] .sb-status {
+    align-items: center;
+    padding-inline: 0;
+  }
+  .sidebar[data-folded] .sb-base {
+    justify-content: center;
+  }
+  .sidebar[data-folded] .sb-fold {
+    margin: 0;
+    rotate: 180deg;
+  }
+
+  /* Labels in the mono face: what marks MTwin Hub's look without costing readability. */
+  .app-menu-btn .wordmark,
+  .section-title,
+  .kbd,
+  .tag,
+  .status-pill,
+  .lang-btn,
+  .set-card-title,
+  .pg-strip-k,
+  .pg-kind,
+  .capsule-count {
+    font-family: var(--font-label);
   }
 
   /* Settings' sections as the script window's collapsible cards: icon, name, chevron. */
@@ -185,50 +308,6 @@
   .meter-fill,
   .meter > span {
     background: var(--accent);
-  }
-
-  /* Who's online: one pill, two labelled counts. */
-  .online-pill {
-    display: inline-flex;
-    align-items: center;
-    height: 26px;
-    margin-inline: 4px 2px;
-    border-radius: var(--r-pill);
-    background: var(--surface-2);
-    box-shadow: inset 0 0 0 1px var(--line);
-    font-size: 11.5px;
-    white-space: nowrap;
-  }
-  .online-seg {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 0 10px;
-  }
-  .online-seg + .online-seg {
-    border-inline-start: 1px solid var(--line);
-  }
-  .online-seg b {
-    color: var(--fg);
-    font-weight: 700;
-  }
-  .online-word {
-    color: var(--fg-3);
-  }
-  .online-pill .online-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--ok);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 22%, transparent);
-  }
-  .online-pill .online-playing {
-    color: var(--accent-text);
-  }
-  @media (max-width: 860px) {
-    .online-word {
-      display: none;
-    }
   }
 
   /* Settings > About: the update card. */
@@ -607,5 +686,37 @@
   .page-sub {
     margin-top: 6px;
     max-width: 80ch;
+  }
+
+  /* Settings' areas: tabs under its title. */
+  .set-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--line);
+  }
+  .set-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 38px;
+    padding: 0 12px;
+    margin-bottom: -1px;
+    border-bottom: 2px solid transparent;
+    color: var(--fg-2);
+    font-size: 13.5px;
+    font-weight: 500;
+  }
+  .set-tab:hover {
+    color: var(--fg);
+  }
+  .set-tab[aria-selected="true"] {
+    border-bottom-color: var(--accent);
+    color: var(--fg);
+    font-weight: 600;
+  }
+  .set-tab[aria-selected="true"] > svg {
+    color: var(--accent-text);
   }
 }

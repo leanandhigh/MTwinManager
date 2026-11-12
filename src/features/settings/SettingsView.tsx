@@ -1,7 +1,7 @@
 import "./settings.css";
 import { memo, useCallback, useDeferredValue, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { SECTION_ICON, SECTION_VIEW, useNavigationRequests, VIEW_NAME, type Section, type View } from "../../app/navigation";
+import { requestNavigation, SECTION_ICON, SECTION_VIEW, useNavigationRequests, VIEW_NAME, type Section, type View } from "../../app/navigation";
 import { t } from "../../i18n";
 import { Input } from "../../ui/Field";
 import { Icon, type IconName } from "../../ui/Icon";
@@ -74,7 +74,8 @@ export function SettingsView({ area = "launching" }: { area?: SettingsArea }) {
   const hits = groups?.reduce((n, g) => n + g.hits.length, 0) ?? 0;
   const first = groups?.[0]?.hits[0]?.row;
   const def = AREAS.find((a) => a.id === area)!;
-  const title = groups ? t("settings.title") : t(def.label);
+  // The area on screen is named by its tab.
+  const title = t("settings.title");
   // Before the frame a jump into the new area lands in (jump.ts), so it doesn't undo that scroll.
   useLayoutEffect(() => {
     main.current?.scrollTo({ top: 0, behavior: "instant" });
@@ -115,6 +116,16 @@ export function SettingsView({ area = "launching" }: { area?: SettingsArea }) {
               </p>
             </div>
           </header>
+          {!groups && (
+            <div className="set-tabs" role="tablist" aria-label={t("app.nav.settings")}>
+              {AREAS.map((a) => (
+                <button key={a.id} type="button" role="tab" className="set-tab" aria-selected={a.id === area} onClick={() => requestNavigation("settings", a.id)}>
+                  <Icon name={a.icon} size={15} />
+                  {t(a.label)}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="relative">
             <AnimatePresence mode="popLayout" initial={false}>
               <motion.div

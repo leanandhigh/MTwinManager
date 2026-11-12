@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import type { VaultMode } from "../api";
-import { useOnline, useSettings } from "../data";
-import { fmtNum, t } from "../i18n";
+import { t } from "../i18n";
 import { DISCORD_INVITE } from "./links";
 import { Icon, Logo } from "../ui/Icon";
 import { MenuItem, MenuSeparator, Popover, useAnchor } from "../ui/Popover";
@@ -11,8 +10,8 @@ import { KillAllButton } from "./KillAll";
 import { requestNavigation } from "./navigation";
 
 /** The logo and name, as the app's own menu: the vault's state, the community, Donate, and the keys
- * that used to sit in the sidebar's foot. While locked, only what needs no vault. Beside it, how
- * many use RoALT now while that's on, then a Discord button: the community one click away. */
+ * that used to sit in the sidebar's foot. While locked, only what needs no vault. Beside it, a
+ * Discord button: the community one click away. */
 export function AppMenu({ unlocked, vaultMode, onRefresh }: {
   unlocked: boolean;
   vaultMode?: VaultMode;
@@ -20,13 +19,6 @@ export function AppMenu({ unlocked, vaultMode, onRefresh }: {
 }) {
   const anchor = useAnchor();
   const [open, setOpen] = useState(false);
-  const counting = useSettings().data?.onlineCount ?? false;
-  const online = useOnline(counting).data;
-  // The cache outlives a switch turned off; the setting decides.
-  const n = counting ? online?.online ?? null : null;
-  const playing = n === null ? null : online?.playing ?? null;
-  const compact = (v: number) => fmtNum(v, { notation: "compact", maximumFractionDigits: 1 });
-  const counts = [n !== null && t("app.onlineNow", { count: n }), playing !== null && t("app.playingNow", { count: playing })].filter(Boolean).join(" · ");
   const id = "app-menu";
   return (
     <>
@@ -35,23 +27,6 @@ export function AppMenu({ unlocked, vaultMode, onRefresh }: {
         <span className="wordmark">MTwin Hub</span>
         <Icon name="chevron" size={12} className="app-menu-chevron" />
       </button>
-      {/* RoALT's own counts, beside its logo and apart from Discord, so they don't read as Discord's. */}
-      {n !== null && (
-        <span className="online-pill" role="img" aria-label={counts} data-tip={counts}>
-          <span className="online-seg">
-            <span className="online-dot" />
-            <b>{compact(n)}</b>
-            <span className="online-word">{t("app.onlineShort")}</span>
-          </span>
-          {playing !== null && (
-            <span className="online-seg">
-              <Icon name="play" size={10} className="online-playing" />
-              <b>{compact(playing)}</b>
-              <span className="online-word">{t("app.playingShort")}</span>
-            </span>
-          )}
-        </span>
-      )}
       <button type="button" className="wc" aria-label={t("app.joinDiscord")} data-tip={t("app.joinDiscord")} onClick={() => openUrl(DISCORD_INVITE).catch(toastError)}>
         <Icon name="discord" size={16} />
       </button>

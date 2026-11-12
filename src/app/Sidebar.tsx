@@ -1,85 +1,126 @@
 import type { KeyboardEvent } from "react";
+import { useOnline, useSettings } from "../data";
+import { fmtNum, t, type Key } from "../i18n";
 import { Icon } from "../ui/Icon";
 import type { IslandLeaf, IslandModel } from "../ui/island/model";
+import { useStored } from "../ui/stored";
 
-/** MTwin Hub's navigation: a column of icons down the left, as in its in-game script window. The
- * main places in the user's order, then the tools, and Settings at the foot, whose areas open
- * under it while Settings is on screen. Each icon's name is its tooltip and accessible name. */
+/** Where each place sits: grouped by what it is for, not by when it was added. */
+const GROUPS: { label: Key; ids: string[] }[] = [
+  { label: "app.group.play", ids: ["home", "play", "accounts", "servers"] },
+  { label: "app.group.track", ids: ["progress", "monitor", "updates"] },
+  { label: "app.group.tools", ids: ["browse", "performance", "discord", "debug"] },
+];
+
+/** MTwin Hub's navigation: a column of named places in three groups, Settings at its foot, then who's online and the version. It folds to a rail
+ * of icons, where each icon's name is its tooltip. */
 export function Sidebar({ model }: { model: IslandModel }) {
-  const order = model.mainOrder.ids;
-  const main = [...model.main].sort((a, b) => rank(order, a.id) - rank(order, b.id));
-  const tools = model.groups.find((g) => g.id === "tools");
+  const [folded, setFolded] = useStored("mtwin.sidebarFolded", (v) => v === "1", (v) => (v ? "1" : "0"));
+  const all = new Map([...model.main, ...model.groups.flatMap((g) => (g.id === "tools" ? g.children : []))].map((l) => [l.id, l]));
+  const placed = new Set(GROUPS.flatMap((g) => g.ids));
+  // A place this list doesn't know yet still shows, under Tools.
+  const extra = [...all.keys()].filter((id) => !placed.has(id));
   const settings = model.groups.find((g) => g.id === "settings");
   const inSettings = !!settings?.children.some((c) => c.current);
 
-  // Up and down move between icons (one Tab stop for the column).
+  const counting = useSettings().data?.onlineCount ?? false;
+  const online = useOnline(counting).data;
+  const n = counting ? online?.online ?? null : null;
+  const playing = n === null ? null : online?.playing ?? null;
+  const compact = (v: number) => fmtNum(v, { notation: "compact", maximumFractionDigits: 1 });
+
+  // Up and down move between places (one Tab stop for the column).
   const keys = (e: KeyboardEvent<HTMLElement>) => {
     if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
-    const all = [...e.currentTarget.querySelectorAll<HTMLButtonElement>("button.sb-item")];
-    const at = all.indexOf(document.activeElement as HTMLButtonElement);
+    const items = [...e.currentTarget.querySelectorAll<HTMLButtonElement>("button.sb-item")];
+    const at = items.indexOf(document.activeElement as HTMLButtonElement);
     if (at < 0) return;
     e.preventDefault();
-    all[(at + (e.key === "ArrowDown" ? 1 : -1) + all.length) % all.length]?.focus();
+    items[(at + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length]?.focus();
   };
 
   return (
-    <nav className="sidebar" aria-label={model.label} onKeyDown={keys}>
-      <div className="sb-list">
-        {main.map((l) => (
-          <Item key={l.id} leaf={l} />
-        ))}
-        {tools && (
-          <>
-            <span className="sb-sep" aria-hidden="true" />
-            {tools.children.map((l) => (
-              <Item key={l.id} leaf={l} />
-            ))}
-          </>
-        )}
-      </div>
-      {settings && (
-        <div className="sb-foot">
-          {inSettings && (
-            <div className="sb-sub" role="group" aria-label={settings.label}>
-              {settings.children.map((l) => (
-                <Item key={l.id} leaf={l} small />
+    <nav className="sidebar" aria-label={model.label} data-folded={folded || undefined} onKeyDown={keys}>
+      <div className="sb-scroll">
+        {GROUPS.map((g, gi) => {
+          const leaves = [...g.ids, ...(gi === GROUPS.length - 1 ? extra : [])].flatMap((id) => all.get(id) ?? []);
+          if (!leaves.length) return null;
+          return (
+            <div key={g.label} className="sb-group" role="group" aria-label={t(g.label)}>
+              <span className="sb-heading" aria-hidden="true">{t(g.label)}</span>
+              {leaves.map((l) => (
+                <Item key={l.id} leaf={l} folded={folded} />
               ))}
             </div>
+          );
+        })}
+      </div>
+
+      <div className="sb-foot">
+        {settings && (
+          <div className="sb-group">
+            <button
+              type="button"
+              className="sb-item"
+              aria-label={settings.label}
+              aria-current={inSettings ? "page" : undefined}
+              data-tip={folded ? settings.label : undefined}
+              data-tip-kbd={folded ? settings.children[0]?.shortcut : undefined}
+              onClick={() => (inSettings ? undefined : settings.children[0]?.onSelect())}
+            >
+              <Icon name={settings.icon} size={17} />
+              <span className="sb-label">{settings.label}</span>
+            </button>
+          </div>
+        )}
+        <div className="sb-status">
+          {n !== null && (
+            <span className="sb-online" data-tip={folded ? t("app.onlineNow", { count: n }) : undefined}>
+              <span className="sb-dot" aria-hidden="true" />
+              <span className="sb-label">
+                <b>{compact(n)}</b> {t("app.onlineShort")}
+                {playing !== null && (
+                  <>
+                    {" · "}
+                    <b>{compact(playing)}</b> {t("app.playingShort")}
+                  </>
+                )}
+              </span>
+            </span>
           )}
-          <button
-            type="button"
-            className="sb-item"
-            aria-label={settings.label}
-            aria-current={inSettings ? "page" : undefined}
-            data-tip={settings.label}
-            data-tip-kbd={settings.children[0]?.shortcut}
-            onClick={() => (inSettings ? undefined : settings.children[0]?.onSelect())}
-          >
-            <Icon name={settings.icon} size={18} />
-          </button>
+          <div className="sb-base">
+            <span className="sb-label sb-version">v{import.meta.env.APP_VERSION}</span>
+            <button
+              type="button"
+              className="sb-fold"
+              aria-label={t(folded ? "app.sidebarOpen" : "app.sidebarFold")}
+              aria-pressed={folded}
+              data-tip={t(folded ? "app.sidebarOpen" : "app.sidebarFold")}
+              onClick={() => setFolded(!folded)}
+            >
+              <Icon name="back" size={15} />
+            </button>
+          </div>
         </div>
-      )}
+      </div>
     </nav>
   );
 }
 
-const rank = (order: string[], id: string) => {
-  const i = order.indexOf(id);
-  return i < 0 ? order.length : i;
-};
-
-function Item({ leaf, small }: { leaf: IslandLeaf; small?: boolean }) {
+function Item({ leaf, folded }: { leaf: IslandLeaf; folded: boolean }) {
   return (
     <button
       type="button"
-      className={`sb-item ${small ? "sb-small" : ""}`}
+      className="sb-item"
       aria-label={leaf.count !== undefined ? `${leaf.label}, ${leaf.count}` : leaf.label}
       aria-current={leaf.current ? "page" : undefined}
-      data-tip={leaf.label}
+      data-tip={folded ? leaf.label : leaf.shortcut ? leaf.label : undefined}
       data-tip-kbd={leaf.shortcut}
       onClick={leaf.onSelect}
     >
-      <Icon name={leaf.icon} size={small ? 15 : 18} />
+      <Icon name={leaf.icon} size={17} />
+      <span className="sb-label">{leaf.label}</span>
+      {leaf.count !== undefined && <span className="sb-count">{leaf.count}</span>}
       {!!leaf.badge && <span className="sb-badge" aria-hidden="true">{leaf.badge}</span>}
     </button>
   );
