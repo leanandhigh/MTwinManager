@@ -22,7 +22,6 @@ export function SettingSection({ label, ids = [], children }: { label?: Key; ids
       <div className="panel set-group">
         {title && (
           <button type="button" className="set-card-head" aria-expanded={!closed} aria-controls={body} onClick={() => setClosed(!closed)}>
-            {area && <Icon name={area.icon} size={16} className="set-card-icon" />}
             <h2 id={heading} className="set-card-title">{title}</h2>
             <Icon name="chevron" size={14} className="set-card-chevron" />
           </button>

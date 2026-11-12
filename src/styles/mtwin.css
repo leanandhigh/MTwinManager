@@ -609,15 +609,6 @@
   .set-card-head:hover .set-card-title {
     color: var(--fg);
   }
-  .set-card-icon {
-    display: grid;
-    place-items: center;
-    width: 30px;
-    height: 30px;
-    border-radius: var(--r-sm);
-    background: color-mix(in srgb, var(--accent) 20%, transparent);
-    color: var(--accent-text);
-  }
   .set-card-title {
     flex: 1;
     min-width: 0;

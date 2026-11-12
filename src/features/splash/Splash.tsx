@@ -26,7 +26,7 @@ function seen() {
 const FIRST: SplashPhase = seen() ? "gone" : "play";
 setSplashPhase(FIRST);
 
-/** The start-up splash over the app: the mark rises in a turning ring while the bar fills, then the window
+/** The start-up splash over the app: the mark rises over a violet glow while the bar fills, then the window
  * (opened small by `splash::start`) grows into the app and this fades away. */
 export function Splash() {
   const [state, setState] = useState<SplashPhase>(FIRST);
@@ -57,24 +57,19 @@ export function Splash() {
       onTransitionEnd={(e) => e.target === e.currentTarget && setState("gone")}
       aria-hidden="true"
     >
-      <div className="sp-glow" />
-      <div className="sp-grid" />
+      <div className="sp-aura" />
       <div className="sp-body" data-tauri-drag-region>
         <div className="sp-logo">
-          <span className="sp-ring" />
+          <span className="sp-halo" />
           <img src={logo} alt="" draggable={false} />
         </div>
-        <div className="sp-word">
-          MTWIN <b>HUB</b>
-        </div>
+        <div className="sp-word">MTwin Hub</div>
+        <div className="sp-status">{t("common.loading")}</div>
         <div className="sp-bar">
           <span />
         </div>
-        <div className="sp-foot">
-          <span className="sp-status">{t("common.loading")}</span>
-          <span>v{import.meta.env.APP_VERSION}</span>
-        </div>
       </div>
+      <span className="sp-version">v{import.meta.env.APP_VERSION}</span>
     </div>
   );
 }
