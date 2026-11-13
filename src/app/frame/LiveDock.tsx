@@ -88,7 +88,16 @@ export function LiveDock({ accounts }: { accounts: AccountSummary[] }) {
           <div className="ld-toggles">
             <label className="ld-toggle">
               <span>{t("live.autoTile")}</span>
-              <Switch label={t("live.autoTile")} checked={layout !== "off"} onChange={(on) => set.mutate({ windowLayout: on ? "fit" : "off" })} />
+              <Switch label={t("live.autoTile")} checked={layout !== "off"} onChange={(on) => set.mutate(on ? { windowLayout: "fit", tinyOnLaunch: false } : { windowLayout: "off" })} />
+            </label>
+            {/* Tiny and the tiled layout place windows differently: one at a time. */}
+            <label className="ld-toggle" data-tip={t("live.autoTinyHint")}>
+              <span>{t("live.autoTiny")}</span>
+              <Switch label={t("live.autoTiny")} checked={!!settings?.tinyOnLaunch && layout === "off"} onChange={(on) => {
+                  set.mutate(on ? { tinyOnLaunch: true, windowLayout: "off" } : { tinyOnLaunch: false });
+                  // The clients already running follow: made tiny, or back to their size.
+                  for (const i of running) if (i.micro !== on) api.instanceMicro(i.id, on).catch(() => {});
+                }} />
             </label>
             <label className="ld-toggle">
               <span>{t("live.autoMinimize")}</span>
