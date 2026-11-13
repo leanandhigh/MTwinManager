@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { api, asError, events, type ErrorPayload } from "../../api";
 import { readStored, writeStored } from "../../ui/stored";
 
-/** Lines kept in view; older ones stay in roalt.log. */
+/** Lines kept in view; older ones stay in mtwin.log. */
 const KEEP = 5000;
-/** History read from roalt.log when the tab opens. */
+/** History read from mtwin.log when the tab opens. */
 const HISTORY = 2000;
 
 export const LEVELS = ["error", "warn", "info", "debug"] as const;
@@ -14,7 +14,7 @@ export type Line = { id: number; level: Level; text: string };
 /** tauri-plugin-log's numeric levels (Trace 1 … Error 5). */
 const BY_NUMBER: Record<number, Level> = { 1: "debug", 2: "debug", 3: "info", 4: "warn", 5: "error" };
 
-/** The `[LEVEL]` tag of a roalt.log line; lines without one (a panic's next lines) follow `prev`. */
+/** The `[LEVEL]` tag of a mtwin.log line; lines without one (a panic's next lines) follow `prev`. */
 function levelOf(text: string, prev: Level): Level {
   const m = /\[(TRACE|DEBUG|INFO|WARN|ERROR)\]/.exec(text);
   if (!m) return text.startsWith("[fatal]") ? "error" : prev;
@@ -23,9 +23,9 @@ function levelOf(text: string, prev: Level): Level {
 
 let nextId = 0;
 
-/** The newest line Clear hid. roalt.log keeps everything (the diagnostics report reads it), so what
+/** The newest line Clear hid. mtwin.log keeps everything (the diagnostics report reads it), so what
  * the history shows starts after this line, across tab switches and restarts. */
-const CLEARED_KEY = "roalt.debug.clearedAfter";
+const CLEARED_KEY = "mtwin.debug.clearedAfter";
 
 /** The lines after the last `marker`; all of them when it has aged out of `lines`, as they are then
  * all newer than it. */
@@ -36,7 +36,7 @@ function afterMarker(lines: string[], marker: string | null): string[] {
 
 const keep = (lines: Line[]) => (lines.length > KEEP ? lines.slice(-KEEP) : lines);
 
-/** roalt.log's tail, then each line as MTwin Manager writes it. New lines land once per frame, so a burst is
+/** mtwin.log's tail, then each line as MTwin Manager writes it. New lines land once per frame, so a burst is
  * one render; while `paused` they wait, counted in `held`. */
 export function useLogStream(paused: boolean) {
   const [lines, setLines] = useState<Line[]>([]);

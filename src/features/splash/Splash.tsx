@@ -8,13 +8,13 @@ import logo from "../../assets/mtwin-logo.png";
 /** When the window grows: the bar fills by 4.9 s, then the window grows. */
 const GROW_MS = 3000 + 2000;
 /** Set once the splash has run: a webview reload doesn't play it again. */
-const KEY = "roalt.splash";
+const KEY = "mtwin.splash";
 
 function seen() {
   // A dev preview with ?splash=1 plays it again.
   if (import.meta.env.DEV && new URLSearchParams(location.search).has("splash")) return false;
   // Settings.skip_splash, from `main_window`: the window is already full size.
-  if ((window as { __ROALT_SKIP_SPLASH?: boolean }).__ROALT_SKIP_SPLASH) return true;
+  if ((window as { __MTWIN_SKIP_SPLASH?: boolean }).__MTWIN_SKIP_SPLASH) return true;
   try {
     return sessionStorage.getItem(KEY) !== null;
   } catch {

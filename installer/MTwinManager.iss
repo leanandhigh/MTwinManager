@@ -13,7 +13,7 @@
   #define AppNumVersion AppVersion
 #endif
 #ifndef AppExe
-  #define AppExe "..\src-tauri\target\release\roalt.exe"
+  #define AppExe "..\src-tauri\target\release\mtwin-manager.exe"
 #endif
 
 [Setup]
@@ -24,7 +24,10 @@ AppPublisher=MTwin Manager
 AppPublisherURL=https://github.com/leanandhigh/RoALT
 VersionInfoVersion={#AppNumVersion}
 ; Per-user: {autopf} is %LOCALAPPDATA%\Programs.
-DefaultDirName={autopf}\RoALT
+DefaultDirName={autopf}\MTwin Manager
+; Installs made before the rename were in {autopf}\RoALT: this one goes to the new folder and the
+; old one is removed ([InstallDelete]); the data folder is the app's own and it moves that itself.
+UsePreviousAppDir=no
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
@@ -33,12 +36,12 @@ ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0.17763
 WizardStyle=modern dynamic windows11
 SetupIconFile=..\src-tauri\icons\icon.ico
-UninstallDisplayIcon={app}\RoALT.exe
+UninstallDisplayIcon={app}\MTwin Manager.exe
 UninstallDisplayName=MTwin Manager
 ; Restart Manager closes a running MTwin Manager before its exe is replaced.
 CloseApplications=force
 OutputDir=..\dist-installer
-OutputBaseFilename=RoALT-Setup-{#AppVersion}
+OutputBaseFilename=MTwinManager-Setup-{#AppVersion}
 Compression=lzma2/max
 SolidCompression=yes
 
@@ -46,31 +49,33 @@ SolidCompression=yes
 Name: desktopicon; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 
 [Files]
-Source: "{#AppExe}"; DestDir: "{app}"; DestName: "RoALT.exe"; Flags: ignoreversion
+Source: "{#AppExe}"; DestDir: "{app}"; DestName: "MTwin Manager.exe"; Flags: ignoreversion
 
 [InstallDelete]
-; Shortcuts under earlier names (RoALT, then MTwin Hub).
+; The program folder and shortcuts under earlier names (RoALT, then MTwin Hub).
+Type: filesandordirs; Name: "{autopf}\RoALT"
 Type: files; Name: "{autoprograms}\RoALT.lnk"
 Type: files; Name: "{autodesktop}\RoALT.lnk"
 Type: files; Name: "{autoprograms}\MTwin Hub.lnk"
 Type: files; Name: "{autodesktop}\MTwin Hub.lnk"
 
 [Icons]
-Name: "{autoprograms}\MTwin Manager"; Filename: "{app}\RoALT.exe"
-Name: "{autodesktop}\MTwin Manager"; Filename: "{app}\RoALT.exe"; Tasks: desktopicon
+Name: "{autoprograms}\MTwin Manager"; Filename: "{app}\MTwin Manager.exe"
+Name: "{autodesktop}\MTwin Manager"; Filename: "{app}\MTwin Manager.exe"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\RoALT.exe"; Description: "{cm:LaunchProgram,MTwin Manager}"; Flags: nowait postinstall skipifsilent; Check: WebView2Installed
+Filename: "{app}\MTwin Manager.exe"; Description: "{cm:LaunchProgram,MTwin Manager}"; Flags: nowait postinstall skipifsilent; Check: WebView2Installed
 ; MTwin Manager's self-updater runs Setup with /VERYSILENT ... /RELAUNCH and quits: start it again.
-Filename: "{app}\RoALT.exe"; Flags: nowait; Check: Relaunch
+Filename: "{app}\MTwin Manager.exe"; Flags: nowait; Check: Relaunch
 
 [Code]
 const
   WebView2Key = 'Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}';
   { Microsoft's Evergreen Bootstrapper: Setup only opens the link, it downloads nothing itself. }
   WebView2Download = 'https://go.microsoft.com/fwlink/p/?LinkId=2124703';
-  { tauri-plugin-single-instance holds <identifier>-sim while MTwin Manager runs. }
-  RunningMutex = 'com.inspectsoftware.roalt-sim';
+  { tauri-plugin-single-instance holds <identifier>-sim while MTwin Manager runs (the second: a
+    version from before the rename). }
+  RunningMutex = 'com.mtwin.manager-sim,com.inspectsoftware.roalt-sim';
 
 function HasWebView2(Root: Integer): Boolean;
 var
@@ -122,7 +127,7 @@ procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
   Data: String;
 begin
-  Data := ExpandConstant('{localappdata}\RoALT');
+  Data := ExpandConstant('{localappdata}\MTwin Manager');
   if (CurUninstallStep <> usPostUninstall) or UninstallSilent or not DirExists(Data) then
     exit;
   { Keep is the first button, so the default: TaskDialogMsgBox has no default-button flag. }
@@ -132,6 +137,9 @@ begin
       '&Delete them' #13#10 'Saved accounts, cookies, groups and settings. This cannot be undone.'], 0) = IDNO then begin
     DelTree(Data, True, True, True);
     { The window position tauri-plugin-window-state keeps. }
+    DelTree(ExpandConstant('{userappdata}\com.mtwin.manager'), True, True, True);
+    { What a version from before the rename left, if the app never started since to move it. }
+    DelTree(ExpandConstant('{localappdata}\RoALT'), True, True, True);
     DelTree(ExpandConstant('{userappdata}\com.inspectsoftware.roalt'), True, True, True);
   end;
 end;

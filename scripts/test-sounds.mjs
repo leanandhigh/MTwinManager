@@ -70,7 +70,7 @@ sound.setSoundPreferences({ volume: 0.4 });
 document.hidden = true;
 sound.playSound("click");
 assert.equal(notes.length, 2, "hidden views stay quiet");
-assert.deepEqual(JSON.parse(storage.get("roalt.sounds")), { enabled: true, volume: 0.4 });
+assert.deepEqual(JSON.parse(storage.get("mtwin.sounds")), { enabled: true, volume: 0.4 });
 console.log("Sound checks passed: toggle direction, notifications, throttling, mute, volume, persistence, and event order.");
 // The 30 s auto-suspend timer would hold the process open.
 process.exit(0);

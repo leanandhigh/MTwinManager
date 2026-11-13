@@ -1215,10 +1215,10 @@ pub fn logs_open(app: AppHandle, s: State<'_, App>) -> Result<()> {
     app.opener().open_path(dir.display().to_string(), None::<&str>).map_err(|e| AppError::Internal(e.to_string()))
 }
 
-/// The last `lines` lines of `logs/roalt.log` (at most 10 000): the Debug tab's history.
+/// The last `lines` lines of `logs/mtwin.log` (at most 10 000): the Debug tab's history.
 #[tauri::command]
 pub async fn debug_tail(s: State<'_, App>, lines: u32) -> Result<Vec<String>> {
-    let path = s.data_dir.join("logs").join("roalt.log");
+    let path = s.data_dir.join("logs").join("mtwin.log");
     blocking(move || tail(&path, lines.min(10_000) as usize)).await?
 }
 
@@ -1426,19 +1426,19 @@ pub fn shutdown_status(s: State<'_, App>) -> Option<i64> {
     *s.shutdown.lock().unwrap_or_else(|e| e.into_inner())
 }
 
-/// Copies the database into `path` (a new folder or one without a roalt.db; not the current
+/// Copies the database into `path` (a new folder or one without a mtwin.db; not the current
 /// folder or inside it) with SQLite's `VACUUM INTO` (consistent while open), records it in
-/// `%LOCALAPPDATA%\RoALT\location.json` as `{"dataDir": path, "movedFrom": current}` and
+/// `%LOCALAPPDATA%\MTwin Manager\location.json` as `{"dataDir": path, "movedFrom": current}` and
 /// restarts MTwin Manager, all with the database locked so no write lands in the old copy after the
-/// copy. The next start deletes the old folder's roalt.db, roalt.db-wal and roalt.db-shm once
+/// copy. The next start deletes the old folder's mtwin.db, mtwin.db-wal and mtwin.db-shm once
 /// the new database opened, and drops `movedFrom`. Returns only on failure, after deleting the
-/// database files it may have left in `path`. Refused for test runs (`ROALT_DATA_DIR`), when
-/// `path` already has a roalt.db, and while a launch, batch or auto-rejoin runs (the restart
+/// database files it may have left in `path`. Refused for test runs (`MTWIN_DATA_DIR`), when
+/// `path` already has a mtwin.db, and while a launch, batch or auto-rejoin runs (the restart
 /// would cut it off). Async: the copy can take a moment.
 #[tauri::command]
 pub async fn data_dir_move(app: AppHandle, s: State<'_, App>, path: String) -> Result<()> {
     if crate::data_dir_overridden() {
-        return Err(AppError::Invalid(tr!("A test run's data folder (ROALT_DATA_DIR) can't be moved.")));
+        return Err(AppError::Invalid(tr!("A test run's data folder (MTWIN_DATA_DIR) can't be moved.")));
     }
     if s.bulk.any_busy() {
         return Err(AppError::Invalid(tr!("Wait for the running launch, batch or auto-rejoin to finish, then move the data folder.")));
@@ -2455,7 +2455,7 @@ pub async fn layout_preview(app: AppHandle, s: State<'_, App>, account_ids: Vec<
         builder = builder.additional_browser_args(&args);
     }
     let w = builder
-        .initialization_script(format!("window.__ROALT_LAYOUT_PREVIEW__ = {data};"))
+        .initialization_script(format!("window.__MTWIN_LAYOUT_PREVIEW__ = {data};"))
         .title("MTwin Manager")
         // The main window's WebView2 profile: none of its own outside MTwin Manager's data folder.
         .data_directory(s.data_dir.join("webview"))
@@ -2776,7 +2776,7 @@ fn diagnostics_sources(s: &App) -> Result<crate::diagnostics::Sources> {
         }
     }
     roblox_logs.truncate(5);
-    Ok(crate::diagnostics::Sources { head, roalt_log: s.data_dir.join("logs").join("roalt.log"), roblox_logs, names })
+    Ok(crate::diagnostics::Sources { head, mtwin_log: s.data_dir.join("logs").join("mtwin.log"), roblox_logs, names })
 }
 
 #[tauri::command]
@@ -3529,7 +3529,7 @@ pub fn network_status(s: State<'_, App>) -> NetworkStatus {
 mod tests {
     #[test]
     fn tail_keeps_the_last_lines() {
-        let path = std::env::temp_dir().join(format!("roalt-tail-{}.log", uuid::Uuid::new_v4()));
+        let path = std::env::temp_dir().join(format!("mtwin-tail-{}.log", uuid::Uuid::new_v4()));
         assert!(crate::commands::tail(&path, 5).unwrap().is_empty());
         std::fs::write(&path, "a\nb\nc\nd\n").unwrap();
         assert_eq!(crate::commands::tail(&path, 2).unwrap(), ["c", "d"]);

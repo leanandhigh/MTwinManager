@@ -26,7 +26,7 @@
   "The shutdown must be 1 minute to 7 days from now.": "การปิดเครื่องต้องอยู่ในช่วง 1 นาทีถึง 7 วันนับจากนี้",
   "Windows wouldn't schedule the shutdown: {text}": "Windows ไม่ยอมตั้งเวลาปิดเครื่อง: {text}",
   "Windows wouldn't call off the shutdown: {text}": "Windows ไม่ยอมยกเลิกการปิดเครื่อง: {text}",
-  "A test run's data folder (ROALT_DATA_DIR) can't be moved.": "ย้ายโฟลเดอร์ข้อมูลของการทดสอบ (ROALT_DATA_DIR) ไม่ได้",
+  "A test run's data folder (MTWIN_DATA_DIR) can't be moved.": "ย้ายโฟลเดอร์ข้อมูลของการทดสอบ (MTWIN_DATA_DIR) ไม่ได้",
   "Wait for the running launch, batch or auto-rejoin to finish, then move the data folder.": "รอให้การเปิดเกม การเปิดเป็นชุด หรือการกลับเข้าเกมอัตโนมัติที่ทำงานอยู่เสร็จก่อน แล้วค่อยย้ายโฟลเดอร์ข้อมูล",
   "That link doesn't lead to a game.": "ลิงก์นั้นไม่ได้นำไปยังเกม",
   "Pick an account first: share links open as an account.": "เลือกบัญชีก่อน: ลิงก์แชร์ต้องเปิดด้วยบัญชี",

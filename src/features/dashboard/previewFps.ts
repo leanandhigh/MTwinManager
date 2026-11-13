@@ -5,8 +5,8 @@ import { readStored, writeStored } from "../../ui/stored";
  * the Performance tab. */
 export const PREVIEW_FPS = [5, 15, 30, 60] as const;
 export type PreviewFps = (typeof PREVIEW_FPS)[number];
-const KEY = "roalt.previewFps";
-const CHANGED = "roalt:previewFps";
+const KEY = "mtwin.previewFps";
+const CHANGED = "mtwin:previewFps";
 
 export function storedFps(): PreviewFps {
   const n = Number(readStored(KEY));

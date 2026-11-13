@@ -75,7 +75,7 @@ li span:last-child { font-variant-numeric: tabular-nums; }`;
     root.replaceChildren(style, box);
   }
   // Not replaceable by the page: what MTwin Manager sends goes to this card only.
-  Object.defineProperty(window, "__roaltCard", {
+  Object.defineProperty(window, "__mtwinCard", {
     value: (c) => {
       card = c;
       render();

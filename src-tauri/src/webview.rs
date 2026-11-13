@@ -31,7 +31,9 @@ const TMP_DIR: &str = "tmp-webview";
 const LOGIN_DIR: &str = "webview-login";
 const SESSIONS_DIR: &str = "webview-sessions";
 /// In a profile while its window is open; still there at start-up → the profile may hold a cookie.
-pub(crate) const OPEN_MARK: &str = ".roalt-open";
+pub(crate) const OPEN_MARK: &str = ".mtwin-open";
+/// The mark's name before the rename: a profile left open then still counts as left open.
+const OLD_OPEN_MARK: &str = ".roalt-open";
 const POLL: Duration = Duration::from_millis(700);
 const LOGIN_TIMEOUT: Duration = Duration::from_secs(15 * 60);
 
@@ -154,6 +156,7 @@ pub(crate) fn mark_open(profile: &Path) {
 
 /// After a normal close, once the cookies were deleted.
 pub(crate) fn mark_closed(profile: &Path) {
+    let _ = std::fs::remove_file(profile.join(OLD_OPEN_MARK));
     match std::fs::remove_file(profile.join(OPEN_MARK)) {
         Err(e) if e.kind() != ErrorKind::NotFound => log::warn!("could not unmark browser profile {}: {e}", profile.display()),
         _ => {}
@@ -164,7 +167,7 @@ pub(crate) fn mark_closed(profile: &Path) {
 /// they may still hold a `.ROBLOSECURITY` or a Google / Apple sign-in. At start-up and exit.
 pub fn sweep_dirty_profiles(data_dir: &Path) {
     for p in std::iter::once(login_profile(data_dir)).chain(profile_dirs(data_dir)) {
-        if p.join(OPEN_MARK).exists() {
+        if p.join(OPEN_MARK).exists() || p.join(OLD_OPEN_MARK).exists() {
             log::info!("browser profile {} was left open: deleted", p.display());
             remove_profile(&p);
         }
@@ -617,7 +620,7 @@ mod tests {
 
     #[test]
     fn profiles_left_open_are_swept() {
-        let d = std::env::temp_dir().join(format!("roalt-sweep-{}", uuid::Uuid::new_v4()));
+        let d = std::env::temp_dir().join(format!("mtwin-sweep-{}", uuid::Uuid::new_v4()));
         let (left, clean) = (session_profile(&d, 1), session_profile(&d, 2));
         mark_open(&left);
         mark_open(&clean);
@@ -632,7 +635,7 @@ mod tests {
     #[test]
     fn a_profile_left_behind_stays_marked() {
         use std::os::windows::fs::OpenOptionsExt;
-        let d = std::env::temp_dir().join(format!("roalt-held-{}", uuid::Uuid::new_v4()));
+        let d = std::env::temp_dir().join(format!("mtwin-held-{}", uuid::Uuid::new_v4()));
         let p = session_profile(&d, 1);
         mark_open(&p);
         let held = std::fs::OpenOptions::new().create(true).truncate(true).write(true).share_mode(0).open(p.join("Cookies")).unwrap();
@@ -644,7 +647,7 @@ mod tests {
 
     #[test]
     fn profiles_of_removed_accounts_are_swept() {
-        let d = std::env::temp_dir().join(format!("roalt-orphan-{}", uuid::Uuid::new_v4()));
+        let d = std::env::temp_dir().join(format!("mtwin-orphan-{}", uuid::Uuid::new_v4()));
         let (kept, gone) = (session_profile(&d, 1), session_profile(&d, 2));
         std::fs::create_dir_all(&kept).unwrap();
         std::fs::create_dir_all(&gone).unwrap();
@@ -729,7 +732,7 @@ mod tests {
 
     #[test]
     fn sweep_removes_leftover_profiles() {
-        let root = std::env::temp_dir().join(format!("roalt-sweep-{}", uuid::Uuid::new_v4()));
+        let root = std::env::temp_dir().join(format!("mtwin-sweep-{}", uuid::Uuid::new_v4()));
         let tmp = root.join(TMP_DIR);
         std::fs::create_dir_all(tmp.join("a").join("EBWebView")).unwrap();
         std::fs::write(tmp.join("a").join("EBWebView").join("Cookies"), b"x").unwrap();

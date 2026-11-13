@@ -5,9 +5,9 @@ import { prefersReducedMotion } from "../ui/motion";
 import { writeStored } from "../ui/stored";
 
 /** Last applied theme, read before first paint so a light-theme start does not flash dark. */
-export const THEME_KEY = "roalt.theme";
+export const THEME_KEY = "mtwin.theme";
 /** The user's accent, read before first paint (and by the splash). */
-export const ACCENT_KEY = "roalt.accent";
+export const ACCENT_KEY = "mtwin.accent";
 
 /** Surfaces that turn see-through over a background image, and how much of them stays. Panels and
  * what floats keep most, so their text stays readable over any picture. */

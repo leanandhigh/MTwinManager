@@ -574,7 +574,7 @@ mod tests {
 
     /// Never the real name: tests must not touch Roblox's singleton.
     fn test_name() -> String {
-        format!("RoALT_test_singleton_{}", uuid::Uuid::new_v4())
+        format!("MTwin_test_singleton_{}", uuid::Uuid::new_v4())
     }
 
     /// What a starting client does: create an event of that name (closed again right away).
@@ -707,7 +707,7 @@ mod tests {
 
     #[test]
     fn locks_shared_files_while_held_and_creates_missing_ones() {
-        let dir = std::env::temp_dir().join(format!("roalt-test-{}", uuid::Uuid::new_v4()));
+        let dir = std::env::temp_dir().join(format!("mtwin-test-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
         let file = dir.join("RobloxCookies.dat");
         std::fs::write(&file, b"{}").unwrap();

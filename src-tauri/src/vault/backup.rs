@@ -1,4 +1,4 @@
-//! Password-protected `.roalt` backup files (portable: no DPAPI).
+//! Password-protected `.mtwin` backup files (portable: no DPAPI); `.roalt` ones from before the rename open too.
 //!
 //! Layout: `b"ROALTBK1" | m_kib u32le | t u32le | p u32le | salt[16] | seal(key, header, json)`
 //! where `header` is every byte before the sealed part and `key = Argon2id(password, salt)`.
@@ -158,7 +158,7 @@ mod tests {
     const PASSWORD: &str = "backup pass";
 
     fn tmp_path() -> PathBuf {
-        std::env::temp_dir().join(format!("roalt-test-{}.roalt", uuid::Uuid::new_v4()))
+        std::env::temp_dir().join(format!("mtwin-test-{}.roalt", uuid::Uuid::new_v4()))
     }
 
     fn sample() -> BackupPayload {

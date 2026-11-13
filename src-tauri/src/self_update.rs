@@ -3,11 +3,11 @@
 //! - Check: `GET api.github.com/repos/leanandhigh/RoALT/releases/latest` (published releases
 //!   only, never a draft or prerelease) at start and every 6 h while `self_update` is on,
 //!   or on Check now. A `vX.Y.Z` tag newer than this build (`newer`: never the same or older)
-//!   with the assets `RoALT-Setup-X.Y.Z.exe` and `.exe.sig` is an update; `app://update` says so.
+//!   with the assets `MTwinManager-Setup-X.Y.Z.exe` and `.exe.sig` is an update; `app://update` says so.
 //! - Install (`install`, only on the user's click): asks GitHub again, downloads both (https only,
 //!   from github.com, redirected only to GitHub's asset hosts; ≤ 200 MB and ≤ 4 KB) into a fresh
 //!   temp folder, write-locks the installer, reads it back through that handle and checks the
-//!   ECDSA P-256 / SHA-256 signature of `RoALT-Setup-X.Y.Z.exe\n` followed by exactly those bytes
+//!   ECDSA P-256 / SHA-256 signature of `MTwinManager-Setup-X.Y.Z.exe\n` followed by exactly those bytes
 //!   against `PUBLIC_KEY` (Windows CNG): the version is signed too, so an older installer can't
 //!   pass as a newer one. Only then, and if no launch or Roblox install started meanwhile, runs it
 //!   silently with `/RELAUNCH` (MTwin Manager.iss starts MTwin Manager again afterwards) and
@@ -49,7 +49,10 @@ const MAX_INSTALLER: u64 = 200_000_000;
 const MAX_SIG: u64 = 4_096;
 /// Where release assets may come from: github.com, then GitHub's redirect to its storage.
 const ASSET_HOSTS: [&str; 3] = ["github.com", "objects.githubusercontent.com", "release-assets.githubusercontent.com"];
-const TEMP_PREFIX: &str = "roalt-update-";
+const TEMP_PREFIX: &str = "mtwin-update-";
+/// The installer's name on a release, before `-<version>.exe`. Releases also carry it under its
+/// old name (RoALT-Setup), signed as that, for versions made before the rename.
+const SETUP: &str = "MTwinManager-Setup";
 /// Inno Setup's silent install; `/RELAUNCH` is MTwin Manager.iss's own: start MTwin Manager when done.
 const INSTALLER_ARGS: [&str; 5] = ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS", "/RELAUNCH"];
 /// The release signing key (P-256, uncompressed X‖Y): its private half is the `ROALT_UPDATE_KEY`
@@ -160,7 +163,7 @@ pub fn pick(body: &[u8], current: &str) -> Result<Option<Release>> {
                 ok
             })
     };
-    match (url(format!("RoALT-Setup-{version}.exe")), url(format!("RoALT-Setup-{version}.exe.sig"))) {
+    match (url(format!("{SETUP}-{version}.exe")), url(format!("{SETUP}-{version}.exe.sig"))) {
         (Some(exe), Some(sig)) => Ok(Some(Release { version, exe, sig })),
         _ => Err(failed(tr!("MTwin Manager {version} is out, but without a signed installer. Get it from GitHub Releases.", version = version))),
     }
@@ -246,7 +249,7 @@ fn verify(public: &[u8; 64], data: &[u8], sig: &[u8]) -> bool {
 /// What the release workflow signs for `version`: its installer's name and a newline, then the
 /// installer's bytes (appended by the caller).
 fn signed_prefix(version: &str) -> Vec<u8> {
-    format!("RoALT-Setup-{version}.exe\n").into_bytes()
+    format!("{SETUP}-{version}.exe\n").into_bytes()
 }
 
 /// Writes `bytes` to the new file `path`, reopens it so nothing can write or delete it while the
@@ -447,7 +450,7 @@ async fn run_install(s: &App) -> Result<()> {
     let bytes = get(&http, &release.exe, "application/octet-stream", MAX_INSTALLER, Duration::from_secs(600)).await?;
 
     let dir = TempDir::new(TEMP_PREFIX)?;
-    let exe = dir.0.join(format!("RoALT-Setup-{}.exe", release.version));
+    let exe = dir.0.join(format!("{SETUP}-{}.exe", release.version));
     let (checked, version) = (exe.clone(), release.version.clone());
     let pinned = blocking(move || write_verified(&checked, &version, &bytes, &sig, &public_key())).await?;
     // Again: one may have started during the download, and quitting now would cut it off.
@@ -510,13 +513,14 @@ mod tests {
 
     fn fixture() -> Value {
         let path = format!("{}/../docs/research/fixtures/github-releases-latest.json", env!("CARGO_MANIFEST_DIR"));
-        serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap()
+        // Recorded before the rename: its installer goes by the name releases use now.
+        serde_json::from_str(&std::fs::read_to_string(path).unwrap().replace("MTwinManager-Setup", SETUP)).unwrap()
     }
 
     fn with_sig(mut v: Value) -> Value {
         let mut sig = v["assets"][0].clone();
-        sig["name"] = "RoALT-Setup-0.5.1.exe.sig".into();
-        sig["browser_download_url"] = "https://github.com/inspectsoftware/RoALT/releases/download/v0.5.1/RoALT-Setup-0.5.1.exe.sig".into();
+        sig["name"] = "MTwinManager-Setup-0.5.1.exe.sig".into();
+        sig["browser_download_url"] = "https://github.com/inspectsoftware/RoALT/releases/download/v0.5.1/MTwinManager-Setup-0.5.1.exe.sig".into();
         v["assets"].as_array_mut().unwrap().push(sig);
         v
     }
@@ -539,8 +543,8 @@ mod tests {
             pick(&body(&signed), "0.5.0").unwrap(),
             Some(Release {
                 version: "0.5.1".into(),
-                exe: "https://github.com/inspectsoftware/RoALT/releases/download/v0.5.1/RoALT-Setup-0.5.1.exe".into(),
-                sig: "https://github.com/inspectsoftware/RoALT/releases/download/v0.5.1/RoALT-Setup-0.5.1.exe.sig".into(),
+                exe: "https://github.com/inspectsoftware/RoALT/releases/download/v0.5.1/MTwinManager-Setup-0.5.1.exe".into(),
+                sig: "https://github.com/inspectsoftware/RoALT/releases/download/v0.5.1/MTwinManager-Setup-0.5.1.exe.sig".into(),
             })
         );
         for flag in ["draft", "prerelease"] {
@@ -550,13 +554,13 @@ mod tests {
         }
         // Asset names must match exactly, and come from github.com over https.
         for (field, value) in [
-            ("name", "roalt-setup-0.5.1.exe"),
-            ("browser_download_url", "http://github.com/inspectsoftware/RoALT/releases/download/v0.5.1/RoALT-Setup-0.5.1.exe"),
-            ("browser_download_url", "https://evil.example/RoALT-Setup-0.5.1.exe"),
-            ("browser_download_url", "https://github.com.evil.example/RoALT-Setup-0.5.1.exe"),
-            ("browser_download_url", "https://github.com:8443/RoALT-Setup-0.5.1.exe"),
-            ("browser_download_url", "https://user@github.com/RoALT-Setup-0.5.1.exe"),
-            ("browser_download_url", "https://objects.githubusercontent.com/RoALT-Setup-0.5.1.exe"),
+            ("name", "mtwinmanager-setup-0.5.1.exe"),
+            ("browser_download_url", "http://github.com/inspectsoftware/RoALT/releases/download/v0.5.1/MTwinManager-Setup-0.5.1.exe"),
+            ("browser_download_url", "https://evil.example/MTwinManager-Setup-0.5.1.exe"),
+            ("browser_download_url", "https://github.com.evil.example/MTwinManager-Setup-0.5.1.exe"),
+            ("browser_download_url", "https://github.com:8443/MTwinManager-Setup-0.5.1.exe"),
+            ("browser_download_url", "https://user@github.com/MTwinManager-Setup-0.5.1.exe"),
+            ("browser_download_url", "https://objects.githubusercontent.com/MTwinManager-Setup-0.5.1.exe"),
         ] {
             let mut v = signed.clone();
             v["assets"][0][field] = value.into();
@@ -592,7 +596,7 @@ mod tests {
 
     /// A throwaway key made with Node for this test only (crypto.generateKeyPairSync("ec",
     /// P-256), crypto.sign("sha256", MESSAGE, { dsaEncoding: "ieee-p1363" })), as release.yml
-    /// signs `RoALT-Setup-0.6.0.exe\n` + DATA.
+    /// signs `MTwinManager-Setup-0.6.0.exe\n` + DATA.
     const TEST_KEY: &str = "1bb1dec977d50faa29ab7620751690b318bd88e35f0b2d851d74f6440b34eacdc64b254b1782dede62cfc67f513e25d2f426e29e26e95c23a50d09d981be94e7";
     const MESSAGE: &[u8] = b"RoALT-Setup-0.6.0.exe\nRoALT self-update test vector";
     const DATA: &[u8] = b"RoALT self-update test vector";
@@ -626,7 +630,7 @@ mod tests {
 
     #[test]
     fn the_file_is_checked_as_written_and_stays_locked() {
-        let dir = TempDir::new("roalt-update-test-").unwrap();
+        let dir = TempDir::new("mtwin-update-test-").unwrap();
         let sig = base64(SIGNATURE).unwrap();
         let exe = dir.0.join("setup.exe");
         assert!(write_verified(&exe, "0.6.0", DATA, &sig, &public_key()).is_err(), "signed by the test key, not the release key");

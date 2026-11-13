@@ -9,6 +9,6 @@ export type DataDir = { path: string,
  */
 default: boolean, 
 /**
- * Set for test runs (`ROALT_DATA_DIR`): moving is not offered.
+ * Set for test runs (`MTWIN_DATA_DIR`): moving is not offered.
  */
 overridden: boolean, };

@@ -20,7 +20,7 @@ import { SettingRow } from "../kit/SettingRow";
 const backupFilter = () => [{ name: t("settings.backupFilter"), extensions: ["mtwin", "roalt"] }];
 
 /** Open the folder or MTwin Manager's own logs; move it elsewhere (confirmed: MTwin Manager restarts to use it).
- * There is no Move while ROALT_DATA_DIR decides the folder. */
+ * There is no Move while MTWIN_DATA_DIR decides the folder. */
 function FolderActions({ movable }: { movable: boolean }) {
   const row = useRow();
   const [to, setTo] = useState<string | null>(null);

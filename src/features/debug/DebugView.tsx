@@ -20,7 +20,7 @@ const SHAPE: Record<Level, string> = { error: "diamond", warn: "triangle", info:
 /** The filter as a case-blind match with one capture group, which LogView marks. */
 const finder = (q: string) => (q ? new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "i") : null);
 
-/** Everything MTwin Manager logs (roalt.log), live: find the line that went wrong, or copy a report. */
+/** Everything MTwin Manager logs (mtwin.log), live: find the line that went wrong, or copy a report. */
 export function DebugView() {
   const [shown, setShown] = useState<Record<Level, boolean>>({ error: true, warn: true, info: true, debug: false });
   const [query, setQuery] = useState("");

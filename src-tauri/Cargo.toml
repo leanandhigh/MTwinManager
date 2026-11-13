@@ -1,5 +1,5 @@
 [package]
-name = "roalt"
+name = "mtwin-manager"
 version = "1.1.0"
 description = "Local-only Roblox account manager"
 authors = ["inspectsoftware"]

@@ -1392,7 +1392,7 @@ pub struct AppUpdate {
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub enum NewsSource {
-    Roalt,
+    Mtwin,
     Devforum,
     Newsroom,
 }
@@ -1445,9 +1445,9 @@ pub enum InstallProgress {
 #[ts(export)]
 pub struct DataDir {
     pub path: String,
-    /// `%LOCALAPPDATA%\RoALT` (not moved).
+    /// `%LOCALAPPDATA%\MTwin Manager` (not moved).
     pub default: bool,
-    /// Set for test runs (`ROALT_DATA_DIR`): moving is not offered.
+    /// Set for test runs (`MTWIN_DATA_DIR`): moving is not offered.
     pub overridden: bool,
 }
 

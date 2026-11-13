@@ -86,13 +86,17 @@ impl App {
     }
 }
 
-pub const DB_FILE: &str = "roalt.db";
+pub const DB_FILE: &str = "mtwin.db";
 /// The database, its journal and its key (`storage::key_path`): all a data folder move ever
 /// deletes, from the old folder.
-pub const DB_FILES: [&str; 4] = [DB_FILE, "roalt.db-wal", "roalt.db-shm", "roalt.db.key"];
+pub const DB_FILES: [&str; 4] = [DB_FILE, "mtwin.db-wal", "mtwin.db-shm", "mtwin.db.key"];
+/// The names the database files had before the rename, in `DB_FILES`' order (`migrate_names`).
+const OLD_DB_FILES: [&str; 4] = ["roalt.db", "roalt.db-wal", "roalt.db-shm", "roalt.db.key"];
+/// The data folder's name before the rename (`migrate_folder`).
+const OLD_DIR: &str = "RoALT";
 const LOCATION: &str = "location.json";
 
-/// `%LOCALAPPDATA%\RoALT\location.json`: where the data folder was moved to (and from, until
+/// `%LOCALAPPDATA%\MTwin Manager\location.json`: where the data folder was moved to (and from, until
 /// the next start has deleted the old database).
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -102,32 +106,70 @@ pub struct Location {
     pub moved_from: Option<PathBuf>,
 }
 
-/// `%LOCALAPPDATA%\RoALT`: the data folder unless moved, and where location.json lives.
+/// `%LOCALAPPDATA%\MTwin Manager`: the data folder unless moved, and where location.json lives.
 pub fn default_dir() -> PathBuf {
-    std::env::var_os("LOCALAPPDATA").map(PathBuf::from).unwrap_or_else(std::env::temp_dir).join("RoALT")
+    std::env::var_os("LOCALAPPDATA").map(PathBuf::from).unwrap_or_else(std::env::temp_dir).join("MTwin Manager")
 }
 
-/// A test run (`ROALT_DATA_DIR`): its data folder can't be moved.
+/// A test run (`MTWIN_DATA_DIR`): its data folder can't be moved.
 pub fn data_dir_overridden() -> bool {
-    std::env::var_os("ROALT_DATA_DIR").is_some()
+    std::env::var_os("MTWIN_DATA_DIR").is_some()
 }
 
-/// `ROALT_DATA_DIR` (test runs), else the folder `%LOCALAPPDATA%\RoALT\location.json` names
-/// (`dataDir`), else `%LOCALAPPDATA%\RoALT`. After a move, also the folder it left
+/// `MTWIN_DATA_DIR` (test runs), else the folder `%LOCALAPPDATA%\MTwin Manager\location.json`
+/// names (`dataDir`), else `%LOCALAPPDATA%\MTwin Manager`. After a move, also the folder it left
 /// (`movedFrom`): `init` deletes its database files once the new database has opened, then
 /// drops `movedFrom`. Err: the moved folder isn't available (a message for `fatal`).
 fn data_dir() -> std::result::Result<(PathBuf, Option<PathBuf>), String> {
-    if let Some(d) = std::env::var_os("ROALT_DATA_DIR") {
-        return Ok((d.into(), None));
+    if let Some(d) = std::env::var_os("MTWIN_DATA_DIR") {
+        let d = PathBuf::from(d);
+        migrate_names(&d);
+        return Ok((d, None));
     }
     let default = default_dir();
+    migrate_folder(&default);
+    migrate_names(&default);
     let json = std::fs::read_to_string(default.join(LOCATION)).ok();
+    // A moved folder (and the one it left) still holds the old names until this start.
+    if let Some(l) = json.as_deref().and_then(|j| serde_json::from_str::<Location>(j).ok()) {
+        migrate_names(&l.data_dir);
+        if let Some(from) = &l.moved_from {
+            migrate_names(from);
+        }
+    }
     chosen_dir(default, json.as_deref())
+}
+
+/// Before the rename the data folder was `%LOCALAPPDATA%\RoALT`: moved to `default` once, when
+/// `default` doesn't exist yet. A failed move leaves both as they are (logged); the next start
+/// tries again.
+fn migrate_folder(default: &Path) {
+    let Some(old) = default.parent().map(|p| p.join(OLD_DIR)) else { return };
+    if default.exists() || !old.is_dir() {
+        return;
+    }
+    match std::fs::rename(&old, default) {
+        Ok(()) => eprintln!("data folder moved from {} to {}", old.display(), default.display()),
+        Err(e) => eprintln!("could not move the data folder {} to {}: {e}", old.display(), default.display()),
+    }
+}
+
+/// The database files' old names (roalt.db…) to the new ones (mtwin.db…), in `dir`, each only
+/// when the new one isn't there. Run before the database opens, so nothing holds them.
+fn migrate_names(dir: &Path) {
+    for (old, new) in OLD_DB_FILES.iter().zip(DB_FILES) {
+        let (from, to) = (dir.join(old), dir.join(new));
+        if from.is_file() && !to.exists()
+            && let Err(e) = std::fs::rename(&from, &to)
+        {
+            eprintln!("could not rename {} to {}: {e}", from.display(), to.display());
+        }
+    }
 }
 
 /// The folder location.json points at, with `movedFrom`: its `dataDir` when that is a full
 /// path; else `default`. Missing or malformed JSON counts as no move. A moved folder without
-/// a roalt.db (a drive not connected) is an error, not a fresh empty vault in `default`.
+/// a mtwin.db (a drive not connected) is an error, not a fresh empty vault in `default`.
 fn chosen_dir(default: PathBuf, json: Option<&str>) -> std::result::Result<(PathBuf, Option<PathBuf>), String> {
     match json.and_then(|j| serde_json::from_str::<Location>(j).ok()) {
         Some(l) if l.data_dir.is_absolute() => {
@@ -209,7 +251,7 @@ fn finish_move(data_dir: &Path, old: &Path) {
     }
 }
 
-/// Deletes roalt.db and its journal files from `old`: nothing else, and nothing when `old` is
+/// Deletes mtwin.db and its journal files from `old`: nothing else, and nothing when `old` is
 /// the folder in use. True when none of them is left there.
 fn remove_old_db(data_dir: &Path, old: &Path) -> bool {
     if same_dir(old, data_dir) {
@@ -246,7 +288,7 @@ fn main_window(app: &TauriApp, data_dir: &Path, skip_splash: bool) -> tauri::Res
         .on_navigation(in_app);
     // The splash decides before any setting could reach the UI.
     if skip_splash {
-        builder = builder.initialization_script("window.__ROALT_SKIP_SPLASH = true;");
+        builder = builder.initialization_script("window.__MTWIN_SKIP_SPLASH = true;");
     }
     if let Some(args) = cdp_args() {
         builder = builder.additional_browser_args(&args);
@@ -260,7 +302,7 @@ fn main_window(app: &TauriApp, data_dir: &Path, skip_splash: bool) -> tauri::Res
 /// on the UI's WebView2 profile passes the same (WebView2 refuses a second set of options).
 pub(crate) fn cdp_args() -> Option<String> {
     #[cfg(debug_assertions)]
-    if let Ok(port) = std::env::var("ROALT_CDP_PORT") {
+    if let Ok(port) = std::env::var("MTWIN_CDP_PORT") {
         return Some(format!("--remote-debugging-port={port} --disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection"));
     }
     None
@@ -350,7 +392,7 @@ fn fatal(message: &str) -> ! {
     log::error!("{message}");
     // Before the log plugin exists `log::error!` goes nowhere, so append the line directly.
     if let Some(dir) = LOG_DIR.get()
-        && let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(dir.join("roalt.log"))
+        && let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(dir.join("mtwin.log"))
     {
         let _ = writeln!(f, "[fatal] {message}");
     }
@@ -614,12 +656,12 @@ fn main() {
         .plugin(
             tauri_plugin_log::Builder::new()
                 .clear_targets()
-                .target(Target::new(TargetKind::Folder { path: log_dir, file_name: Some("roalt".into()) }))
+                .target(Target::new(TargetKind::Folder { path: log_dir, file_name: Some("mtwin".into()) }))
                 // The Debug tab (`log://log` events); its history comes from `commands::debug_tail`.
                 .target(Target::new(TargetKind::Webview))
                 .level(log::LevelFilter::Info)
-                .level_for("roalt", log::LevelFilter::Debug)
-                // roalt.log plus the 4 before it, 5 MB each.
+                .level_for("mtwin_manager", log::LevelFilter::Debug)
+                // mtwin.log plus the 4 before it, 5 MB each.
                 .max_file_size(5 << 20)
                 .rotation_strategy(RotationStrategy::KeepSome(5))
                 .build(),
@@ -833,7 +875,7 @@ mod tests {
     use super::*;
 
     fn temp_dir() -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("roalt-datadir-{}", uuid::Uuid::new_v4()));
+        let dir = std::env::temp_dir().join(format!("mtwin-datadir-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
         dir
     }
@@ -851,7 +893,7 @@ mod tests {
     fn location_json_picks_a_folder_with_a_database() {
         let tmp = temp_dir();
         let (default, moved, empty) = (tmp.join("default"), tmp.join("moved"), tmp.join("empty"));
-        touch(&moved.join("roalt.db"));
+        touch(&moved.join("mtwin.db"));
         std::fs::create_dir_all(&empty).unwrap();
         let pick = |j: Option<&str>| chosen_dir(default.clone(), j).unwrap();
 
@@ -879,7 +921,7 @@ mod tests {
     fn move_targets() {
         let tmp = temp_dir();
         let current = tmp.join("Current");
-        touch(&current.join("roalt.db"));
+        touch(&current.join("mtwin.db"));
         let refused = |p: &Path| matches!(move_target(&current, &p.display().to_string()), Err(AppError::Invalid(_)));
 
         assert!(matches!(move_target(&current, r"relative\folder"), Err(AppError::Invalid(_))));
@@ -910,7 +952,7 @@ mod tests {
     fn a_finished_move_deletes_only_the_old_database() {
         let tmp = temp_dir();
         let (old, new) = (tmp.join("old"), tmp.join("new"));
-        for f in DB_FILES.iter().chain(&["notes.txt", r"logs\roalt.log", r"webview\x"]) {
+        for f in DB_FILES.iter().chain(&["notes.txt", r"logs\mtwin.log", r"webview\x"]) {
             touch(&old.join(f));
             touch(&new.join(f));
         }
@@ -930,7 +972,7 @@ mod tests {
         assert!(remove_old_db(&new, &old));
         assert_eq!(left(&old), 0);
         assert_eq!(left(&new), DB_FILES.len());
-        assert!(old.join("notes.txt").exists() && old.join(r"logs\roalt.log").exists() && old.join(r"webview\x").exists());
+        assert!(old.join("notes.txt").exists() && old.join(r"logs\mtwin.log").exists() && old.join(r"webview\x").exists());
         // Already gone: nothing to do.
         assert!(remove_old_db(&new, &old));
         std::fs::remove_dir_all(&tmp).unwrap();

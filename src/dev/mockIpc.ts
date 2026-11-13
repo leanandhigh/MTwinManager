@@ -281,7 +281,7 @@ function kick(i: Instance) {
     track(a.id, 14000 + Math.floor(Math.random() * 9000), i.target, i.placeId, i.viaBootstrapper, i.rejoins + 1, i.fpsCap);
   }, settings.launchDelayMs);
 }
-// Debug tab: roalt.log as tauri-plugin-log writes it, and a new line every few seconds.
+// Debug tab: mtwin.log as tauri-plugin-log writes it, and a new line every few seconds.
 const LEVEL_NAMES = ["", "TRACE", "DEBUG", "INFO", "WARN", "ERROR"];
 const fakeLog: string[] = [];
 function logLine(level: number, target: string, message: string, live = true) {
@@ -291,14 +291,14 @@ function logLine(level: number, target: string, message: string, live = true) {
   if (live) emit("log://log", { level, message: line });
 }
 [
-  [3, "roalt", "multi-instance not active at start: another client holds the singleton"],
-  [4, "roalt::roblox_api", "users.roblox.com/v1/users/authenticated: HTTP 401, code Some((0, 0)): This cookie is not valid or has expired. Sign in again."],
-  [3, "roalt::commands", "account 3 marked Invalid: This cookie is not valid or has expired. Sign in again."],
-  [2, "roalt::instances::tracker", "instance 7f3a: client log not readable: The process cannot access the file"],
-  [5, "roalt", "panic in thread tokio-runtime-worker at src/instances/tracker.rs:612:9: index out of bounds"],
+  [3, "mtwin_manager", "multi-instance not active at start: another client holds the singleton"],
+  [4, "mtwin_manager::roblox_api", "users.roblox.com/v1/users/authenticated: HTTP 401, code Some((0, 0)): This cookie is not valid or has expired. Sign in again."],
+  [3, "mtwin_manager::commands", "account 3 marked Invalid: This cookie is not valid or has expired. Sign in again."],
+  [2, "mtwin_manager::instances::tracker", "instance 7f3a: client log not readable: The process cannot access the file"],
+  [5, "mtwin_manager", "panic in thread tokio-runtime-worker at src/instances/tracker.rs:612:9: index out of bounds"],
   [4, "roblox", "account 2 instance 7f3a: [FLog::Error] Texture failed to load (x3)"],
 ].forEach(([l, t, m]) => logLine(l as number, t as string, m as string, false));
-setInterval(() => logLine(1 + Math.ceil(Math.random() * 4), "roalt::mock", "periodic mock line"), 4000);
+setInterval(() => logLine(1 + Math.ceil(Math.random() * 4), "mtwin_manager::mock", "periodic mock line"), 4000);
 
 setInterval(() => {
   if (!settings.antiAfk.enabled) return;

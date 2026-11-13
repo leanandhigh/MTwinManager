@@ -21,7 +21,7 @@ import { usePageCard } from "./pageCard";
 import { usePlayerDetails } from "./PlayerDetails";
 import { RobloxPane } from "./RobloxPane";
 
-const LAST_KEY = "roalt.browseAccount";
+const LAST_KEY = "mtwin.browseAccount";
 const lastAccount = () => Number(readStored(LAST_KEY)) || null;
 const remember = (id: number) => writeStored(LAST_KEY, String(id));
 

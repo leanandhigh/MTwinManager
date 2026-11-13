@@ -134,7 +134,7 @@ mod tests {
     #[test]
     fn names_its_files_and_sweeps_only_those() {
         assert_eq!(file_name((2026, 11, 4, 9, 5, 7)), "MTwin-cookies-20261104-090507.txt");
-        let d = std::env::temp_dir().join(format!("roalt-export-{}", uuid::Uuid::new_v4()));
+        let d = std::env::temp_dir().join(format!("mtwin-export-{}", uuid::Uuid::new_v4()));
         let dir = d.join(DIR);
         std::fs::create_dir_all(&dir).unwrap();
         // A `.txt.tmp` left by a crashed write is swept too; other files are left alone.
@@ -155,7 +155,7 @@ mod tests {
 
     #[test]
     fn deletes_only_what_it_wrote() {
-        let d = std::env::temp_dir().join(format!("roalt-export-{}", uuid::Uuid::new_v4()));
+        let d = std::env::temp_dir().join(format!("mtwin-export-{}", uuid::Uuid::new_v4()));
         let path = write(&d, "a:b\r\n").unwrap();
         let other = d.join(DIR).join("MTwin-cookies-not-ours.txt");
         std::fs::write(&other, b"x").unwrap();

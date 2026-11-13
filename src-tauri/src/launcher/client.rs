@@ -497,7 +497,7 @@ mod tests {
 
     #[test]
     fn finds_clients_in_a_versions_folder() {
-        let dir = std::env::temp_dir().join(format!("roalt-test-{}", uuid::Uuid::new_v4()));
+        let dir = std::env::temp_dir().join(format!("mtwin-test-{}", uuid::Uuid::new_v4()));
         for v in ["version-a", "version-b", "not-a-client"] {
             std::fs::create_dir_all(dir.join(v)).unwrap();
         }
@@ -517,8 +517,8 @@ mod tests {
 
     #[test]
     fn missing_registry_values_are_none() {
-        assert_eq!(reg_string(HKEY_CURRENT_USER, r"Software\RoALT-test-no-such-key", None), None);
-        assert_eq!(reg_string(HKEY_CURRENT_USER, r"Software\Classes", Some("RoALT-test-no-such-value")), None);
+        assert_eq!(reg_string(HKEY_CURRENT_USER, r"Software\MTwin-test-no-such-key", None), None);
+        assert_eq!(reg_string(HKEY_CURRENT_USER, r"Software\Classes", Some("MTwin-test-no-such-value")), None);
     }
 
     /// `start` on a harmless system program (never the Roblox client): the raw argument
@@ -527,7 +527,7 @@ mod tests {
     fn start_passes_the_raw_argument_in_the_exe_folder() {
         let system = std::env::var_os("SystemRoot").map_or_else(|| PathBuf::from(r"C:\Windows"), PathBuf::from);
         let exe = ClientExe { path: system.join(r"System32\cmd.exe"), bootstrapper: true, ..Default::default() };
-        let out = std::env::temp_dir().join(format!("roalt-test-{}.txt", uuid::Uuid::new_v4()));
+        let out = std::env::temp_dir().join(format!("mtwin-test-{}.txt", uuid::Uuid::new_v4()));
         // Kept alive a second so its start time is read before it exits. The extra arguments
         // follow the first one, space-separated.
         let arg = Secret::new(format!("/c cd > \"{}\" & ping -n", out.display()));
@@ -545,7 +545,7 @@ mod tests {
         let _ = std::fs::remove_file(&out);
         assert!(written.trim().eq_ignore_ascii_case(&system.join("System32").to_string_lossy()), "{written}");
 
-        let missing = ClientExe { path: system.join(r"System32\roalt-no-such.exe"), bootstrapper: false, ..Default::default() };
+        let missing = ClientExe { path: system.join(r"System32\mtwin-no-such.exe"), bootstrapper: false, ..Default::default() };
         assert!(matches!(start(&missing, &arg, &[]), Err(AppError::Internal(_))));
     }
 }

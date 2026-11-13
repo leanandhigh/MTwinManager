@@ -186,7 +186,7 @@ const sortItems = (list: ItemTotal[], by: ItemSort) =>
   );
 
 function ItemsTab({ accounts, decals }: { accounts: ProgressAccount[]; decals: Record<string, string> }) {
-  const [sort, setSort] = useStored<ItemSort>("roalt.progressItemSort", (v) => (v === "amount" || v === "name" ? v : "rarity"), (v) => v);
+  const [sort, setSort] = useStored<ItemSort>("mtwin.progressItemSort", (v) => (v === "amount" || v === "name" ? v : "rarity"), (v) => v);
   const [category, setCategory] = useState("");
   const [search, setSearch] = useState("");
   const [shown, setShown] = useState(60);

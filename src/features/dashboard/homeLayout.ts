@@ -6,11 +6,11 @@ import { isLive } from "../launch/Running";
 import { EMPTY_DRAFT, readDraft, targetText, type Draft } from "../launch/target";
 
 /** How Home lays out its clients; remembered on this PC, apart from the accounts' launch order. */
-const DETAILED = "roalt.homeDetailed";
-const ORDER = "roalt.homeOrder";
-const SIZES = "roalt.homeSizes";
-const TABS = "roalt.homeTabs";
-const SECTIONS = "roalt.sectionOrder";
+const DETAILED = "mtwin.homeDetailed";
+const ORDER = "mtwin.homeOrder";
+const SIZES = "mtwin.homeSizes";
+const TABS = "mtwin.homeTabs";
+const SECTIONS = "mtwin.sectionOrder";
 
 /** A tab of Home: one account, its own game. `status` is its launch, while one is under way or failed. */
 export type HomeTab = { accountId: number; draft: Draft; status?: "queued" | "launching" | "failed" };

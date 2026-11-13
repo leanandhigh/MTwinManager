@@ -21,7 +21,7 @@ type Catalog = Record<string, string>;
 const loaders = import.meta.glob<Catalog>(["./locales/*.json", "!./locales/en.json"], { import: "default" });
 const catalogs: Partial<Record<Lang, Catalog>> = { en };
 /** The last language shown, so the next start loads it before the first render. */
-const LANG_KEY = "roalt.lang";
+const LANG_KEY = "mtwin.lang";
 
 type PluralSuffix = "_one" | "_few" | "_many" | "_other";
 type Base<K> = K extends `${infer B}${PluralSuffix}` ? B : K;

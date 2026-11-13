@@ -758,9 +758,9 @@ mod tests {
         use windows::core::w;
         // SAFETY: a private window of this thread, destroyed at the end.
         unsafe {
-            let class = WNDCLASSW { lpfnWndProc: Some(insists), lpszClassName: w!("roalt-test-moveloop"), ..Default::default() };
+            let class = WNDCLASSW { lpfnWndProc: Some(insists), lpszClassName: w!("mtwin-test-moveloop"), ..Default::default() };
             RegisterClassW(&class);
-            let hwnd = CreateWindowExW(WINDOW_EX_STYLE(0), w!("roalt-test-moveloop"), w!("t"), WS_OVERLAPPEDWINDOW | WS_VISIBLE, 100, 100, 1000, 800, None, None, None, None).unwrap();
+            let hwnd = CreateWindowExW(WINDOW_EX_STYLE(0), w!("mtwin-test-moveloop"), w!("t"), WS_OVERLAPPEDWINDOW | WS_VISIBLE, 100, 100, 1000, 800, None, None, None, None).unwrap();
             free_resize(hwnd, (100, 100, start.0, start.1), false);
             let h = hwnd.0 as isize;
             let keys = std::thread::spawn(move || {
@@ -821,9 +821,9 @@ mod tests {
         use windows::core::w;
         // SAFETY: a private hidden window of this thread, destroyed at the end.
         unsafe {
-            let class = WNDCLASSW { lpfnWndProc: Some(insists), lpszClassName: w!("roalt-test-minsize"), ..Default::default() };
+            let class = WNDCLASSW { lpfnWndProc: Some(insists), lpszClassName: w!("mtwin-test-minsize"), ..Default::default() };
             RegisterClassW(&class);
-            let hwnd = CreateWindowExW(WINDOW_EX_STYLE(0), w!("roalt-test-minsize"), w!("t"), WS_OVERLAPPEDWINDOW, 0, 0, 1000, 800, None, None, None, None).unwrap();
+            let hwnd = CreateWindowExW(WINDOW_EX_STYLE(0), w!("mtwin-test-minsize"), w!("t"), WS_OVERLAPPEDWINDOW, 0, 0, 1000, 800, None, None, None, None).unwrap();
             let before = style_of(hwnd);
 
             SetWindowPos(hwnd, None, 0, 0, 200, 150, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE).unwrap();

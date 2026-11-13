@@ -20,7 +20,7 @@ export const VIEW_NAME: Record<View, Key> = {
   settings: "app.nav.settings",
 };
 
-/** The island's places, by the ids `roalt.sectionOrder` keeps (Debug moved into Tools). */
+/** The island's places, by the ids `mtwin.sectionOrder` keeps (Debug moved into Tools). */
 export const MAIN_SECTIONS = ["home", "play", "browse", "accounts", "progress", "performance"] as const;
 export const TOOL_SECTIONS = ["servers", "monitor", "updates", "discord", "debug"] as const;
 export type Section = (typeof MAIN_SECTIONS)[number] | (typeof TOOL_SECTIONS)[number];

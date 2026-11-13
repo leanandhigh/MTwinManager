@@ -2,7 +2,7 @@ import { useEffect, type KeyboardEvent, type PointerEvent } from "react";
 import { isRtl, t } from "../i18n";
 import { useStored } from "./stored";
 
-const KEY = "roalt.width.";
+const KEY = "mtwin.width.";
 
 /** A panel width the user can drag, remembered per panel (a per-viewer convenience). */
 export function usePanelWidth(id: string, initial: number, min: number, max: number) {

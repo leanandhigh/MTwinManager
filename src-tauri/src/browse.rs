@@ -215,7 +215,7 @@ pub fn browse_card(app: AppHandle, card: Option<PageCard>) -> Result<()> {
     let Some(wv) = app.get_webview(LABEL) else { return Ok(()) };
     let json = serde_json::to_string(&card.map(PageCard::clipped)).map_err(|e| AppError::Internal(e.to_string()))?;
     // JSON is a JS expression: no string of the card's can become code.
-    wv.eval(format!("window.__roaltCard&&window.__roaltCard({json})"))?;
+    wv.eval(format!("window.__mtwinCard&&window.__mtwinCard({json})"))?;
     Ok(())
 }
 

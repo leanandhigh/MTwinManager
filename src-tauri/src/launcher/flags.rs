@@ -115,7 +115,7 @@ pub fn check(flags: &BTreeMap<String, String>) -> Result<()> {
 
 /// Replaces the file in one step; a read-only one stays read-only.
 fn write(file: &Path, bytes: &[u8]) -> std::io::Result<()> {
-    let tmp = file.with_extension("json.roalt");
+    let tmp = file.with_extension("json.mtwin");
     let readonly = std::fs::metadata(file).is_ok_and(|m| m.permissions().readonly());
     let done = retry(|| std::fs::write(&tmp, bytes)).and_then(|()| {
         if readonly {
@@ -298,7 +298,7 @@ mod tests {
 
     #[test]
     fn puts_the_file_back_exactly() {
-        let dir = std::env::temp_dir().join(format!("roalt-test-flags-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("mtwin-test-flags-{}", std::process::id()));
         let exe = dir.join("RobloxPlayerBeta.exe");
         let file = dir.join("ClientSettings").join("ClientAppSettings.json");
         let _ = std::fs::remove_dir_all(&dir);

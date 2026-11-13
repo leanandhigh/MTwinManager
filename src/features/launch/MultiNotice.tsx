@@ -7,7 +7,7 @@ import { ConfirmDialog } from "../../ui/Dialog";
 import { readStored, writeStored } from "../../ui/stored";
 import { toastError } from "../../ui/Toast";
 
-const NOTICE_KEY = "roalt.multiInstanceNotice";
+const NOTICE_KEY = "mtwin.multiInstanceNotice";
 
 /** Turns multi-instance on or off. The first time it is turned on, Roblox's stance on several
  * clients is shown first; render `dialog` next to the switch. */

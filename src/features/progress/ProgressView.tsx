@@ -136,7 +136,7 @@ end`;
 }
 
 function ScriptDialog({ open, onClose, host }: { open: boolean; onClose: () => void; host: string }) {
-  const [pc, setPc] = useStored("roalt.progressPc", (s) => s ?? "PC1", (v) => v);
+  const [pc, setPc] = useStored("mtwin.progressPc", (s) => s ?? "PC1", (v) => v);
   const [copied, setCopied] = useState(false);
   const code = loader(pc, host);
   const copy = () =>
@@ -165,9 +165,9 @@ function ScriptDialog({ open, onClose, host }: { open: boolean; onClose: () => v
 }
 
 function GameList({ s, onOpen, onScript }: { s: ProgressState; onOpen: (id: string) => void; onScript: () => void }) {
-  const [favs, setFavs] = useStored("roalt.progressFavourites", list, JSON.stringify);
+  const [favs, setFavs] = useStored("mtwin.progressFavourites", list, JSON.stringify);
   const [filter, setFilter] = useState<GameFilter>("all");
-  const [sort, setSort] = useStored<GameSort>("roalt.progressGameSort", (v) => (v === "mine" || v === "playing" || v === "name" ? v : "online"), (v) => v);
+  const [sort, setSort] = useStored<GameSort>("mtwin.progressGameSort", (v) => (v === "mine" || v === "playing" || v === "name" ? v : "online"), (v) => v);
   const [search, setSearch] = useState("");
 
   const [adding, setAdding] = useState(false);

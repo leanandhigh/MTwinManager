@@ -8,7 +8,7 @@ import { readStored, writeStored } from "../stored";
 // nothing animates. ?rm=1 forces reduced in a dev preview. CSS reads the attributes
 // (styles/motion.css); motion reads them through MotionRoot; WAAPI calls read prefersReducedMotion().
 export type MotionPreference = "on" | "reduced" | "off";
-const KEY = "roalt.motion";
+const KEY = "mtwin.motion";
 
 const { subscribe, notify } = signal();
 let installed = false;

@@ -11,7 +11,7 @@ import { friendly, toast, toastError } from "../../ui/Toast";
 import { accountName } from "../accounts/shared";
 import { describeTarget, resolveTarget, type Draft } from "./target";
 
-const LAST_KEY = "roalt.lastLaunchAccount";
+const LAST_KEY = "mtwin.lastLaunchAccount";
 const LAUNCH_ERRORS: Record<string, Key> = {
   cookieInvalid: "launch.err.cookieInvalid",
   challenge: "launch.err.challenge",

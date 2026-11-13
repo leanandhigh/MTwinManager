@@ -17,7 +17,9 @@ use windows::core::{Owned, PCWSTR, w};
 
 use crate::error::{AppError, Result};
 
-const POLICY: &str = "RoALT-Roblox";
+const POLICY: &str = "MTwin-Roblox";
+/// The policy's name before the rename: removed along with it, so none is left behind.
+const OLD_POLICY: &str = "RoALT-Roblox";
 pub const MIN_KBPS: u32 = 64;
 pub const MAX_KBPS: u32 = 10_000_000;
 /// How long the elevated script may take once the prompt is answered.
@@ -27,7 +29,9 @@ const TIMEOUT: Duration = Duration::from_secs(60);
 /// `MIN_KBPS..=MAX_KBPS`) adds it again; 0 only removes it. Nothing but the checked integer is
 /// put into it.
 pub fn script(kbps: u32) -> Result<String> {
-    let remove = format!("Remove-NetQosPolicy -Name '{POLICY}' -PolicyStore ActiveStore -Confirm:$false -ErrorAction SilentlyContinue");
+    let remove = [POLICY, OLD_POLICY]
+        .map(|name| format!("Remove-NetQosPolicy -Name '{name}' -PolicyStore ActiveStore -Confirm:$false -ErrorAction SilentlyContinue"))
+        .join("; ");
     if kbps == 0 {
         // Nothing to remove is fine, yet leaves PowerShell's exit code at 1.
         return Ok(format!("{remove}; exit 0"));
@@ -110,7 +114,8 @@ mod tests {
     fn the_script_has_only_a_checked_rate_in_it() {
         let s = script(1_000).unwrap();
         assert!(s.contains("-ThrottleRateActionBitsPerSecond 1000000 -PolicyStore ActiveStore"), "{s}");
-        assert!(s.starts_with("$ErrorActionPreference = 'Stop'; Remove-NetQosPolicy -Name 'RoALT-Roblox'"), "{s}");
+        assert!(s.starts_with("$ErrorActionPreference = 'Stop'; Remove-NetQosPolicy -Name 'MTwin-Roblox'"), "{s}");
+        assert!(s.contains("Remove-NetQosPolicy -Name 'RoALT-Roblox'"), "the old one goes too: {s}");
         assert!(!s.contains('"'), "it goes inside -Command \"...\"");
         let off = script(0).unwrap();
         assert!(off.starts_with("Remove-NetQosPolicy") && !off.contains("New-NetQosPolicy"), "{off}");

@@ -131,7 +131,7 @@ export function asError(e: unknown): ErrorPayload {
   return { kind: "internal", message: String(e) };
 }
 
-/** A line into roalt.log (the Debug tab), target "ui". Never throws. */
+/** A line into mtwin.log (the Debug tab), target "ui". Never throws. */
 export function debugLog(level: "error" | "warn" | "info" | "debug", message: string) {
   rawInvoke("debug_log", { level, message }).catch(() => {});
 }
@@ -376,7 +376,7 @@ export const api = {
   dataDirMove: (path: string) => invoke<void>("data_dir_move", { path }),
   /** MTwin Manager's own log folder (data folder\logs) in Explorer. */
   logsOpen: () => invoke<void>("logs_open"),
-  /** The last lines of roalt.log, oldest first. */
+  /** The last lines of mtwin.log, oldest first. */
   debugTail: (lines: number) => invoke<string[]>("debug_tail", { lines }),
   backgroundSet: (path: string) => invoke<void>("background_set", { path }),
   backgroundClear: () => invoke<void>("background_clear"),

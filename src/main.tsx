@@ -1,3 +1,4 @@
+import "./migrateStorage";
 import { installSounds } from "./ui/sounds";
 import { Component, StrictMode, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
@@ -12,7 +13,7 @@ import { loadLastLang, t } from "./i18n";
 import { LayoutPreview, type PreviewData } from "./features/launch/LayoutPreview";
 import { assertMotionTokens, installReactive, installReducedMotion } from "./ui/motion";
 
-// Everything that goes wrong in the UI reaches roalt.log (the Debug tab).
+// Everything that goes wrong in the UI reaches mtwin.log (the Debug tab).
 let forwarding = false;
 function report(level: "error" | "warn", message: string) {
   // A failure while forwarding must not forward itself again.
@@ -72,7 +73,7 @@ try {
 }
 
 // The window layout preview window (`layout_preview`): its spots, not the app.
-const preview = (window as { __ROALT_LAYOUT_PREVIEW__?: PreviewData }).__ROALT_LAYOUT_PREVIEW__;
+const preview = (window as { __MTWIN_LAYOUT_PREVIEW__?: PreviewData }).__MTWIN_LAYOUT_PREVIEW__;
 // Its window is see-through: the app's own background (and its fade-in) must never paint.
 if (preview) {
   for (const el of [document.documentElement, document.body]) {

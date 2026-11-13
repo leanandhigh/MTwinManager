@@ -35,7 +35,7 @@ pub async fn fetch() -> News {
         Ok(c) => c,
         Err(e) => {
             log::warn!("news: http client unavailable: {e}");
-            return News { items: vec![], failed: vec![NewsSource::Roalt, NewsSource::Devforum, NewsSource::Newsroom] };
+            return News { items: vec![], failed: vec![NewsSource::Mtwin, NewsSource::Devforum, NewsSource::Newsroom] };
         }
     };
     let (releases, announcements, notes, newsroom) = tokio::join!(get(&http, RELEASES), get(&http, ANNOUNCEMENTS), get(&http, RELEASE_NOTES), get(&http, NEWSROOM));
@@ -49,7 +49,7 @@ pub async fn fetch() -> News {
             }
         }
     };
-    take(NewsSource::Roalt, releases.as_deref().and_then(parse_releases));
+    take(NewsSource::Mtwin, releases.as_deref().and_then(parse_releases));
     // One of the two DevForum categories is enough to show the DevForum.
     let forum: Vec<_> = [announcements, notes].iter().flatten().filter_map(|b| parse_devforum(b)).flatten().collect();
     take(NewsSource::Devforum, (!forum.is_empty()).then_some(forum));
@@ -105,9 +105,9 @@ fn parse_releases(body: &str) -> Option<Vec<NewsItem>> {
             .filter_map(|r| {
                 let version = r.tag_name.strip_prefix('v').filter(|v| plain_version(v))?.to_owned();
                 Some(NewsItem {
-                    id: format!("roalt:{version}"),
-                    source: NewsSource::Roalt,
-                    // By the tag, as the update offer names it (a release's name can differ: v0.9.2 is "RoALT 0.9.1a").
+                    id: format!("mtwin:{version}"),
+                    source: NewsSource::Mtwin,
+                    // By the tag, as the update offer names it (a release's name can differ: v0.9.2 is "MTwin Manager 0.9.1a").
                     title: format!("MTwin Manager {version}"),
                     summary: r.body.unwrap_or_default().chars().take(MAX_NOTES).collect(),
                     url: format!("https://github.com/leanandhigh/RoALT/releases/tag/v{version}"),
@@ -277,7 +277,7 @@ mod tests {
     #[test]
     fn releases() {
         let body = r###"[
-            {"tag_name":"v0.10.0","name":"RoALT 0.9.9a","body":"## New\n- Macros","published_at":"2026-11-05T10:00:00Z"},
+            {"tag_name":"v0.10.0","name":"MTwin Manager 0.9.9a","body":"## New\n- Macros","published_at":"2026-11-05T10:00:00Z"},
             {"tag_name":"v0.9.9","name":"","body":null,"published_at":"2026-11-04T10:00:00Z","draft":true},
             {"tag_name":"v0.9.8-rc.1","published_at":"2026-11-03T10:00:00Z"},
             {"tag_name":"v0.9.7","name":"  ","published_at":"2026-11-02T10:00:00Z","prerelease":true},
@@ -291,7 +291,7 @@ mod tests {
         assert_eq!(items[0].summary, "## New\n- Macros");
         assert_eq!(items[0].url, "https://github.com/leanandhigh/RoALT/releases/tag/v0.10.0");
         assert_eq!(items[0].version.as_deref(), Some("0.10.0"));
-        assert_eq!(items[1].id, "roalt:0.9.4");
+        assert_eq!(items[1].id, "mtwin:0.9.4");
         assert!(parse_releases("<html>").is_none());
     }
 
