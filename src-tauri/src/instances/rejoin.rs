@@ -40,6 +40,8 @@ static WAITING_SAID: Mutex<Option<Instant>> = Mutex::new(None);
 const WAITING_SAY_EVERY: Duration = Duration::from_secs(5 * 60);
 /// Once per run, since closing Roblox's window by hand looks like a crash too.
 static CRASH_HINT_SAID: AtomicBool = AtomicBool::new(false);
+/// Once per run: a disconnect with auto-rejoin off says why nothing happens, and how to change it.
+static REJOIN_HINT_SAID: AtomicBool = AtomicBool::new(false);
 
 /// Called by the tracker loop after each poll with what `take_rejoins` returned. Drops those
 /// whose setting is off (`enabled`) or whose account allows disconnects, silently. Otherwise,
@@ -64,6 +66,14 @@ pub fn handle(app: &AppHandle, rejoins: Vec<Rejoin>) {
         && !CRASH_HINT_SAID.swap(true, Ordering::Relaxed)
     {
         notice(app, true, tr!("A client closed unexpectedly and wasn't relaunched: {rejoin} only covers disconnects. To relaunch crashed clients too, turn on {restart} in Settings.", rejoin = tr!("Auto-rejoin"), restart = tr!("Auto-restart after a crash")));
+    }
+    if !v.auto_rejoin
+        && let Some(r) = off.iter().find(|r| r.cause == CrashKind::Disconnect)
+        && s.db.account(r.account_id).is_ok_and(|a| !a.allow_disconnect)
+        && !REJOIN_HINT_SAID.swap(true, Ordering::Relaxed)
+    {
+        let name = s.db.account(r.account_id).map(|a| name_of(&a)).unwrap_or_default();
+        notice(app, true, tr!("{name} was disconnected and wasn't rejoined: {rejoin} is off. Turn it on (Accounts, beside Check all sign-ins, or Settings) to reconnect clients by themselves.", name = name, rejoin = tr!("Auto-rejoin")));
     }
     for r in on {
         // Who the account is now, so an id removed and reused during the wait is told apart.

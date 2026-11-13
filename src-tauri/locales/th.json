@@ -368,5 +368,6 @@
   "Use a plain file name ending in .lua, .luau or .txt.": "ใช้ชื่อไฟล์ธรรมดาที่ลงท้ายด้วย .lua, .luau หรือ .txt",
   "The executor's program isn't there any more. Choose it again.": "ไม่พบโปรแกรม executor แล้ว เลือกใหม่อีกครั้ง",
   "Couldn't start the executor: {why}": "เปิด executor ไม่ได้: {why}",
-  "That script is over 1 MB.": "สคริปต์นี้ใหญ่เกิน 1 MB"
+  "That script is over 1 MB.": "สคริปต์นี้ใหญ่เกิน 1 MB",
+  "{name} was disconnected and wasn't rejoined: {rejoin} is off. Turn it on (Accounts, beside Check all sign-ins, or Settings) to reconnect clients by themselves.": "{name} หลุดการเชื่อมต่อและไม่ได้เข้าใหม่: {rejoin} ปิดอยู่ เปิดได้ที่หน้าบัญชี (ข้างปุ่มตรวจสอบการเข้าสู่ระบบทั้งหมด) หรือในการตั้งค่า เพื่อให้ไคลเอนต์เข้าใหม่เอง"
 }

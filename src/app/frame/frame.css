@@ -262,6 +262,11 @@
     font-size: 11px;
     font-variant-numeric: tabular-nums;
   }
+  /* Always shown: a disconnected client is what needs a hand. */
+  .ld-rejoin {
+    flex: none;
+    color: var(--accent-text);
+  }
   .ld-kill {
     flex: none;
     opacity: 0;

@@ -10,6 +10,7 @@ import { toast, toastError } from "../../ui/Toast";
 import { useStored } from "../../ui/stored";
 import { accountName, Avatar } from "../../features/accounts/shared";
 import { isRunning, STATES, uptime, useNow } from "../../features/launch/Running";
+import { launchOne } from "../../features/launch/launchQueue";
 
 /** Every running client, always in view: a column at the window's right edge. Each row shows the
  * account, where it is and for how long, and brings its window up or ends it. It folds to a strip. */
@@ -174,6 +175,10 @@ function Row({ i, a, now, picked, onPick }: { i: Instance; a: AccountSummary | u
         </span>
         <span className="ld-time">{uptime(i.startedAt, now)}</span>
       </button>
+      {/* Disconnected: back into the same place in one click (its client closes first). */}
+      {i.state === "disconnected" && a && (
+        <IconButton size="sm" icon="refresh" className="ld-rejoin" label={t("live.rejoin")} onClick={() => void launchOne(a, i.target, i.fpsCap, i.id)} />
+      )}
       <IconButton size="sm" icon="x" className="ld-kill" label={t("live.end")} onClick={() => api.instancesKill([i.id]).catch(toastError)} />
     </li>
   );
