@@ -7,7 +7,9 @@ import { qk, useAccounts, useGroups, useInstances } from "../data";
 import { t } from "../i18n";
 import { AddAccountDialog, type Tab as AddTab } from "../features/accounts/AddAccountDialog";
 import { HomeView } from "../features/home/HomeView";
-import { useSectionOrder } from "../features/dashboard/homeLayout";
+import { DashboardView } from "../features/dashboard/DashboardView";
+import { useHomeTabs, useSectionOrder } from "../features/dashboard/homeLayout";
+import { useStored } from "../ui/stored";
 import { LaunchFlight } from "../features/launch/LaunchButton";
 import { lastLaunchAccount } from "../features/launch/launchQueue";
 import { isLive } from "../features/launch/Running";
@@ -76,6 +78,9 @@ export function Shell({ vault, settings, islandSlot }: { vault: VaultStatus; set
   const [sameServer, setSameServer] = useState<SameServer>("off");
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
   const [sectionOrder, setSectionOrder] = useSectionOrder();
+  const homeTabs = useHomeTabs(accounts.data);
+  // Home: the new overview, or the clients view (every client's card, window previews, account tabs).
+  const [homeView, setHomeView] = useStored<"overview" | "clients">("mtwin.homeView", (v) => (v === "clients" ? "clients" : "overview"), (v) => v);
   // The game the Servers view shows.
   const [serversPlace, setServersPlace] = useState<number | null>(null);
   // What Browse was last asked to show (an account's "Open on roblox.com"); `n` tells two alike apart.
@@ -291,15 +296,28 @@ export function Shell({ vault, settings, islandSlot }: { vault: VaultStatus; set
         <Suspense fallback={null}>
         <ViewTransition key={view} enter="view-in" exit="view-out" update="none" default="none">
           {view === "dashboard" ? (
-            <HomeView
-              accounts={accounts.data}
-              onAdd={() => openAdd()}
-              onPickFavourite={pickFavourite}
-              onOpenAccount={(id) => {
-                showAll();
-                setSelected(id);
-              }}
-            />
+            <div className="flex-1 min-w-0 min-h-0 flex flex-col">
+              <div className="hv-switch" role="tablist" aria-label={t("app.nav.dashboard")}>
+                {(["overview", "clients"] as const).map((v) => (
+                  <button key={v} type="button" role="tab" aria-selected={homeView === v} onClick={() => setHomeView(v)}>
+                    {t(v === "overview" ? "home2.tabOverview" : "home2.tabClients")}
+                  </button>
+                ))}
+              </div>
+              {homeView === "clients" ? (
+                <DashboardView accounts={accounts.data} home={homeTabs} onAdd={() => openAdd()} onImport={() => openAdd("many")} onPickFavourite={pickFavourite} />
+              ) : (
+                <HomeView
+                  accounts={accounts.data}
+                  onAdd={() => openAdd()}
+                  onPickFavourite={pickFavourite}
+                  onOpenAccount={(id) => {
+                    showAll();
+                    setSelected(id);
+                  }}
+                />
+              )}
+            </div>
           ) : view === "accounts" ? (
             <AccountsView
               accounts={accounts.data}
