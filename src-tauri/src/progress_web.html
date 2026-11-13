@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>MTwin Progress</title>
+<style>
+  :root {
+    --bg: #0d0d0f; --s1: #151518; --s2: #1c1c20; --line: #2a2a30; --fg: #f2f2f4; --fg2: #a6a6ae; --fg3: #6e6e78;
+    --accent: #e5243b; --ok: #2fbf71; --warn: #e8a33d; --r: 8px;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) { --bg: #f4f4f6; --s1: #ffffff; --s2: #f0f0f3; --line: #e2e2e7; --fg: #141418; --fg2: #55555e; --fg3: #8a8a94; }
+  }
+  :root[data-theme="light"] { --bg: #f4f4f6; --s1: #ffffff; --s2: #f0f0f3; --line: #e2e2e7; --fg: #141418; --fg2: #55555e; --fg3: #8a8a94; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.45 "Segoe UI Variable", "Segoe UI", system-ui, -apple-system, "Noto Sans Thai", sans-serif; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 20px 16px 48px; }
+  header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }
+  .mark { width: 28px; height: 28px; border-radius: 7px; background: #000; display: grid; place-items: center; }
+  .mark::after { content: ""; width: 12px; height: 12px; border-radius: 3px; background: var(--accent); }
+  .live { display: inline-flex; align-items: center; gap: 6px; color: var(--fg2); font-size: 12.5px; margin-left: auto; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--fg3); flex: none; }
+  .dot.on { background: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 22%, transparent); }
+  .dot.err { background: var(--accent); }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 16px; }
+  .stat { background: var(--s1); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; min-width: 0; }
+  .stat b { display: block; font-size: 22px; font-weight: 650; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .stat span { color: var(--fg2); font-size: 12.5px; }
+  .bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+  input[type="search"] { flex: 1 1 220px; min-width: 0; height: 36px; padding: 0 12px; border-radius: var(--r); border: 1px solid var(--line); background: var(--s1); color: var(--fg); font: inherit; }
+  input[type="search"]:focus { outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent); outline-offset: -1px; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--s1); color: var(--fg2); font: inherit; font-size: 13px; cursor: pointer; }
+  .chip[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  select.chip { padding-right: 8px; }
+  .totals { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+  .total { background: var(--s2); border-radius: 6px; padding: 4px 10px; font-size: 12.5px; color: var(--fg2); }
+  .total b { color: var(--fg); font-weight: 600; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 10px; }
+  .card { background: var(--s1); border: 1px solid var(--line); border-radius: var(--r); padding: 12px; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+  .card.off { opacity: 0.62; }
+  .who { display: flex; gap: 10px; align-items: center; min-width: 0; }
+  .av { width: 40px; height: 40px; border-radius: 50%; background: var(--s2); flex: none; object-fit: cover; }
+  .names { min-width: 0; flex: 1; }
+  .name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sub { color: var(--fg3); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lvl { flex: none; text-align: right; }
+  .lvl b { display: block; font-size: 18px; font-weight: 650; line-height: 1.1; }
+  .lvl span { color: var(--fg3); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .vals { display: flex; flex-wrap: wrap; gap: 6px; }
+  .val { background: var(--s2); border-radius: 6px; padding: 3px 8px; font-size: 12.5px; color: var(--fg2); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .val b { color: var(--fg); font-weight: 600; }
+  details { border-top: 1px solid var(--line); padding-top: 8px; }
+  summary { cursor: pointer; color: var(--fg2); font-size: 12.5px; list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "▸ "; color: var(--fg3); }
+  details[open] summary::before { content: "▾ "; }
+  .items { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+  .item { font-size: 12px; padding: 2px 7px; border-radius: 5px; border: 1px solid var(--line); color: var(--fg2); }
+  .meta { display: flex; align-items: center; gap: 6px; color: var(--fg3); font-size: 12px; }
+  .err { color: var(--warn); font-size: 12px; }
+  .empty { text-align: center; color: var(--fg2); padding: 64px 16px; border: 1px dashed var(--line); border-radius: var(--r); }
+  .group { margin: 22px 0 10px; display: flex; align-items: baseline; gap: 8px; }
+  .group h2 { font-size: 15px; margin: 0; }
+  .group span { color: var(--fg3); font-size: 12.5px; }
+  button.theme { display: grid; place-items: center; height: 30px; width: 30px; border-radius: 8px; border: 1px solid var(--line); background: var(--s1); color: var(--fg2); cursor: pointer; }
+  @media (max-width: 520px) {
+    header { display: grid; grid-template-columns: 1fr auto; row-gap: 6px; }
+    .live { grid-column: 1 / -1; grid-row: 2; margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><span class="mark" aria-hidden="true"></span><span>MTwin Progress</span></div>
+    <span class="live"><span id="dot" class="dot"></span><span id="status">Connecting…</span></span>
+    <button class="theme" id="theme" type="button" title="Light / dark" aria-label="Light / dark"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 2a6 6 0 0 1 0 12z" fill="currentColor"/></svg></button>
+  </header>
+  <section class="stats" id="stats"></section>
+  <div class="bar">
+    <input type="search" id="q" placeholder="Search accounts, items, values…" autocomplete="off">
+    <div class="chips" role="group" aria-label="Show">
+      <button class="chip" data-show="all" aria-pressed="true" type="button">All</button>
+      <button class="chip" data-show="online" aria-pressed="false" type="button">Online</button>
+      <button class="chip" data-show="offline" aria-pressed="false" type="button">Offline</button>
+    </div>
+    <select class="chip" id="sort" aria-label="Sort">
+      <option value="game">By game</option>
+      <option value="level">Highest level</option>
+      <option value="seen">Last report</option>
+      <option value="name">Name</option>
+    </select>
+  </div>
+  <div class="totals" id="totals"></div>
+  <main id="list"></main>
+</div>
+<script>
+(() => {
+  const key = new URLSearchParams(location.search).get("key");
+  const api = "/api/progress" + (key ? "?key=" + encodeURIComponent(key) : "");
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  const nf = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 });
+  const compact = new Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 1 });
+  const num = (n) => (Math.abs(n) >= 100000 ? compact.format(n) : nf.format(n));
+  const ago = (ms) => {
+    const s = Math.max(0, Math.round(ms / 1000));
+    if (s < 60) return s + "s ago";
+    if (s < 3600) return Math.floor(s / 60) + "m ago";
+    if (s < 86400) return Math.floor(s / 3600) + "h ago";
+    return Math.floor(s / 86400) + "d ago";
+  };
+  let data = null, show = "all", failed = 0;
+  try { const t = localStorage.getItem("mtwin.webTheme"); if (t) document.documentElement.dataset.theme = t; } catch {}
+  $("theme").onclick = () => {
+    const root = document.documentElement;
+    const dark = root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    root.dataset.theme = dark ? "light" : "dark";
+    try { localStorage.setItem("mtwin.webTheme", root.dataset.theme); } catch {}
+  };
+  document.querySelectorAll("[data-show]").forEach((b) => (b.onclick = () => {
+    show = b.dataset.show;
+    document.querySelectorAll("[data-show]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    render();
+  }));
+  $("q").oninput = render;
+  $("sort").onchange = render;
+
+  function matches(a, q) {
+    if (!q) return true;
+    const hay = [a.name, a.displayName, a.gameName, a.pc, ...a.values.map((v) => v.name), ...a.stats.map((s) => s.name + " " + s.value), ...a.items.map((i) => i.name)].join(" ").toLowerCase();
+    return q.split(/\s+/).every((w) => hay.includes(w));
+  }
+
+  function card(a) {
+    const vals = a.values.map((v) => `<span class="val" title="${esc(v.name)}">${esc(v.name)} <b>${num(v.amount)}</b></span>`).join("");
+    const stats = a.stats.map((s) => `<span class="val" title="${esc(s.name)}">${esc(s.name)} <b>${esc(s.value)}${s.max != null ? "/" + num(s.max) : ""}</b></span>`).join("");
+    const items = a.items.length
+      ? `<details><summary>${a.items.length} item${a.items.length === 1 ? "" : "s"}</summary><div class="items">${a.items.map((i) => `<span class="item" title="${esc([i.rarity, i.category].filter(Boolean).join(" · "))}">${esc(i.name)}${i.count > 1 ? " ×" + num(i.count) : ""}</span>`).join("")}</div></details>`
+      : "";
+    const head = a.head ? `<img class="av" src="${esc(a.head)}" alt="" loading="lazy">` : `<span class="av"></span>`;
+    const errs = a.errors && a.errors.length ? `<div class="err">⚠ ${esc(a.errors[0])}</div>` : "";
+    return `<article class="card${a.online ? "" : " off"}">
+      <div class="who">${head}
+        <div class="names"><div class="name">${esc(a.displayName || a.name)}</div><div class="sub">@${esc(a.name)} · ${esc(a.gameName || "Unknown game")}</div></div>
+        ${a.level != null ? `<div class="lvl"><b>${num(a.level)}</b><span>Level</span></div>` : ""}
+      </div>
+      ${vals || stats ? `<div class="vals">${vals}${stats}</div>` : ""}
+      ${items}${errs}
+      <div class="meta"><span class="dot ${a.online ? "on" : ""}"></span>${a.online ? "Online" : "Offline"} · ${ago(data.now - a.lastSeen)}${a.pc ? " · " + esc(a.pc) : ""}</div>
+    </article>`;
+  }
+
+  function render() {
+    if (!data) return;
+    const q = $("q").value.trim().toLowerCase();
+    const all = data.accounts;
+    let rows = all.filter((a) => (show === "all" || (show === "online") === a.online) && matches(a, q));
+    const sort = $("sort").value;
+    const by = {
+      game: (a, b) => (a.gameName || "").localeCompare(b.gameName || "") || b.online - a.online || (b.level ?? -1) - (a.level ?? -1),
+      level: (a, b) => (b.level ?? -1) - (a.level ?? -1) || b.online - a.online,
+      seen: (a, b) => b.lastSeen - a.lastSeen,
+      name: (a, b) => a.name.localeCompare(b.name),
+    }[sort];
+    rows = rows.slice().sort(by);
+
+    const online = all.filter((a) => a.online).length;
+    const games = new Set(all.map((a) => a.gameId)).size;
+    const levels = all.map((a) => a.level).filter((l) => l != null);
+    const avg = levels.length ? levels.reduce((x, y) => x + y, 0) / levels.length : null;
+    $("stats").innerHTML = [
+      [online + " / " + all.length, "Online now"],
+      [games, games === 1 ? "Game" : "Games"],
+      [avg != null ? num(Math.round(avg * 10) / 10) : "—", "Average level"],
+      [all.reduce((n, a) => n + a.items.length, 0), "Items tracked"],
+    ].map(([v, l]) => `<div class="stat"><b>${esc(v)}</b><span>${esc(l)}</span></div>`).join("");
+
+    // Totals of every value over the accounts shown.
+    const sums = new Map();
+    for (const a of rows) for (const v of a.values) sums.set(v.name, (sums.get(v.name) || 0) + v.amount);
+    $("totals").innerHTML = [...sums].slice(0, 12).map(([n, v]) => `<span class="total">Σ ${esc(n)} <b>${num(v)}</b></span>`).join("");
+
+    if (!all.length) {
+      $("list").innerHTML = `<div class="empty">No reports yet. Run the Progress script in your executor (MTwin Manager → Progress → Get script), and accounts show up here every 10 seconds.</div>`;
+      return;
+    }
+    if (!rows.length) {
+      $("list").innerHTML = `<div class="empty">Nothing matches.</div>`;
+      return;
+    }
+    if (sort === "game") {
+      const groups = new Map();
+      for (const a of rows) {
+        const g = a.gameName || "Unknown game";
+        if (!groups.has(g)) groups.set(g, []);
+        groups.get(g).push(a);
+      }
+      $("list").innerHTML = [...groups].map(([g, as]) => `<div class="group"><h2>${esc(g)}</h2><span>${as.filter((a) => a.online).length} online · ${as.length}</span></div><div class="grid">${as.map(card).join("")}</div>`).join("");
+    } else {
+      $("list").innerHTML = `<div class="grid">${rows.map(card).join("")}</div>`;
+    }
+  }
+
+  async function load() {
+    try {
+      const r = await fetch(api, { cache: "no-store" });
+      if (!r.ok) throw new Error(r.status === 403 ? "Link expired: open the new one from MTwin Manager" : "HTTP " + r.status);
+      // Keep open details open across refreshes.
+      const open = new Set([...document.querySelectorAll("details[open]")].map((d) => d.closest(".card")?.querySelector(".sub")?.textContent));
+      data = await r.json();
+      failed = 0;
+      $("dot").className = "dot on";
+      $("status").textContent = "Live · updated " + new Date().toLocaleTimeString();
+      render();
+      document.querySelectorAll("details").forEach((d) => { if (open.has(d.closest(".card")?.querySelector(".sub")?.textContent)) d.open = true; });
+    } catch (e) {
+      failed++;
+      $("dot").className = "dot err";
+      $("status").textContent = (e && e.message && !/fetch/i.test(e.message) ? e.message : "MTwin Manager isn't reachable") + (failed > 1 ? " · retrying" : "");
+    }
+  }
+  load();
+  setInterval(() => { if (!document.hidden) load(); }, 5000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) load(); });
+})();
+</script>
+</body>
+</html>

@@ -745,6 +745,8 @@ fn main() {
             weao::executors_list,
             commands::client_bootstrappers,
             progress::progress_state,
+            progress::progress_web,
+            progress::progress_web_set,
             progress::progress_remove,
             progress::progress_catalog_save,
             progress::progress_auto_delete,

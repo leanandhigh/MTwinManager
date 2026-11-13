@@ -2,6 +2,7 @@ import "./progress.css";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, type AccountSummary, type ProgressState } from "../../api";
 import { qk } from "../../data";
 import { fmtNum, t, type Key } from "../../i18n";
@@ -9,6 +10,7 @@ import { Chip } from "../../ui/Bits";
 import { Button, IconButton } from "../../ui/Button";
 import { Dialog } from "../../ui/Dialog";
 import { Field, Input, Select } from "../../ui/Field";
+import { Switch } from "../../ui/controls";
 import { Icon } from "../../ui/Icon";
 import { StatusPill } from "../../ui/Status";
 import { LoadFailed, toast, toastError } from "../../ui/Toast";
@@ -39,6 +41,7 @@ export function ProgressView({ accounts }: { accounts: AccountSummary[] }) {
   const [game, setGameState] = useState<string | null>(lastGame);
   const [scriptOpen, setScriptOpen] = useState(false);
   const [docsOpen, setDocsOpen] = useState(false);
+  const [webOpen, setWebOpen] = useState(false);
   const setGame = (g: string | null) => {
     lastGame = g;
     setGameState(g);
@@ -56,6 +59,9 @@ export function ProgressView({ accounts }: { accounts: AccountSummary[] }) {
             <p className="page-sub">{t("progress.sub")}</p>
           </div>
           <div className="pg-head-tools">
+            <Button size="md" variant="ghost" icon="globe" onClick={() => setWebOpen(true)}>
+              {t("progress.web")}
+            </Button>
             <Button size="md" variant="ghost" icon="info" onClick={() => setDocsOpen(true)}>
               {t("progress.docs")}
             </Button>
@@ -73,7 +79,72 @@ export function ProgressView({ accounts }: { accounts: AccountSummary[] }) {
       </div>
       <ScriptDialog open={scriptOpen} onClose={() => setScriptOpen(false)} host={PORT_HOST(s)} />
       <DocsDialog open={docsOpen} onClose={() => setDocsOpen(false)} host={PORT_HOST(s)} />
+      <WebsiteDialog open={webOpen} onClose={() => setWebOpen(false)} />
     </main>
+  );
+}
+
+/** The progress website: open it here, or share it on the network for a phone or another PC. */
+function WebsiteDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const qc = useQueryClient();
+  const web = useQuery({ queryKey: ["progressWeb"], queryFn: api.progressWeb, enabled: open, refetchInterval: open ? 3000 : false }).data;
+  const [busy, setBusy] = useState(false);
+  const local = web?.localUrl ?? "http://127.0.0.1:16390/";
+  const set = (share: boolean, newKey = false) => {
+    setBusy(true);
+    api
+      .progressWebSet(share, newKey)
+      .then((w) => {
+        qc.setQueryData(["progressWeb"], w);
+        if (newKey) toast(t("progress.webNewKeyDone"));
+      }, toastError)
+      .finally(() => setBusy(false));
+  };
+  const copy = (url: string) => writeText(url).then(() => toast(t("progress.webCopied")), toastError);
+  return (
+    <Dialog open={open} onClose={onClose} title={t("progress.web")} width={560}>
+      <div className="pg-web">
+        <p className="text-fg-2">{t("progress.webIntro")}</p>
+        <div className="pg-web-row">
+          <div className="min-w-0 flex-1">
+            <b>{t("progress.webHere")}</b>
+            <code className="pg-web-url">{local}</code>
+          </div>
+          <Button size="md" variant="primary" icon="external" onClick={() => openUrl(local).catch(toastError)}>
+            {t("progress.webOpen")}
+          </Button>
+        </div>
+        <div className="pg-web-row">
+          <div className="min-w-0 flex-1">
+            <b>{t("progress.webShare")}</b>
+            <span className="pg-web-hint">{t("progress.webShareHint")}</span>
+          </div>
+          <Switch label={t("progress.webShare")} checked={!!web?.share} disabled={busy || !web} onChange={(on) => set(on)} />
+        </div>
+        {web?.share && (
+          <div className="pg-web-share">
+            {web.error ? (
+              <p className="pg-web-err">{t("progress.webError", { error: web.error })}</p>
+            ) : web.lanUrl ? (
+              <>
+                <code className="pg-web-url">{web.lanUrl}</code>
+                <div className="pg-web-acts">
+                  <Button size="sm" icon="copy" onClick={() => void copy(web.lanUrl!)}>
+                    {t("progress.webCopy")}
+                  </Button>
+                  <Button size="sm" variant="ghost" icon="refresh" busy={busy} onClick={() => set(true, true)}>
+                    {t("progress.webNewKey")}
+                  </Button>
+                </div>
+                <p className="pg-web-hint">{t("progress.webFirewall")}</p>
+              </>
+            ) : (
+              <p className="pg-web-err">{t("progress.webNoNetwork")}</p>
+            )}
+          </div>
+        )}
+      </div>
+    </Dialog>
   );
 }
 

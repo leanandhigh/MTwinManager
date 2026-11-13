@@ -33,6 +33,9 @@ use crate::commands::now_ms;
 use crate::error::{AppError, Result};
 
 pub const PORT: u16 = 16390;
+/// The progress website on the network (`web_share` on): read-only, and every request needs the key.
+pub const WEB_PORT: u16 = 16391;
+const WEB_PAGE: &str = include_str!("progress_web.html");
 /// An account is online while it reported within this (the script reports every 10 s).
 const ONLINE_MS: i64 = 30_000;
 const MAX_HEAD: usize = 16 * 1024;
@@ -219,6 +222,23 @@ struct Stored {
     auto_delete_hours: u32,
     games: Vec<String>,
     collectors: HashMap<String, String>,
+    /// The website is also served to the network (`WEB_PORT`).
+    web_share: bool,
+    /// What a network request must carry (`?key=`); made when sharing is first turned on.
+    web_key: String,
+}
+
+#[derive(Serialize, TS, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct ProgressWeb {
+    /// This PC's address for the website.
+    pub local_url: String,
+    pub share: bool,
+    /// The address to open on another device (with the key), when sharing and this PC has one.
+    pub lan_url: Option<String>,
+    /// Why the network listener isn't up, when sharing.
+    pub error: Option<String>,
 }
 
 pub struct Progress {
@@ -230,6 +250,7 @@ pub struct Progress {
     images: Mutex<HashMap<i64, Option<String>>>,
     /// Roblox user id → headshot URL, for the session.
     heads: Mutex<HashMap<i64, String>>,
+    web_error: Mutex<Option<String>>,
 }
 
 impl Progress {
@@ -253,6 +274,7 @@ impl Progress {
             server: Mutex::new(ProgressServer { port: PORT, running: false, error: None }),
             images: Mutex::new(HashMap::new()),
             heads: Mutex::new(HashMap::new()),
+            web_error: Mutex::new(None),
         }
     }
 
@@ -309,6 +331,63 @@ impl Progress {
             default_all: DEFAULT_ALL.to_owned(),
             games: s.games.clone(),
         }
+    }
+
+    /// What the website shows (no scripts, no catalog): the accounts, by game then name.
+    fn web_json(&self) -> String {
+        let s = self.stored();
+        let heads = self.heads.lock().unwrap_or_else(|e| e.into_inner());
+        let now = now_ms();
+        let mut accounts: Vec<&ProgressAccount> = s.accounts.values().collect();
+        accounts.sort_by(|a, b| a.game_name.cmp(&b.game_name).then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase())));
+        let rows: Vec<Value> = accounts
+            .iter()
+            .map(|a| {
+                serde_json::json!({
+                    "key": a.key, "pc": a.pc, "gameId": a.game_id, "gameName": a.game_name, "userId": a.user_id,
+                    "name": a.name, "displayName": a.display_name, "level": a.level, "values": a.values, "stats": a.stats,
+                    "items": a.items, "lastSeen": a.last_seen, "firstSeen": a.first_seen,
+                    "online": now - a.last_seen <= ONLINE_MS, "head": heads.get(&a.user_id),
+                })
+            })
+            .collect();
+        serde_json::json!({ "now": now, "onlineMs": ONLINE_MS, "accounts": rows }).to_string()
+    }
+
+    /// User ids without a headshot yet (at most `max`).
+    fn missing_heads(&self, max: usize) -> Vec<i64> {
+        let ids: HashSet<i64> = self.stored().accounts.values().map(|a| a.user_id).filter(|id| *id > 0).collect();
+        let heads = self.heads.lock().unwrap_or_else(|e| e.into_inner());
+        ids.into_iter().filter(|id| !heads.contains_key(id)).take(max).collect()
+    }
+
+    fn web_key(&self) -> Option<String> {
+        let s = self.stored();
+        (s.web_share && !s.web_key.is_empty()).then(|| s.web_key.clone())
+    }
+
+    fn web(&self) -> ProgressWeb {
+        let s = self.stored();
+        let lan_url = (s.web_share && !s.web_key.is_empty())
+            .then(lan_ip)
+            .flatten()
+            .map(|ip| format!("http://{ip}:{WEB_PORT}/?key={}", s.web_key));
+        ProgressWeb {
+            local_url: format!("http://127.0.0.1:{PORT}/"),
+            share: s.web_share,
+            lan_url,
+            error: if s.web_share { self.web_error.lock().unwrap_or_else(|e| e.into_inner()).clone() } else { None },
+        }
+    }
+
+    fn set_web(&self, share: bool, new_key: bool) {
+        let mut s = self.stored();
+        s.web_share = share;
+        if share && (new_key || s.web_key.is_empty()) {
+            s.web_key = uuid::Uuid::new_v4().simple().to_string()[..16].to_owned();
+        }
+        drop(s);
+        self.changed();
     }
 
     fn accept(&self, body: &Value) -> std::result::Result<(), String> {
@@ -444,6 +523,7 @@ fn parse_report(body: &Value, now: i64, first_seen: impl Fn(&str) -> Option<i64>
 
 /// Starts listening (once, at start) and the loop that saves and auto-deletes.
 pub fn spawn(handle: AppHandle) {
+    spawn_web(handle.clone());
     let h = handle.clone();
     tauri::async_runtime::spawn(async move {
         let listener = match TcpListener::bind(("127.0.0.1", PORT)).await {
@@ -560,6 +640,7 @@ async fn respond(stream: &mut TcpStream, status: &str, kind: &str, body: &str) {
 
 const TEXT: &str = "text/plain; charset=utf-8";
 const JSON: &str = "application/json; charset=utf-8";
+const HTML: &str = "text/html; charset=utf-8";
 
 /// Only what an address may hold, so it is safe inside the Luau string.
 fn clean_host(host: &str) -> String {
@@ -596,9 +677,81 @@ async fn serve(handle: &AppHandle, mut stream: TcpStream) {
             let game = req.query.get("game").map(String::as_str).unwrap_or_default();
             respond(&mut stream, "200 OK", JSON, &progress.catalog_for_script(game)).await;
         }
-        ("GET", "/") => respond(&mut stream, "200 OK", TEXT, "MTwin Manager Progress is running. Load /script.luau from your executor.").await,
+        ("GET", "/" | "/index.html") => respond(&mut stream, "200 OK", HTML, WEB_PAGE).await,
+        ("GET", "/api/progress") => web_api(handle, &mut stream).await,
         _ => respond(&mut stream, "404 Not Found", TEXT, "not found").await,
     }
+}
+
+/// The website's data, with headshots fetched for accounts that have none yet.
+async fn web_api(handle: &AppHandle, stream: &mut TcpStream) {
+    let s = handle.state::<App>();
+    let missing = s.progress.missing_heads(100);
+    if !missing.is_empty() {
+        match s.api.headshots(&missing).await {
+            Ok(found) => s.progress.heads.lock().unwrap_or_else(|e| e.into_inner()).extend(found),
+            Err(e) => log::debug!("progress web: headshots: {e}"),
+        }
+    }
+    respond(stream, "200 OK", JSON, &s.progress.web_json()).await;
+}
+
+/// The network listener: only the website and its data, each request with the key.
+async fn serve_web(handle: &AppHandle, mut stream: TcpStream) {
+    let Some(req) = read_request(&mut stream).await else {
+        return respond(&mut stream, "400 Bad Request", TEXT, "bad request").await;
+    };
+    let Some(key) = handle.state::<App>().progress.web_key() else {
+        return respond(&mut stream, "403 Forbidden", TEXT, "sharing is off").await;
+    };
+    if req.query.get("key").map(String::as_bytes) != Some(key.as_bytes()) {
+        return respond(&mut stream, "403 Forbidden", TEXT, "open the link MTwin Manager shows (it carries the key)").await;
+    }
+    match (req.method.as_str(), req.path.as_str()) {
+        ("GET", "/" | "/index.html") => respond(&mut stream, "200 OK", HTML, WEB_PAGE).await,
+        ("GET", "/api/progress") => web_api(handle, &mut stream).await,
+        _ => respond(&mut stream, "404 Not Found", TEXT, "not found").await,
+    }
+}
+
+/// While sharing is on, listens on every interface (`WEB_PORT`); stops when it is turned off.
+fn spawn_web(handle: AppHandle) {
+    tauri::async_runtime::spawn(async move {
+        loop {
+            let p = &handle.state::<App>().progress;
+            if p.web_key().is_none() {
+                tokio::time::sleep(Duration::from_secs(1)).await;
+                continue;
+            }
+            let listener = match TcpListener::bind(("0.0.0.0", WEB_PORT)).await {
+                Ok(l) => l,
+                Err(e) => {
+                    *p.web_error.lock().unwrap_or_else(|e| e.into_inner()) = Some(e.to_string());
+                    tokio::time::sleep(Duration::from_secs(5)).await;
+                    continue;
+                }
+            };
+            *p.web_error.lock().unwrap_or_else(|e| e.into_inner()) = None;
+            log::info!("progress: website shared on port {WEB_PORT}");
+            while handle.state::<App>().progress.web_key().is_some() {
+                let Ok(accepted) = tokio::time::timeout(Duration::from_secs(1), listener.accept()).await else { continue };
+                let Ok((stream, _)) = accepted else { continue };
+                let h = handle.clone();
+                tauri::async_runtime::spawn(async move {
+                    let _ = tokio::time::timeout(Duration::from_secs(15), serve_web(&h, stream)).await;
+                });
+            }
+            log::info!("progress: website no longer shared");
+        }
+    });
+}
+
+/// This PC's address on its network: the one a packet to the internet would leave from (a UDP
+/// "connect" sends nothing).
+fn lan_ip() -> Option<std::net::IpAddr> {
+    let sock = std::net::UdpSocket::bind("0.0.0.0:0").ok()?;
+    sock.connect("8.8.8.8:80").ok()?;
+    Some(sock.local_addr().ok()?.ip()).filter(|ip| !ip.is_loopback() && !ip.is_unspecified())
 }
 
 // ---------- commands ----------
@@ -780,6 +933,19 @@ pub async fn progress_headshots(s: State<'_, App>, user_ids: Vec<i64>) -> Result
     }
     let heads = s.progress.heads.lock().unwrap_or_else(|e| e.into_inner());
     Ok(wanted.into_iter().filter_map(|id| heads.get(&id).map(|u| (id, u.clone()))).collect())
+}
+
+/// The progress website: its address here, and on the network while shared.
+#[tauri::command]
+pub fn progress_web(s: State<'_, App>) -> ProgressWeb {
+    s.progress.web()
+}
+
+/// Shares the website on the network (or stops); `new_key` makes a new key, so old links stop working.
+#[tauri::command]
+pub fn progress_web_set(s: State<'_, App>, share: bool, new_key: bool) -> ProgressWeb {
+    s.progress.set_web(share, new_key);
+    s.progress.web()
 }
 
 /// Names, icons and players now of these universes; ones Roblox doesn't answer for are missing.

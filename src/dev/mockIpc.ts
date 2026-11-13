@@ -830,6 +830,8 @@ end
 `,
 };
 const PROGRESS_DEFAULT_ALL = "-- Runs in every game, before the game's own script.\nlocal stats = P.player:FindFirstChild(\"leaderstats\")\n";
+let webShare = false;
+let webKey = "";
 const progressState = (): ProgressState => ({
   accounts: progressAccounts.map((a) => (a.lastSeen > Date.now() - 60 * MIN ? { ...a, lastSeen: Math.max(a.lastSeen, Date.now() - 8000) } : a)),
   catalog: progressCatalog, autoDeleteHours: progressAutoDelete, server: { port: 16390, running: true, error: null }, now: Date.now(), onlineMs: 30_000, collectors: progressCollectors, defaultAll: PROGRESS_DEFAULT_ALL, games: progressGamesAdded,
@@ -1440,6 +1442,14 @@ async function handle(cmd: string, args: Args): Promise<unknown> {
         { name: "Bloxstrap", path: "C:\\Users\\you\\AppData\\Local\\Bloxstrap\\Bloxstrap.exe", registered: false },
         { name: "ExploitStrap", path: "C:\\Users\\you\\AppData\\Local\\ExploitStrap\\ExploitStrap.exe", registered: false },
       ];
+    case "progress_web":
+    case "progress_web_set": {
+      if (cmd === "progress_web_set") {
+        webShare = args.share as boolean;
+        if (webShare && (args.newKey || !webKey)) webKey = Math.random().toString(16).slice(2, 18);
+      }
+      return { localUrl: "http://127.0.0.1:16390/", share: webShare, lanUrl: webShare ? `http://192.168.1.20:16391/?key=${webKey}` : null, error: null };
+    }
     case "progress_state":
       return progressState();
     case "progress_remove": {

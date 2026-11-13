@@ -115,7 +115,8 @@ export type { PlatformVersion } from "./bindings/PlatformVersion";
 export type { DetectedBootstrapper };
 import type { ProgressGame } from "./bindings/ProgressGame";
 import type { ProgressState } from "./bindings/ProgressState";
-export type { CatalogEntry, ProgressGame, ProgressState };
+import type { ProgressWeb } from "./bindings/ProgressWeb";
+export type { CatalogEntry, ProgressGame, ProgressState, ProgressWeb };
 export type { CatalogKind } from "./bindings/CatalogKind";
 export type { ProgressAccount } from "./bindings/ProgressAccount";
 export type { ProgressItem } from "./bindings/ProgressItem";
@@ -301,6 +302,9 @@ export const api = {
 
   /** Progress: what alts have in game, as the in-game reporter sends it to MTwin Manager's local port. */
   progressState: () => invoke<ProgressState>("progress_state"),
+  /** The progress website's address, and whether it is shared on the network. */
+  progressWeb: () => invoke<ProgressWeb>("progress_web"),
+  progressWebSet: (share: boolean, newKey: boolean) => invoke<ProgressWeb>("progress_web_set", { share, newKey }),
   /** Bootstrappers installed on this PC (Bloxstrap, Fishstrap, ExploitStrap...). */
   /** Roblox's current, future and past builds per platform, from WEAO (cached a minute unless `refresh`). */
   robloxVersions: (refresh = false) => invoke<RobloxVersions>("roblox_versions", { refresh }),
