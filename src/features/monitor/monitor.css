@@ -310,3 +310,43 @@
     }
   }
 }
+
+/* The table fits its box: as tall as its rows (no empty block under them), cells tight enough
+   that every column shows without a sideways scrollbar at usual window widths. */
+@layer brand {
+  .mon-live > .mon-scroll {
+    flex: none;
+    min-height: 0;
+    height: auto;
+    margin: 0;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+  .mon-live .mon-table {
+    font-size: 12.5px;
+  }
+  .mon-live .mon-table :is(th, td) {
+    padding-inline: 7px;
+  }
+  .mon-live .mon-table thead th {
+    height: 38px;
+    font-size: 12px;
+  }
+  .mon-live .mon-table tbody td {
+    height: 42px;
+    background: transparent;
+  }
+  .mon-live .mon-table thead th,
+  .mon-live .mon-table tbody td:is(.mon-acc, .mon-act) {
+    background: var(--surface-1);
+  }
+  .mon-live .mon-acc {
+    border-inline-end: 0;
+  }
+  .mon-live .mon-sort {
+    padding: 0 2px;
+  }
+  .mon-live .mon-act .btn {
+    padding-inline: 8px;
+  }
+}

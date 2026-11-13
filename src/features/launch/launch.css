@@ -479,3 +479,52 @@
     }
   }
 }
+
+/* Play inside Accounts, where the open account would be: who is the ticked accounts (a line at the
+   top), then where and the options, then the button. */
+@layer brand {
+  .play-embedded {
+    padding: 0;
+  }
+  .play-embedded .play {
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  .play-embed-head {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--line);
+  }
+  .play-embed-head .play-faces {
+    display: flex;
+  }
+  .play-embed-head .play-faces > * + * {
+    margin-inline-start: -8px;
+  }
+  .play-embed-head .play-faces img {
+    border-radius: 50%;
+    box-shadow: 0 0 0 2px var(--surface-1);
+  }
+  .play-embedded .play-grid {
+    display: flex !important;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    gap: 0;
+  }
+  .play-embedded .play-col {
+    flex: 1;
+    min-height: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+  }
+  /* No step 1 here (who is the ticked accounts), so no step numbers. */
+  .play-embedded .play-head > .num {
+    display: none;
+  }
+}

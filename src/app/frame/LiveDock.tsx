@@ -1,13 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { api, type AccountSummary, type Instance } from "../../api";
-import { qk, useInstances } from "../../data";
+import { useState } from "react";
+import { qk, useInstances, useSetSettings, useSettings } from "../../data";
 import { t } from "../../i18n";
-import { IconButton } from "../../ui/Button";
+import { Button, IconButton } from "../../ui/Button";
+import { Switch } from "../../ui/controls";
 import { Icon } from "../../ui/Icon";
-import { toastError } from "../../ui/Toast";
+import { toast, toastError } from "../../ui/Toast";
 import { useStored } from "../../ui/stored";
 import { accountName, Avatar } from "../../features/accounts/shared";
-import { useWindowTools } from "../../features/dashboard/windowTools";
 import { isRunning, STATES, uptime, useNow } from "../../features/launch/Running";
 import { KillAllButton } from "../KillAll";
 
@@ -17,8 +18,32 @@ export function LiveDock({ accounts }: { accounts: AccountSummary[] }) {
   const [folded, setFolded] = useStored("mtwin.liveFolded", (v) => v === "1", (v) => (v ? "1" : "0"));
   const running = (useInstances().data ?? []).filter(isRunning);
   const byId = new Map(accounts.map((a) => [a.id, a]));
-  const tools = useWindowTools();
   const now = useNow(10_000);
+  const settings = useSettings().data;
+  const set = useSetSettings({ quiet: true });
+  const layout = settings?.windowLayout ?? "off";
+  // Ticked clients (Kill selected); ones that ended drop out.
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const chosen = running.filter((i) => picked.has(i.id));
+  const [killing, setKilling] = useState(false);
+  const toggle = (id: string) =>
+    setPicked((p) => {
+      const n = new Set(p);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  const kill = () => {
+    if (!chosen.length || killing) return;
+    setKilling(true);
+    api
+      .instancesKill(chosen.map((i) => i.id))
+      .then(() => toast(t("accounts.killed", { n: chosen.length })), toastError)
+      .finally(() => {
+        setKilling(false);
+        setPicked(new Set());
+      });
+  };
   return (
     <aside className="ld" data-folded={folded || undefined} aria-label={t("live.title")}>
       <header className="ld-head">
@@ -47,21 +72,19 @@ export function LiveDock({ accounts }: { accounts: AccountSummary[] }) {
         </ul>
       ) : (
         <>
-          {running.length > 0 && (
-            <div className="ld-tools">
-              <button type="button" className="ld-tool" disabled={tools.busy} onClick={() => void tools.tile(false)}>
-                <Icon name="grid" size={13} />
-                {t("dashboard.tile")}
-              </button>
-              <button type="button" className="ld-tool" disabled={tools.busy} onClick={() => void tools.minimizeAll()}>
-                <Icon name="minimize" size={13} />
-                {t("dashboard.minimizeAll")}
-              </button>
-            </div>
-          )}
+          <div className="ld-toggles">
+            <label className="ld-toggle">
+              <span>{t("live.autoTile")}</span>
+              <Switch label={t("live.autoTile")} checked={layout !== "off"} onChange={(on) => set.mutate({ windowLayout: on ? "fit" : "off" })} />
+            </label>
+            <label className="ld-toggle">
+              <span>{t("live.autoMinimize")}</span>
+              <Switch label={t("live.autoMinimize")} checked={!!settings?.minimizeOnLaunch} onChange={(on) => set.mutate({ minimizeOnLaunch: on })} />
+            </label>
+          </div>
           <ul className="ld-list">
             {running.map((i) => (
-              <Row key={i.id} i={i} a={byId.get(i.accountId)} now={now} />
+              <Row key={i.id} i={i} a={byId.get(i.accountId)} now={now} picked={picked.has(i.id)} onPick={() => toggle(i.id)} />
             ))}
           </ul>
           {running.length === 0 && (
@@ -72,6 +95,15 @@ export function LiveDock({ accounts }: { accounts: AccountSummary[] }) {
           )}
           {running.length > 0 && (
             <footer className="ld-foot">
+              {running.length > 1 && (
+                <label className="ld-all">
+                  <input type="checkbox" className="cb" checked={chosen.length === running.length} ref={(el) => void (el && (el.indeterminate = chosen.length > 0 && chosen.length < running.length))} onChange={() => setPicked(chosen.length === running.length ? new Set() : new Set(running.map((i) => i.id)))} />
+                  {t("live.pickAll")}
+                </label>
+              )}
+              <Button size="md" variant="danger" icon="stop" block busy={killing} disabled={!chosen.length} onClick={kill}>
+                {chosen.length ? t("app.killSelectedN", { n: chosen.length }) : t("accounts.killSelected")}
+              </Button>
               <KillAllButton />
             </footer>
           )}
@@ -81,11 +113,12 @@ export function LiveDock({ accounts }: { accounts: AccountSummary[] }) {
   );
 }
 
-function Row({ i, a, now }: { i: Instance; a: AccountSummary | undefined; now: number }) {
+function Row({ i, a, now, picked, onPick }: { i: Instance; a: AccountSummary | undefined; now: number; picked: boolean; onPick: () => void }) {
   const game = useQuery({ queryKey: qk.game(i.placeId), queryFn: () => api.gameInfo(i.placeId!), enabled: i.placeId !== null }).data;
   const [label, color] = STATES[i.state];
   return (
-    <li className="ld-row">
+    <li className="ld-row" data-picked={picked || undefined}>
+      <input type="checkbox" className="cb ld-cb" checked={picked} onChange={onPick} aria-label={t("app.pickClient", { name: a ? accountName(a) : String(i.accountId) })} />
       <button type="button" className="ld-main" onClick={() => api.instanceShow(i.id, "focus").catch(toastError)} data-tip={t("home.show")}>
         {a ? <Avatar account={a} size={32} /> : <span className="ld-noav" />}
         <span className="min-w-0 flex-1">

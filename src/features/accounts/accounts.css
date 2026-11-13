@@ -364,3 +364,23 @@
     color: var(--fg);
   }
 }
+
+@layer brand {
+  .acc-rejoin {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    height: 34px;
+    padding: 0 10px;
+    border-radius: 7px;
+    color: var(--fg-2);
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .acc-rejoin:hover {
+    background: var(--surface-2);
+    color: var(--fg);
+  }
+}

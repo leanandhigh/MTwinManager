@@ -20,7 +20,6 @@ import { overlayOpen } from "../ui/a11y";
 import type { IslandLeaf, IslandModel } from "../ui/island/model";
 import { markViewEntering } from "../ui/motion";
 import { LiveActivities } from "./LiveActivities";
-import { Drawer } from "../ui/Drawer";
 import { LiveDock } from "./frame/LiveDock";
 import { TopNav } from "./frame/TopNav";
 import "./frame/frame.css";
@@ -127,10 +126,10 @@ export function Shell({ vault, settings, islandSlot }: { vault: VaultStatus; set
   /** Switches the view: the content cross-fades (a view transition), the island and rail stay live.
    * `focus` (a selector): what takes the focus once the view is on screen. */
   const go = (next: View, opts: { focus?: string } = {}) => {
-    // Play isn't a page: it opens as a panel over the page you're on.
+    // Play isn't a page: it opens in Accounts, where the open account would be.
     if (next === "launch") {
       setLaunchOpen(true);
-      return;
+      next = "accounts";
     }
     if (next === view && next === wanted.current) {
       if (opts.focus) focusIn(opts.focus);
@@ -338,6 +337,26 @@ export function Shell({ vault, settings, islandSlot }: { vault: VaultStatus; set
               setSelected={setSelected}
               onAdd={() => openAdd()}
               onLaunch={launchAs}
+              onTicked={setPicked}
+              launch={
+                launchOpen ? (
+                  <Suspense fallback={null}>
+                    <LaunchView
+                  accounts={accounts.data}
+                  picked={picked}
+                  setPicked={setPicked}
+                  sameServer={sameServer}
+                  setSameServer={setSameServer}
+                  draft={draft}
+                  setDraft={setDraft}
+                  onAdd={() => openAdd()}
+                  onPickFavourite={pickFavourite}
+                  embedded
+                  onClose={() => setLaunchOpen(false)}
+                />
+                  </Suspense>
+                ) : null
+              }
             />
           ) : view === "browse" ? (
             <BrowseView accounts={accounts.data} ask={browseAsk} />
@@ -368,22 +387,6 @@ export function Shell({ vault, settings, islandSlot }: { vault: VaultStatus; set
         </Suspense>
       </div>
 
-        <Drawer open={launchOpen} onClose={() => setLaunchOpen(false)} labelledBy="play-title" width={1080}>
-          <Suspense fallback={null}>
-            <LaunchView
-                  accounts={accounts.data}
-                  picked={picked}
-                  setPicked={setPicked}
-                  sameServer={sameServer}
-                  setSameServer={setSameServer}
-                  draft={draft}
-                  setDraft={setDraft}
-                  onAdd={() => openAdd()}
-                  onPickFavourite={pickFavourite}
-                  onClose={() => setLaunchOpen(false)}
-                />
-          </Suspense>
-        </Drawer>
         <LiveDock accounts={accounts.data} />
       </div>
       <AddAccountDialog

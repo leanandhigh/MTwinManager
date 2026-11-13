@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
 import "./accounts.css";
@@ -51,7 +51,7 @@ const SHEET = 760;
 // Cookies are checked once per app session, when the list first shows (after unlock in master mode).
 let validatedThisSession = false;
 
-export function AccountsView({ accounts, groups, density, vaultMode, clipboardSeconds, group, setGroup, selected, setSelected, onAdd, onLaunch }: {
+export function AccountsView({ accounts, groups, density, vaultMode, clipboardSeconds, group, setGroup, selected, setSelected, onAdd, onLaunch, launch, onTicked }: {
   accounts: AccountSummary[];
   groups: Group[];
   density: Density;
@@ -63,6 +63,10 @@ export function AccountsView({ accounts, groups, density, vaultMode, clipboardSe
   setSelected: (id: number | null) => void;
   onAdd: () => void;
   onLaunch: (ids: number[]) => void;
+  /** Play's settings, open: shown where the open account is. */
+  launch?: ReactNode;
+  /** The ticked accounts, while Play's settings are open: who plays. */
+  onTicked?: (ids: number[]) => void;
 }) {
   const detail = usePanelWidth("detail", 340, 280, 560);
   const qc = useQueryClient();
@@ -131,6 +135,12 @@ export function AccountsView({ accounts, groups, density, vaultMode, clipboardSe
   const shown = matching.filter((a) => inFilter(a, filter, presence?.get(a.id)));
   const checkedIds = accounts.filter((a) => checked.has(a.id)).map((a) => a.id);
   const canPlay = (id: number) => byId.get(id)?.status === "valid" && !live.has(id);
+  // With Play's settings open, ticking accounts picks who plays (signed-out and playing ones left out).
+  const tickedKey = checkedIds.join(",");
+  useEffect(() => {
+    if (launch && checkedIds.length) onTicked?.(checkedIds.filter(canPlay));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tickedKey, !!launch]);
   const current = (selected !== null && byId.get(selected)) || shown[0] || null;
   // The account whose details show: none while the narrow layout's sheet is closed.
   const openId = narrow && !sheet ? undefined : current?.id;
@@ -547,7 +557,11 @@ export function AccountsView({ accounts, groups, density, vaultMode, clipboardSe
               {!narrow && (
                 <>
                   <Divider panel={detail} side="left" label={t("accounts.detailsWidth")} />
-                  {current ? (
+                  {launch ? (
+                    <section aria-label={t("app.nav.launch")} className="panel relative flex-1 min-w-0 ms-3 overflow-hidden flex flex-col acc-detail acc-launch">
+                      {launch}
+                    </section>
+                  ) : current ? (
                     <aside aria-label={t("accounts.details")} onFocusCapture={pin} className="panel relative flex-1 min-w-0 ms-3 overflow-hidden flex flex-col acc-detail">
                       {panel}
                     </aside>
@@ -561,7 +575,7 @@ export function AccountsView({ accounts, groups, density, vaultMode, clipboardSe
               )}
             </div>
             <AnimatePresence>
-              {narrow && sheet && current && (
+              {narrow && ((sheet && current) || launch) && (
                 <motion.aside
                   key="sheet"
                   ref={sheetRef}
@@ -573,7 +587,7 @@ export function AccountsView({ accounts, groups, density, vaultMode, clipboardSe
                   animate={{ opacity: 1, x: 0, transition: SPRING.gentle }}
                   exit={{ opacity: 0, x: away / 2, transition: TWEEN.exit }}
                 >
-                  {panel}
+                  {launch ?? panel}
                 </motion.aside>
               )}
             </AnimatePresence>

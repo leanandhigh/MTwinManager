@@ -87,7 +87,7 @@ function Option({ id, label, hint, more, children, below }: { id: string; label:
 type Chip = { key: string; text: string; edit?: string };
 
 /** Play: who plays (left), where and the launch (right). Two columns when there is room, else stacked. */
-export function LaunchView({ accounts, picked, setPicked, sameServer, setSameServer, draft, setDraft, onAdd, onPickFavourite, onClose }: {
+export function LaunchView({ accounts, picked, setPicked, sameServer, setSameServer, draft, setDraft, onAdd, onPickFavourite, onClose, embedded }: {
   accounts: AccountSummary[];
   picked: number[];
   setPicked: Dispatch<SetStateAction<number[]>>;
@@ -99,6 +99,8 @@ export function LaunchView({ accounts, picked, setPicked, sameServer, setSameSer
   onPickFavourite: (f: Favourite) => void;
   /** Play opens as a panel: this closes it. */
   onClose?: () => void;
+  /** Shown inside Accounts: who plays is the accounts ticked there, so step 1 isn't drawn. */
+  embedded?: boolean;
 }) {
   const favourites = useFavourites();
   const multi = useMultiStatus().data;
@@ -252,17 +254,32 @@ export function LaunchView({ accounts, picked, setPicked, sameServer, setSameSer
   const names = chosen.slice(0, 2).map(accountName).join(", ") + (chosen.length > 2 ? ` +${chosen.length - 2}` : "");
 
   return (
-    <main className="scroll flex-1 min-w-0 page pb-0">
-      <div ref={root} className="play" data-wide={wide || undefined}>
-        <header className="mb-5">
-          <div className="min-w-0">
-            <h1 id="play-title" className="page-title">{t("app.nav.launch")}</h1>
-            <p className="page-sub">{t("play.sub")}</p>
+    <main className={`scroll flex-1 min-w-0 ${embedded ? "play-embedded" : "page"} pb-0`}>
+      <div ref={root} className="play" data-wide={(wide && !embedded) || undefined}>
+        {embedded ? (
+          <div className="play-embed-head">
+            <span className="play-faces">
+              {chosen.slice(0, 4).map((a) => (
+                <Avatar key={a.id} account={a} size={26} />
+              ))}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span id="play-title" className="block font-semibold">{chosen.length ? t("play.withN", { count: chosen.length }) : t("play.pickFirst")}</span>
+              <span className="block truncate text-[12.5px] text-fg-3">{chosen.length ? names : t("play.tickHint")}</span>
+            </span>
+            {onClose && <IconButton icon="x" label={t("common.close")} shortcut="Esc" onClick={onClose} />}
           </div>
-          {onClose && <IconButton icon="x" label={t("common.close")} shortcut="Esc" onClick={onClose} />}
-        </header>
+        ) : (
+          <header className="mb-5">
+            <div className="min-w-0">
+              <h1 id="play-title" className="page-title">{t("app.nav.launch")}</h1>
+              <p className="page-sub">{t("play.sub")}</p>
+            </div>
+            {onClose && <IconButton icon="x" label={t("common.close")} shortcut="Esc" onClick={onClose} />}
+          </header>
+        )}
         <div className="play-grid">
-          <section aria-labelledby="play-who" className="panel play-col play-who">
+          {!embedded && <section aria-labelledby="play-who" className="panel play-col play-who">
             <div className="play-head">
               <Step n={1} done={chosen.length > 0} />
               <h2 id="play-who" className="section-title">{t("play.who")}</h2>
@@ -286,7 +303,7 @@ export function LaunchView({ accounts, picked, setPicked, sameServer, setSameSer
             <Collapse open={!folded} className="flex flex-col min-h-0">
               <AccountPicker variant="tiles" accounts={accounts} picked={picked} onPicked={setPicked} label={t("play.who")} onAdd={onAdd} className="play-picker min-h-0" />
             </Collapse>
-          </section>
+          </section>}
 
           <div className="panel play-col">
             <div className="play-scroll">

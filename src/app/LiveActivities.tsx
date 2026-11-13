@@ -1,23 +1,18 @@
 import { useEffect, useRef, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { api, type AccountSummary, type BulkStage, type Instance, type Settings } from "../api";
-import { qk, useInstances } from "../data";
-import { TONE_COLOR, TONE_SHAPE } from "../ui/Status";
+import { type AccountSummary, type BulkStage, type Settings } from "../api";
+import { useInstances } from "../data";
 import { t, type Key } from "../i18n";
-import { accountName, Avatar } from "../features/accounts/shared";
-import { useWindowTools } from "../features/dashboard/windowTools";
+import { accountName } from "../features/accounts/shared";
 import { useLaunchActivity } from "../features/launch/launchQueue";
 import { LaunchProgress } from "../features/launch/LaunchProgress";
-import { isRunning, STATES } from "../features/launch/Running";
+import { isRunning } from "../features/launch/Running";
 import { usePublicBlock } from "../features/settings/PublicNetworkBanner";
 import { UpdateText, useUpdateInstall, useUpdateOffer } from "../features/settings/UpdateBanner";
 import { announce } from "../ui/a11y";
-import { toast, toastError } from "../ui/Toast";
 import { Button } from "../ui/Button";
 import { Icon } from "../ui/Icon";
 import { Capsule, Ring } from "../ui/island/Capsule";
 import { LAYOUT_IDS, Swap } from "../ui/motion";
-import { KillAllButton } from "./KillAll";
 
 /** What a batch item is doing now, in a few words. */
 const NOTE: Partial<Record<BulkStage["kind"], Key>> = {
@@ -28,11 +23,10 @@ const NOTE: Partial<Record<BulkStage["kind"], Key>> = {
 };
 
 /** The island's live activities: a launch under way, the running clients, a notice. */
-export function LiveActivities({ accounts, settings, onPick }: { accounts: AccountSummary[]; settings: Settings; onPick: (ids: number[]) => void }) {
+export function LiveActivities({ settings, onPick }: { accounts: AccountSummary[]; settings: Settings; onPick: (ids: number[]) => void }) {
   return (
     <>
       <LaunchCapsule onPick={onPick} />
-      <RunningCapsule accounts={accounts} />
       <NoticeCapsule settings={settings} />
     </>
   );
@@ -89,100 +83,6 @@ function LaunchCapsule({ onPick }: { onPick: (ids: number[]) => void }) {
         </span>
       )}
     </Capsule>
-  );
-}
-
-/** How many clients run, as a light and a number; its sheet holds the window tools and the panic key. */
-function RunningCapsule({ accounts }: { accounts: AccountSummary[] }) {
-  const running = (useInstances().data ?? []).filter(isRunning);
-  const tools = useWindowTools();
-  // The state that needs the eye most, as a shape and (in its name) a word, not a hue alone.
-  const lost = running.some((i) => i.state === "disconnected");
-  const coming = running.some((i) => i.state === "starting" || i.state === "joining");
-  const [tone, state] = lost ? (["attention", "disconnected"] as const) : coming ? (["info", "joining"] as const) : (["ok", null] as const);
-  const label = [t("app.running", { count: running.length }), state && STATES[state][0]].filter(Boolean).join(" · ");
-  const byId = new Map(accounts.map((a) => [a.id, a]));
-  return (
-    <Capsule
-      show={running.length > 0}
-      label={label}
-      sheetLabel={t("app.running", { count: running.length })}
-      sheet={(close) => <RunningSheet running={running} byId={byId} tools={tools} close={close} />}
-    >
-      <span aria-hidden="true" className={`status-mark ${coming ? "pulse" : ""}`} data-shape={TONE_SHAPE[tone]} style={{ color: TONE_COLOR[tone] }} />
-      <span className="capsule-count">{running.length}</span>
-      <span className="capsule-word">{t("app.runningWord")}</span>
-    </Capsule>
-  );
-}
-
-/** The running clients, each with a tick box: Kill selected ends just the ticked ones. */
-function RunningSheet({ running, byId, tools, close }: {
-  running: Instance[];
-  byId: Map<number, AccountSummary>;
-  tools: ReturnType<typeof useWindowTools>;
-  close: () => void;
-}) {
-  const [picked, setPicked] = useState<Set<string>>(new Set());
-  const [killing, setKilling] = useState(false);
-  const qc = useQueryClient();
-  const chosen = running.filter((i) => picked.has(i.id));
-  const toggle = (id: string) =>
-    setPicked((p) => {
-      const n = new Set(p);
-      if (n.has(id)) n.delete(id);
-      else n.add(id);
-      return n;
-    });
-  const kill = () => {
-    if (!chosen.length || killing) return;
-    setKilling(true);
-    // As Hold to stop all, for the ticked ones: force-ended, found even behind a bootstrapper.
-    api
-      .instancesKill(chosen.map((i) => i.id))
-      .then(() => {
-        void qc.invalidateQueries({ queryKey: qk.instances });
-        toast(t("accounts.killed", { n: chosen.length }));
-      }, toastError)
-      .finally(() => {
-        setKilling(false);
-        setPicked(new Set());
-      });
-  };
-  return (
-        <div className="flex flex-col">
-          <ul className="flex flex-col p-2 max-h-72 overflow-auto">
-            {running.map((i) => {
-              const a = byId.get(i.accountId);
-              const [label, color] = STATES[i.state];
-              const name = a ? accountName(a) : t("dashboard.account", { id: i.accountId });
-              return (
-                <li key={i.id}>
-                  <label className="flex items-center gap-2.5 px-2 min-h-10 rounded-[10px] cursor-pointer hover:bg-hover">
-                    <input type="checkbox" className="cb" checked={picked.has(i.id)} onChange={() => toggle(i.id)} aria-label={t("app.pickClient", { name })} />
-                    {a && <Avatar account={a} size={22} />}
-                    <span className="flex-1 min-w-0 truncate font-medium">{name}</span>
-                    <span className="inline-flex items-center gap-1.5 text-[12px] text-fg-2">
-                      <span aria-hidden="true" className="led" style={{ color }} />
-                      {label}
-                    </span>
-                  </label>
-                </li>
-              );
-            })}
-          </ul>
-          <div className="flex flex-wrap gap-2 px-3 pb-3">
-            <Button size="md" icon="minimize" disabled={tools.busy} onClick={() => void tools.minimizeAll()}>{t("dashboard.minimizeAll")}</Button>
-            <Button size="md" icon="grid" disabled={tools.busy} onClick={() => void tools.tile(false)}>{t("dashboard.tile")}</Button>
-          </div>
-          <div className="flex flex-col gap-2 px-3 pb-3">
-            <Button size="md" variant="danger" icon="stop" block busy={killing} disabled={!chosen.length} onClick={kill}>
-              {chosen.length ? t("app.killSelectedN", { n: chosen.length }) : t("accounts.killSelected")}
-            </Button>
-            {/* Once it fires the sheet closes, so the focus goes back to the capsule, not nowhere. */}
-            <KillAllButton onFired={close} />
-          </div>
-        </div>
   );
 }
 

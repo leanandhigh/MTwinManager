@@ -7,7 +7,6 @@ import { Icon, Logo } from "../ui/Icon";
 import { MenuItem, MenuSeparator, Popover, useAnchor } from "../ui/Popover";
 import { toastError } from "../ui/Toast";
 import { KillAllButton } from "./KillAll";
-import { requestNavigation } from "./navigation";
 
 /** The logo and name, as the app's own menu: the vault's state, the community, Donate, and the keys
  * that used to sit in the sidebar's foot. While locked, only what needs no vault. Beside it, a
@@ -39,11 +38,6 @@ export function AppMenu({ unlocked, vaultMode, onRefresh }: {
         {unlocked && (
           <MenuItem icon="refresh" kbd="F5" onSelect={onRefresh}>
             {t("ui.refresh")}
-          </MenuItem>
-        )}
-        {unlocked && (
-          <MenuItem icon="keyboard" onSelect={() => requestNavigation("settings", "shortcuts")}>
-            {t("settings.section.shortcuts")}
           </MenuItem>
         )}
         <MenuItem icon="chat" onSelect={() => openUrl(DISCORD_INVITE).catch(toastError)}>

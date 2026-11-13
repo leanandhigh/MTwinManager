@@ -1,8 +1,9 @@
 import { useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
 import type { Group } from "../../api";
-import { groupColor } from "../../data";
+import { groupColor, useSetSettings, useSettings } from "../../data";
 import { fmtNum, t, type Key } from "../../i18n";
 import { Button, IconButton } from "../../ui/Button";
+import { Switch } from "../../ui/controls";
 import { ListPresence, Num, Swap } from "../../ui/motion";
 import { PillLabel, PillSeparator, PillToolbar } from "../../ui/PillToolbar";
 import { MenuItem, MenuLabel, MenuSeparator, Popover, useAnchor } from "../../ui/Popover";
@@ -125,6 +126,7 @@ export function AccountsToolbar({ total, selected, groups, playable, friendable,
           <Button variant="ghost" size="md" icon="refresh" busy={checking} data-rest data-tip={t("accounts.validateAll")} data-tip-kbd="Ctrl+R" onClick={onCheckAll}>
             {checking ? t("accounts.validating") : t("accounts.validateAll")}
           </Button>
+          <AutoRejoin />
           <Button variant="ghost" size="md" icon="download" onClick={() => onExport(null)}>
             {t("accounts.exportCookiesEllipsis")}
           </Button>
@@ -231,5 +233,17 @@ export function AccountsToolbar({ total, selected, groups, playable, friendable,
         {groupItems}
       </Popover>
     </div>
+  );
+}
+
+/** Auto-rejoin, beside Check all: the same switch as in Settings > Launching. */
+function AutoRejoin() {
+  const on = useSettings().data?.autoRejoin ?? false;
+  const set = useSetSettings({ quiet: true });
+  return (
+    <label className="acc-rejoin" data-tip={t("settings.autoRejoinHint")}>
+      <span>{t("settings.autoRejoin")}</span>
+      <Switch label={t("settings.autoRejoin")} checked={on} onChange={(v) => set.mutate({ autoRejoin: v })} />
+    </label>
   );
 }

@@ -1736,5 +1736,10 @@
   "home2.tabOverview": "ภาพรวม",
   "home2.tabClients": "ไคลเอนต์",
   "servers.joinTitle": "เข้าร่วม",
-  "updates.platform": "แพลตฟอร์ม"
+  "updates.platform": "แพลตฟอร์ม",
+  "live.autoTile": "จัดหน้าต่างอัตโนมัติ",
+  "live.autoMinimize": "ย่อหน้าต่างอัตโนมัติ",
+  "live.pickAll": "เลือกทั้งหมด",
+  "play.withN_other": "เล่นด้วย {count} บัญชี",
+  "play.tickHint": "ติ๊กบัญชีในรายการเพื่อเล่นด้วยบัญชีนั้น"
 }

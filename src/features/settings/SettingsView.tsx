@@ -1,6 +1,6 @@
 import "./settings.css";
 import "./st.css";
-import { memo, useCallback, useDeferredValue, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { requestNavigation, SECTION_ICON, SECTION_VIEW, useNavigationRequests, VIEW_NAME, type Section, type View } from "../../app/navigation";
 import { t } from "../../i18n";
@@ -77,6 +77,26 @@ export function SettingsView({ area = "launching" }: { area?: SettingsArea }) {
   const def = AREAS.find((a) => a.id === area)!;
   // The area on screen is named by its tab.
   const title = t("settings.title");
+  // The group in view, lit in the left column: the last one whose heading has passed the top third.
+  const [spy, setSpy] = useState(0);
+  useEffect(() => {
+    const box = main.current;
+    if (!box) return;
+    const read = () => {
+      const top = box.getBoundingClientRect().top + box.clientHeight / 3;
+      const els = [...box.querySelectorAll<HTMLElement>("[data-group]")];
+      let at = 0;
+      els.forEach((el, i) => {
+        if (el.getBoundingClientRect().top <= top) at = i;
+      });
+      // At the very bottom the last group is the one in view.
+      if (box.scrollTop + box.clientHeight >= box.scrollHeight - 4) at = els.length - 1;
+      setSpy(Math.max(0, at));
+    };
+    read();
+    box.addEventListener("scroll", read, { passive: true });
+    return () => box.removeEventListener("scroll", read);
+  }, [area, groups]);
   // Before the frame a jump into the new area lands in (jump.ts), so it doesn't undo that scroll.
   useLayoutEffect(() => {
     main.current?.scrollTo({ top: 0, behavior: "instant" });
@@ -117,7 +137,7 @@ export function SettingsView({ area = "launching" }: { area?: SettingsArea }) {
         <h1 className="st-title">{title}</h1>
         {search_}
         <nav className="st-areas" role="tablist" aria-orientation="vertical">
-          {AREAS.map((a) => {
+          {AREAS.filter((a) => a.id !== "shortcuts").map((a) => {
             const on = !groups && a.id === area;
             return (
               <div key={a.id}>
@@ -132,6 +152,7 @@ export function SettingsView({ area = "launching" }: { area?: SettingsArea }) {
                         key={g.label ?? i}
                         type="button"
                         className="st-sub"
+                        aria-current={spy === i ? "location" : undefined}
                         onClick={() => main.current?.querySelector(`[data-group="${i}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" })}
                       >
                         {g.label ? t(g.label) : t(a.label)}
