@@ -1,11 +1,12 @@
 import "./settings.css";
+import "./st.css";
 import { memo, useCallback, useDeferredValue, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { requestNavigation, SECTION_ICON, SECTION_VIEW, useNavigationRequests, VIEW_NAME, type Section, type View } from "../../app/navigation";
 import { t } from "../../i18n";
 import { Input } from "../../ui/Field";
 import { Icon, type IconName } from "../../ui/Icon";
-import { ListPresence, RISE, SPRING, Swap, TWEEN } from "../../ui/motion";
+import { ListPresence, RISE, SPRING, TWEEN } from "../../ui/motion";
 import { AREAS, type SettingsArea } from "./areas";
 import { jumpTo, requestJump } from "./jump";
 import { EntryRow, Renderers, SearchHits, useCtx, type RowRenderers } from "./kit/SettingRow";
@@ -81,52 +82,72 @@ export function SettingsView({ area = "launching" }: { area?: SettingsArea }) {
     main.current?.scrollTo({ top: 0, behavior: "instant" });
   }, [area]);
 
+  const search_ = (
+    <div className="st-search">
+      <Input
+        id="settings-search"
+        type="search"
+        leading="search"
+        data-find
+        aria-label={t("settings.searchLabel")}
+        placeholder={t("settings.searchPlaceholder")}
+        value={q}
+        onChange={(e) => setFind({ q: e.target.value, found: e.target.value.trim() ? search(e.target.value, ctx) : null })}
+        onKeyDown={(e) => {
+          if (e.key === "Escape" && q) {
+            e.stopPropagation();
+            setFind(NO_FIND);
+          } else if (e.key === "Enter" && first) {
+            e.preventDefault();
+            (first.place.view === "settings" ? requestJump : jumpTo)(first.id);
+          }
+        }}
+      />
+      <p role="status" className="sr-only">
+        {groups && (hits ? t("settings.searchCount", { count: hits }) : t("settings.searchNone", { q: foundQ.trim() }))}
+      </p>
+    </div>
+  );
+
+  // Two columns: the areas down the left (search on top, the open area's groups under it), the
+  // open area's rows on the right.
   return (
-    <main ref={main} className="scroll flex-1 min-w-0 page">
-      <Renderers value={RENDERERS}>
-        <div className="set-page">
-          <header className="set-head">
-            <h1 className="page-title relative">
-              <Swap k={title}>{title}</Swap>
-            </h1>
-            <div className="set-search">
-              <Input
-                id="settings-search"
-                type="search"
-                leading="search"
-                data-find
-                aria-label={t("settings.searchLabel")}
-                placeholder={t("settings.searchPlaceholder")}
-                value={q}
-                onChange={(e) => setFind({ q: e.target.value, found: e.target.value.trim() ? search(e.target.value, ctx) : null })}
-                // Ctrl+F focuses it without scrolling: bring it back into view from far down.
-                onFocus={(e) => e.currentTarget.scrollIntoView({ block: "nearest" })}
-                onKeyDown={(e) => {
-                  if (e.key === "Escape" && q) {
-                    e.stopPropagation();
-                    setFind(NO_FIND);
-                  } else if (e.key === "Enter" && first) {
-                    e.preventDefault();
-                    (first.place.view === "settings" ? requestJump : jumpTo)(first.id);
-                  }
-                }}
-              />
-              <p role="status" className="sr-only">
-                {groups && (hits ? t("settings.searchCount", { count: hits }) : t("settings.searchNone", { q: foundQ.trim() }))}
-              </p>
-            </div>
-          </header>
-          {!groups && (
-            <div className="set-tabs" role="tablist" aria-label={t("app.nav.settings")}>
-              {AREAS.map((a) => (
-                <button key={a.id} type="button" role="tab" className="set-tab" aria-selected={a.id === area} onClick={() => requestNavigation("settings", a.id)}>
-                  <Icon name={a.icon} size={15} />
+    <div className="st">
+      <aside className="st-nav" aria-label={t("app.nav.settings")}>
+        <h1 className="st-title">{title}</h1>
+        {search_}
+        <nav className="st-areas" role="tablist" aria-orientation="vertical">
+          {AREAS.map((a) => {
+            const on = !groups && a.id === area;
+            return (
+              <div key={a.id}>
+                <button type="button" role="tab" className="st-area" aria-selected={on} onClick={() => requestNavigation("settings", a.id)}>
+                  <Icon name={a.icon} size={16} />
                   {t(a.label)}
                 </button>
-              ))}
-            </div>
-          )}
-          <div className="relative">
+                {on && a.groups.some((g) => g.label) && (
+                  <div className="st-subs">
+                    {a.groups.map((g, i) => (
+                      <button
+                        key={g.label ?? i}
+                        type="button"
+                        className="st-sub"
+                        onClick={() => main.current?.querySelector(`[data-group="${i}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                      >
+                        {g.label ? t(g.label) : t(a.label)}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </nav>
+      </aside>
+      <main ref={main} className="scroll flex-1 min-w-0 st-main">
+        <Renderers value={RENDERERS}>
+          <div className="st-body">
+            <h2 className="st-area-title">{groups ? t("settings.searchLabel") : t(def.label)}</h2>
             <AnimatePresence mode="popLayout" initial={false}>
               <motion.div
                 key={groups ? "search" : area}
@@ -141,14 +162,18 @@ export function SettingsView({ area = "launching" }: { area?: SettingsArea }) {
                     <ShortcutsTable />
                   </div>
                 ) : (
-                  def.groups.map((g) => <SettingSection key={g.label ?? ""} label={g.label} ids={g.ids} />)
+                  def.groups.map((g, i) => (
+                    <div key={g.label ?? i} data-group={i}>
+                      <SettingSection label={g.label} ids={g.ids} />
+                    </div>
+                  ))
                 )}
               </motion.div>
             </AnimatePresence>
           </div>
-        </div>
-      </Renderers>
-    </main>
+        </Renderers>
+      </main>
+    </div>
   );
 }
 

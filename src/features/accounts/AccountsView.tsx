@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type CSSProperties } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
 import "./accounts.css";
@@ -374,7 +374,13 @@ export function AccountsView({ accounts, groups, density, vaultMode, clipboardSe
 
   return (
     <>
-      <main ref={main} className={`@container scroll flex-1 min-w-0 page pb-6 flex flex-col gap-4 ${compact ? "compact" : ""}`}>
+      {/* Wide, it is a grid: the title, the filters and the list down the left; the actions and the
+          open account on the right (accounts.css). */}
+      <main
+        ref={main}
+        className={`@container scroll flex-1 min-w-0 page pb-6 flex flex-col gap-4 ${compact ? "compact" : ""} ${!narrow && accounts.length ? "acc-grid" : ""}`}
+        style={!narrow && accounts.length ? ({ "--side": `${detail.width}px` } as CSSProperties) : undefined}
+      >
         <header className="flex flex-wrap items-start gap-x-6 gap-y-3">
           <div className="min-w-0 pt-1">
             <h1 className="page-title">{t("accounts.title")}</h1>
