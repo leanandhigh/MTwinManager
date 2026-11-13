@@ -27,14 +27,33 @@ pub fn report(c: &Ended) {
     let id = &c.instance_id;
     let launched = UNIX_EPOCH + Duration::from_millis(c.started_at.max(0) as u64);
     let logs = logwatch::logs_dir();
-    let dumps = logs.as_deref().map_or_else(Vec::new, |d| dumps_since(d, launched));
+    let dumps = logs
+        .as_deref()
+        .map_or_else(Vec::new, |d| dumps_since(d, launched));
     let faults = windows_faults(c);
-    log::warn!("autopsy {id}: {}", verdict(c, c.log.is_some(), !dumps.is_empty(), !faults.is_empty()));
-    let lived = c.died_after_ms.map_or_else(|| "unknown".to_owned(), |ms| format!("{} s", ms / 1000));
-    log::info!("autopsy {id}: {:?} of account {}, lived {lived}, seen as ended after {} s; {}", c.kind, c.account_id, c.uptime_ms / 1000, c.clues);
+    log::warn!(
+        "autopsy {id}: {}",
+        verdict(c, c.log.is_some(), !dumps.is_empty(), !faults.is_empty())
+    );
+    let lived = c
+        .died_after_ms
+        .map_or_else(|| "unknown".to_owned(), |ms| format!("{} s", ms / 1000));
+    log::info!(
+        "autopsy {id}: {:?} of account {}, lived {lived}, seen as ended after {} s; {}",
+        c.kind,
+        c.account_id,
+        c.uptime_ms / 1000,
+        c.clues
+    );
     let others = process::roblox_processes().len();
-    let memory = metrics::memory().map_or_else(|| "unknown".to_owned(), |(used, all)| format!("{} of {} MB", used >> 20, all >> 20));
-    log::info!("autopsy {id}: now {others} Roblox client(s) running, Roblox's installer running: {}, memory in use {memory}", process::installer_running());
+    let memory = metrics::memory().map_or_else(
+        || "unknown".to_owned(),
+        |(used, all)| format!("{} of {} MB", used >> 20, all >> 20),
+    );
+    log::info!(
+        "autopsy {id}: now {others} Roblox client(s) running, Roblox's installer running: {}, memory in use {memory}",
+        process::installer_running()
+    );
     for dump in &dumps {
         log::info!("autopsy {id}: crash dump {dump}");
     }
@@ -45,7 +64,13 @@ pub fn report(c: &Ended) {
         Some(path) => log_tail(id, "client log", path, CLIENT_LINES),
         None => log::info!("autopsy {id}: no client log names this launch"),
     }
-    if let (Some(dir), Some(name)) = (&logs, c.log.as_deref().and_then(Path::file_name).and_then(|n| n.to_str())) {
+    if let (Some(dir), Some(name)) = (
+        &logs,
+        c.log
+            .as_deref()
+            .and_then(Path::file_name)
+            .and_then(|n| n.to_str()),
+    ) {
         match handler_log(dir, name, launched) {
             Some(path) => log_tail(id, "crash handler log", &path, HANDLER_LINES),
             None => log::info!("autopsy {id}: no crash handler log names this client's"),
@@ -68,27 +93,42 @@ fn verdict(c: &Ended, has_log: bool, dump: bool, fault: bool) -> String {
 
 fn log_tail(id: &str, what: &str, path: &Path, lines: usize) {
     let meta = std::fs::metadata(path).ok();
-    let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-    log::info!("autopsy {id}: {what} {name}, {} KB", meta.map_or(0, |m| m.len() >> 10));
+    let name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    log::info!(
+        "autopsy {id}: {what} {name}, {} KB",
+        meta.map_or(0, |m| m.len() >> 10)
+    );
     for line in clean_tail(path, lines, &[]) {
         log::info!("autopsy {id}:   {}", shortened(&line));
     }
 }
 
 fn shortened(line: &str) -> &str {
-    &line[..line.char_indices().nth(MAX_LINE).map_or(line.len(), |(i, _)| i)]
+    &line[..line
+        .char_indices()
+        .nth(MAX_LINE)
+        .map_or(line.len(), |(i, _)| i)]
 }
 
 /// The crash dumps Roblox's handler wrote since `since`: name and size.
 fn dumps_since(logs: &Path, since: SystemTime) -> Vec<String> {
-    let Ok(entries) = std::fs::read_dir(logs.join("crashes").join("reports")) else { return Vec::new() };
+    let Ok(entries) = std::fs::read_dir(logs.join("crashes").join("reports")) else {
+        return Vec::new();
+    };
     entries
         .flatten()
         .filter_map(|e| {
             let m = e.metadata().ok()?;
             let new = m.modified().ok()? >= since;
-            let dump = e.path().extension().is_some_and(|x| x.eq_ignore_ascii_case("dmp"));
-            (new && dump).then(|| format!("{}, {} KB", e.file_name().to_string_lossy(), m.len() >> 10))
+            let dump = e
+                .path()
+                .extension()
+                .is_some_and(|x| x.eq_ignore_ascii_case("dmp"));
+            (new && dump)
+                .then(|| format!("{}, {} KB", e.file_name().to_string_lossy(), m.len() >> 10))
         })
         .collect()
 }
@@ -96,12 +136,25 @@ fn dumps_since(logs: &Path, since: SystemTime) -> Vec<String> {
 /// The crash handler log naming the client log `player_log`, written since `since`.
 fn handler_log(logs: &Path, player_log: &str, since: SystemTime) -> Option<std::path::PathBuf> {
     use std::io::Read;
-    std::fs::read_dir(logs).ok()?.flatten().map(|e| e.path()).find(|p| {
-        let handler = p.file_name().is_some_and(|n| n.to_string_lossy().contains("_CrashHandler_"));
-        let new = std::fs::metadata(p).and_then(|m| m.modified()).is_ok_and(|t| t >= since);
-        let mut head = Vec::new();
-        handler && new && std::fs::File::open(p).and_then(|f| f.take(HANDLER_HEAD).read_to_end(&mut head)).is_ok() && String::from_utf8_lossy(&head).contains(player_log)
-    })
+    std::fs::read_dir(logs)
+        .ok()?
+        .flatten()
+        .map(|e| e.path())
+        .find(|p| {
+            let handler = p
+                .file_name()
+                .is_some_and(|n| n.to_string_lossy().contains("_CrashHandler_"));
+            let new = std::fs::metadata(p)
+                .and_then(|m| m.modified())
+                .is_ok_and(|t| t >= since);
+            let mut head = Vec::new();
+            handler
+                && new
+                && std::fs::File::open(p)
+                    .and_then(|f| f.take(HANDLER_HEAD).read_to_end(&mut head))
+                    .is_ok()
+                && String::from_utf8_lossy(&head).contains(player_log)
+        })
 }
 
 /// Windows' records of this client faulting, from the Application event log (no rights needed).
@@ -120,7 +173,10 @@ fn fault_events(ms: i64) -> String {
     match out {
         Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout).into_owned(),
         Ok(o) => {
-            log::debug!("autopsy: wevtutil failed: {}", String::from_utf8_lossy(&o.stderr).trim());
+            log::debug!(
+                "autopsy: wevtutil failed: {}",
+                String::from_utf8_lossy(&o.stderr).trim()
+            );
             String::new()
         }
         Err(e) => {
@@ -139,7 +195,11 @@ fn faults_of(xml: &str, pid: u32) -> Vec<String> {
     };
     xml.split("<Event ")
         .filter(|ev| field(ev, "AppName").is_some_and(|n| n.eq_ignore_ascii_case(CLIENT_EXE)))
-        .filter(|ev| field(ev, "ProcessId").and_then(|p| u32::from_str_radix(p.trim_start_matches("0x"), 16).ok()) == Some(pid))
+        .filter(|ev| {
+            field(ev, "ProcessId")
+                .and_then(|p| u32::from_str_radix(p.trim_start_matches("0x"), 16).ok())
+                == Some(pid)
+        })
         .map(|ev| {
             let get = |name| field(ev, name).unwrap_or_else(|| "?".to_owned());
             format!(
@@ -182,9 +242,16 @@ mod tests {
         assert!(verdict(&early, false, false, true).contains("itself crashed"));
         assert!(verdict(&early, false, false, false).contains("before writing a log"));
         assert!(verdict(&early, true, false, false).contains("ended early"));
-        assert!(verdict(&ended(CrashKind::Crash, Some(900_000)), true, false, false).contains("no crash recorded"));
-        assert!(verdict(&ended(CrashKind::Disconnect, None), true, true, true).contains("not a crash"));
-        assert!(verdict(&ended(CrashKind::Hang, None), true, true, true).contains("stopped responding"));
+        assert!(
+            verdict(&ended(CrashKind::Crash, Some(900_000)), true, false, false)
+                .contains("no crash recorded")
+        );
+        assert!(
+            verdict(&ended(CrashKind::Disconnect, None), true, true, true).contains("not a crash")
+        );
+        assert!(
+            verdict(&ended(CrashKind::Hang, None), true, true, true).contains("stopped responding")
+        );
     }
 
     #[test]
@@ -194,8 +261,16 @@ mod tests {
                 "<Event xmlns='x'><System><Provider Name='Application Error'/></System><EventData><Data Name='AppName'>{app}</Data><Data Name='AppVersion'>0.745</Data><Data Name='ModuleName'>d3d11.dll</Data><Data Name='ModuleVersion'>10.0</Data><Data Name='ExceptionCode'>c0000005</Data><Data Name='FaultingOffset'>00ff</Data><Data Name='ProcessId'>{pid}</Data></EventData></Event>"
             )
         };
-        let xml = [event("RobloxPlayerBeta.exe", "0x988"), event("RobloxPlayerBeta.exe", "0x10"), event("other.exe", "0x988")].concat();
-        assert_eq!(faults_of(&xml, 0x988), ["a fault: exception c0000005 in d3d11.dll 10.0 at offset 00ff, client version 0.745"]);
+        let xml = [
+            event("RobloxPlayerBeta.exe", "0x988"),
+            event("RobloxPlayerBeta.exe", "0x10"),
+            event("other.exe", "0x988"),
+        ]
+        .concat();
+        assert_eq!(
+            faults_of(&xml, 0x988),
+            ["a fault: exception c0000005 in d3d11.dll 10.0 at offset 00ff, client version 0.745"]
+        );
         assert!(faults_of("", 1).is_empty());
     }
 
@@ -212,6 +287,9 @@ mod tests {
     #[test]
     fn long_lines_are_cut_on_a_character() {
         assert_eq!(shortened("short"), "short");
-        assert_eq!(shortened(&"é".repeat(MAX_LINE + 5)).chars().count(), MAX_LINE);
+        assert_eq!(
+            shortened(&"é".repeat(MAX_LINE + 5)).chars().count(),
+            MAX_LINE
+        );
     }
 }

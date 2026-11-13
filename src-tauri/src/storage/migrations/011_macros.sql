@@ -1,4 +1,4 @@
--- The user's AutoHotkey v2 macros (`macros`). `trusted`: typed in RoALT or its source reviewed;
+-- The user's AutoHotkey v2 macros (`macros`). `trusted`: typed in MTwin Manager or its source reviewed;
 -- imported and restored ones start at 0. `hotkey` '' for none.
 CREATE TABLE macros (
   id            INTEGER PRIMARY KEY,

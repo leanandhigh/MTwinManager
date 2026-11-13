@@ -1,13 +1,13 @@
 name: Release
 
 # On a v* tag, or by hand (Actions > Release > Run workflow): builds the installer, signs it for
-# the app's self-updater (RoALT-Setup-<version>.exe.sig, ECDSA P-256 with the ROALT_UPDATE_KEY
+# the app's self-updater (MTwinManager-Setup-<version>.exe.sig, ECDSA P-256 with the MTWIN_UPDATE_KEY
 # secret), then puts both with their SHA-256 on a draft release v<version>. Nothing is published:
 # a maintainer reviews the draft and publishes it, which creates the tag when a manual run made it.
 #
 # Every push to the Progress branch is released too, published straight away as 1.2.<run number>,
 # so every MTwin Manager built from a release updates itself to it (Settings > About > Check now, or
-# within 6 hours). Needs the ROALT_UPDATE_KEY secret (scripts/make-update-key.mjs).
+# within 6 hours). Needs the MTWIN_UPDATE_KEY secret (scripts/make-update-key.mjs).
 on:
   push:
     tags: ["v*"]
@@ -51,7 +51,7 @@ jobs:
             'src-tauri\tauri.conf.json' = '("version"\s*:\s*)"[^"]+"'
             'package.json'              = '("version"\s*:\s*)"[^"]+"'
             'src-tauri\Cargo.toml'      = '(?m)^(version\s*=\s*)"[^"]+"'
-            'src-tauri\Cargo.lock'      = '(name = "roalt"\r?\nversion = )"[^"]+"'
+            'src-tauri\Cargo.lock'      = '(name = "mtwin-manager"\r?\nversion = )"[^"]+"'
           }
           foreach ($f in $files.Keys) {
             $text = [IO.File]::ReadAllText($f)
@@ -75,16 +75,16 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Build with the update key's public half
         # The app only runs installers signed by the key whose public half it carries: put the public
-        # half of ROALT_UPDATE_KEY into self_update.rs before building, so they always match.
+        # half of MTWIN_UPDATE_KEY into self_update.rs before building, so they always match.
         env:
-          ROALT_UPDATE_KEY: ${{ secrets.ROALT_UPDATE_KEY }}
+          MTWIN_UPDATE_KEY: ${{ secrets.MTWIN_UPDATE_KEY }}
         run: |
           node -e '
             const crypto = require("crypto"), fs = require("fs");
-            const key = process.env.ROALT_UPDATE_KEY;
-            if (!key) { console.log("::error::the ROALT_UPDATE_KEY secret is not set (scripts/make-update-key.mjs makes one)"); process.exit(1); }
+            const key = process.env.MTWIN_UPDATE_KEY;
+            if (!key) { console.log("::error::the MTWIN_UPDATE_KEY secret is not set (scripts/make-update-key.mjs makes one)"); process.exit(1); }
             const jwk = crypto.createPublicKey(key).export({ format: "jwk" });
-            if (jwk.crv !== "P-256") { console.log("::error::ROALT_UPDATE_KEY is not a P-256 key"); process.exit(1); }
+            if (jwk.crv !== "P-256") { console.log("::error::MTWIN_UPDATE_KEY is not a P-256 key"); process.exit(1); }
             const hex = Buffer.concat([Buffer.from(jwk.x, "base64url"), Buffer.from(jwk.y, "base64url")]).toString("hex");
             const file = "src-tauri/src/self_update.rs";
             const src = fs.readFileSync(file, "utf8").replace(/const PUBLIC_KEY: &str = "[0-9a-f]{128}"/, `const PUBLIC_KEY: &str = "${hex}"`);
@@ -111,7 +111,7 @@ jobs:
         with:
           api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
           organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
-          project-slug: RoALT
+          project-slug: MTwinManager
           signing-policy-slug: release-signing
           artifact-configuration-slug: github-ci
           github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
@@ -126,26 +126,23 @@ jobs:
         # version can't be swapped. The signature is IEEE P1363 (r||s, 64 bytes) in base64: what
         # the app checks, and it is checked here against the PUBLIC_KEY in self_update.rs first.
         env:
-          ROALT_UPDATE_KEY: ${{ secrets.ROALT_UPDATE_KEY }}
+          MTWIN_UPDATE_KEY: ${{ secrets.MTWIN_UPDATE_KEY }}
           VERSION: ${{ steps.v.outputs.version }}
         run: |
           node -e '
             const crypto = require("crypto"), fs = require("fs");
-            const key = process.env.ROALT_UPDATE_KEY;
-            if (!key) { console.log("::error::the ROALT_UPDATE_KEY secret is not set: the installer cannot be signed"); process.exit(1); }
+            const key = process.env.MTWIN_UPDATE_KEY;
+            if (!key) { console.log("::error::the MTWIN_UPDATE_KEY secret is not set: the installer cannot be signed"); process.exit(1); }
             const hex = fs.readFileSync("src-tauri/src/self_update.rs", "utf8").match(/const PUBLIC_KEY: &str = "([0-9a-f]{128})"/)[1];
             const xy = Buffer.from(hex, "hex"), b64 = (b) => b.toString("base64url");
             const pub = crypto.createPublicKey({ key: { kty: "EC", crv: "P-256", x: b64(xy.subarray(0, 32)), y: b64(xy.subarray(32)) }, format: "jwk" });
             const built = `dist-installer/MTwinManager-Setup-${process.env.VERSION}.exe`;
-            // The installer under its name, and a copy under its name from before the rename
-            // (RoALT-Setup), which versions made before it look for: each signed for its own name.
-            fs.copyFileSync(built, `dist-installer/RoALT-Setup-${process.env.VERSION}.exe`);
-            for (const prefix of ["MTwinManager-Setup", "RoALT-Setup"]) {
-              const name = `${prefix}-${process.env.VERSION}.exe`, exe = `dist-installer/${name}`;
+            {
+              const name = `MTwinManager-Setup-${process.env.VERSION}.exe`, exe = built;
               const data = Buffer.concat([Buffer.from(name + "\n"), fs.readFileSync(exe)]);
               const sig = crypto.sign("sha256", data, { key, dsaEncoding: "ieee-p1363" });
               if (!crypto.verify("sha256", data, { key: pub, dsaEncoding: "ieee-p1363" }, sig)) {
-                console.log("::error::ROALT_UPDATE_KEY is not the key whose public half is PUBLIC_KEY in self_update.rs: the app would refuse this installer");
+                console.log("::error::MTWIN_UPDATE_KEY is not the key whose public half is PUBLIC_KEY in self_update.rs: the app would refuse this installer");
                 process.exit(1);
               }
               fs.writeFileSync(exe + ".sig", sig.toString("base64"));
@@ -159,8 +156,6 @@ jobs:
           path: |
             dist-installer/MTwinManager-Setup-${{ steps.v.outputs.version }}.exe
             dist-installer/MTwinManager-Setup-${{ steps.v.outputs.version }}.exe.sig
-            dist-installer/RoALT-Setup-${{ steps.v.outputs.version }}.exe
-            dist-installer/RoALT-Setup-${{ steps.v.outputs.version }}.exe.sig
           if-no-files-found: error
 
   release:
@@ -193,7 +188,7 @@ jobs:
           cat > ../notes.md <<EOF
           $signing The SHA-256 sums are below and in SHA256SUMS.txt; MTwinManager-Setup-$VERSION.exe.sig is the signature the built-in updater checks before it runs the installer.
 
-          - **Windows** 10 1809 or later, or Windows 11, x64: MTwinManager-Setup-$VERSION.exe (RoALT-Setup-$VERSION.exe is the same installer, for the updater of older versions). SmartScreen warns on first run: More info → Run anyway.
+          - **Windows** 10 1809 or later, or Windows 11, x64: MTwinManager-Setup-$VERSION.exe. SmartScreen warns on first run: More info → Run anyway.
           - Needs the Microsoft Edge WebView2 Runtime (Windows 11 has it). Setup checks, and offers Microsoft's download when it is missing.
 
           ~~~

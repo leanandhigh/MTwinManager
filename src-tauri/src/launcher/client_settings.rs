@@ -32,7 +32,11 @@ pub const RANGE: RangeInclusive<u32> = 5..=360;
 
 /// (element, name) of each setting in the file, in `Values` order: FPS cap, quality level (1..21),
 /// saved quality (0 automatic, 1..10).
-const KEYS: [(&str, &str); 3] = [("int", "FramerateCap"), ("int", "GraphicsQualityLevel"), ("token", "SavedQualityLevel")];
+const KEYS: [(&str, &str); 3] = [
+    ("int", "FramerateCap"),
+    ("int", "GraphicsQualityLevel"),
+    ("token", "SavedQualityLevel"),
+];
 
 /// What a missing file starts as (Roblox writes its own when a client closes).
 const EMPTY: &str = "<roblox version=\"4\">\n\t<Item class=\"UserGameSettings\" referent=\"RBX0\">\n\t\t<Properties>\n\t\t</Properties>\n\t</Item>\n</roblox>\n";
@@ -42,7 +46,10 @@ const EMPTY: &str = "<roblox version=\"4\">\n\t<Item class=\"UserGameSettings\" 
 /// (its replicator exists, seconds after the join line). A launch into a game may never log the
 /// first (seen in the wild: every launch waited out `MARK_TIMEOUT`), so the second counts too.
 /// The join line itself is logged earlier than the read, so it proves nothing.
-const READ_MARKS: [&[u8]; 2] = [b"SceneManager: resizing main targets", b"[FLog::Network] Replicator created"];
+const READ_MARKS: [&[u8]; 2] = [
+    b"SceneManager: resizing main targets",
+    b"[FLog::Network] Replicator created",
+];
 /// A margin after that line before the user's values go back.
 const AFTER_READ: Duration = Duration::from_secs(1);
 /// The longest a launch waits for its client's log (a bootstrapper takes a while) ...
@@ -87,7 +94,11 @@ struct Kept {
 }
 
 fn file() -> Option<PathBuf> {
-    std::env::var_os("LOCALAPPDATA").map(|d| PathBuf::from(d).join("Roblox").join("GlobalBasicSettings_13.xml"))
+    std::env::var_os("LOCALAPPDATA").map(|d| {
+        PathBuf::from(d)
+            .join("Roblox")
+            .join("GlobalBasicSettings_13.xml")
+    })
 }
 
 /// The setting's number in `text` (pure).
@@ -105,7 +116,12 @@ fn set(text: &str, (tag, name): (&str, &str), v: Option<i64>) -> String {
     let element = v.map(|v| format!("{open}{v}{close}"));
     match text.find(&open) {
         Some(i) => match text[i..].find(&close) {
-            Some(len) => format!("{}{}{}", &text[..i], element.unwrap_or_default(), &text[i + len + close.len()..]),
+            Some(len) => format!(
+                "{}{}{}",
+                &text[..i],
+                element.unwrap_or_default(),
+                &text[i + len + close.len()..]
+            ),
             None => text.into(),
         },
         None => match (element, text.find("</Properties>")) {
@@ -121,7 +137,9 @@ fn read(text: &str) -> Values {
 }
 
 fn write(text: &str, v: Values) -> String {
-    KEYS.iter().zip(v).fold(text.to_owned(), |t, (k, v)| set(&t, *k, v))
+    KEYS.iter()
+        .zip(v)
+        .fold(text.to_owned(), |t, (k, v)| set(&t, *k, v))
 }
 
 /// What a launch gives its client (pure): `fps` (0: the user's own) and, with `low`, the lowest
@@ -162,13 +180,28 @@ fn settle_values(kept: &mut Kept, now: Values) -> Values {
 }
 
 fn load(db: &Db) -> Kept {
-    let json = db.setting_value(KEPT).inspect_err(|e| log::warn!("Roblox settings: couldn't read the user's own values: {e}")).ok().flatten();
-    json.and_then(|j| serde_json::from_str(&j).inspect_err(|e| log::warn!("Roblox settings: the user's own values are unreadable: {e}")).ok())
-        .unwrap_or_default()
+    let json = db
+        .setting_value(KEPT)
+        .inspect_err(|e| log::warn!("Roblox settings: couldn't read the user's own values: {e}"))
+        .ok()
+        .flatten();
+    json.and_then(|j| {
+        serde_json::from_str(&j)
+            .inspect_err(|e| {
+                log::warn!("Roblox settings: the user's own values are unreadable: {e}")
+            })
+            .ok()
+    })
+    .unwrap_or_default()
 }
 
 fn save(db: &Db, kept: &Kept) {
-    let saved = serde_json::to_string(kept).map_err(|e| e.to_string()).and_then(|j| db.set_setting_value(KEPT, Some(&j)).map_err(|e| e.to_string()));
+    let saved = serde_json::to_string(kept)
+        .map_err(|e| e.to_string())
+        .and_then(|j| {
+            db.set_setting_value(KEPT, Some(&j))
+                .map_err(|e| e.to_string())
+        });
     if let Err(e) = saved {
         log::warn!("Roblox settings: couldn't keep the user's own values: {e}");
     }
@@ -180,7 +213,11 @@ pub(super) fn retry<T>(mut f: impl FnMut() -> std::io::Result<T>) -> std::io::Re
     let mut tries = 1;
     loop {
         match f() {
-            Err(e) if tries < TRIES && (e.kind() == ErrorKind::PermissionDenied || e.raw_os_error() == Some(32)) => {
+            Err(e)
+                if tries < TRIES
+                    && (e.kind() == ErrorKind::PermissionDenied
+                        || e.raw_os_error() == Some(32)) =>
+            {
                 tries += 1;
                 std::thread::sleep(RETRY);
             }
@@ -202,7 +239,9 @@ fn stamp(file: &Path) -> Option<Stamp> {
 fn read_file(file: &Path) -> std::io::Result<Option<(String, Stamp)>> {
     let seen = stamp(file);
     let text = retry(|| std::fs::read_to_string(file))?;
-    Ok(seen.filter(|_| text.trim_end().ends_with("</roblox>")).map(|s| (text, s)))
+    Ok(seen
+        .filter(|_| text.trim_end().ends_with("</roblox>"))
+        .map(|s| (text, s)))
 }
 
 // Windows: this only clears or sets the read-only attribute.
@@ -222,7 +261,10 @@ fn replace(file: &Path, text: &str, seen: Option<Stamp>) -> std::io::Result<()> 
     let readonly = std::fs::metadata(file).is_ok_and(|m| m.permissions().readonly());
     let unchanged = || match stamp(file) == seen {
         true => Ok(()),
-        false => Err(std::io::Error::new(ErrorKind::Interrupted, "the file changed meanwhile")),
+        false => Err(std::io::Error::new(
+            ErrorKind::Interrupted,
+            "the file changed meanwhile",
+        )),
     };
     let done = retry(|| std::fs::write(&tmp, text)).and_then(|()| {
         unchanged()?;
@@ -233,7 +275,10 @@ fn replace(file: &Path, text: &str, seen: Option<Stamp>) -> std::io::Result<()> 
         retry(|| unchanged().and_then(|()| std::fs::rename(&tmp, file)))
     });
     if readonly && let Err(e) = set_readonly(file, true) {
-        log::warn!("Roblox settings: couldn't make {} read-only again: {e}", file.display());
+        log::warn!(
+            "Roblox settings: couldn't make {} read-only again: {e}",
+            file.display()
+        );
     }
     if done.is_err()
         && let Err(e) = std::fs::remove_file(&tmp)
@@ -269,7 +314,9 @@ impl Undo {
     /// One look: the launch's values back if something else was saved (`settle_values` tells which
     /// of that is the user's own). Not there or refused now: the next look tries again.
     fn keep(&mut self) {
-        let Ok(Some((text, seen))) = read_file(&self.file) else { return };
+        let Ok(Some((text, seen))) = read_file(&self.file) else {
+            return;
+        };
         let now = read(&text);
         if now == self.want {
             return;
@@ -280,8 +327,12 @@ impl Undo {
             return;
         }
         match replace(&self.file, &write(&text, self.want), Some(seen)) {
-            Ok(()) => log::info!("Roblox settings: another client saved its own while this one started; this launch's FPS cap and graphics are back"),
-            Err(e) => log::debug!("Roblox settings: couldn't write this launch's values again yet: {e}"),
+            Ok(()) => log::info!(
+                "Roblox settings: another client saved its own while this one started; this launch's FPS cap and graphics are back"
+            ),
+            Err(e) => {
+                log::debug!("Roblox settings: couldn't write this launch's values again yet: {e}")
+            }
         }
     }
 
@@ -295,13 +346,23 @@ impl Undo {
                     continue;
                 }
                 Err(e) if e.kind() == ErrorKind::NotFound => {
-                    return log::debug!("Roblox settings: {} is gone; nothing to put back", self.file.display());
+                    return log::debug!(
+                        "Roblox settings: {} is gone; nothing to put back",
+                        self.file.display()
+                    );
                 }
-                Err(e) => return log::warn!("Roblox settings: couldn't read {} to put the user's own back: {e}", self.file.display()),
+                Err(e) => {
+                    return log::warn!(
+                        "Roblox settings: couldn't read {} to put the user's own back: {e}",
+                        self.file.display()
+                    );
+                }
             };
             let now = read(&text);
             if now != self.want {
-                log::info!("Roblox settings: another client saved its own while this one started; it may not run at this launch's FPS cap and graphics");
+                log::info!(
+                    "Roblox settings: another client saved its own while this one started; it may not run at this launch's FPS cap and graphics"
+                );
             }
             let want = settle_values(&mut self.kept, now);
             if want == now {
@@ -309,11 +370,19 @@ impl Undo {
             }
             match replace(&self.file, &write(&text, want), Some(seen)) {
                 Err(e) if e.kind() == ErrorKind::Interrupted => continue,
-                Err(e) => return log::warn!("Roblox settings: couldn't put {} back: {e}", self.file.display()),
+                Err(e) => {
+                    return log::warn!(
+                        "Roblox settings: couldn't put {} back: {e}",
+                        self.file.display()
+                    );
+                }
                 Ok(()) => return,
             }
         }
-        log::warn!("Roblox settings: {} kept changing; the watcher puts the user's own back", self.file.display());
+        log::warn!(
+            "Roblox settings: {} kept changing; the watcher puts the user's own back",
+            self.file.display()
+        );
     }
 }
 
@@ -339,10 +408,21 @@ fn apply_at(db: &Db, file: PathBuf, fps: u32, low: bool) -> Option<Undo> {
                 continue;
             }
             // Nothing to give: Roblox's defaults are the user's own.
-            Err(e) if e.kind() == ErrorKind::NotFound && fps == 0 && !low => return Some(Undo { file, want: [None; 3], kept: Kept::default(), fps, low }),
+            Err(e) if e.kind() == ErrorKind::NotFound && fps == 0 && !low => {
+                return Some(Undo {
+                    file,
+                    want: [None; 3],
+                    kept: Kept::default(),
+                    fps,
+                    low,
+                });
+            }
             Err(e) if e.kind() == ErrorKind::NotFound => (EMPTY.to_owned(), None),
             Err(e) => {
-                log::warn!("FPS cap and graphics skipped: can't read {}: {e}", file.display());
+                log::warn!(
+                    "FPS cap and graphics skipped: can't read {}: {e}",
+                    file.display()
+                );
                 return None;
             }
         };
@@ -361,47 +441,75 @@ fn apply_at(db: &Db, file: PathBuf, fps: u32, low: bool) -> Option<Undo> {
             }
         }
         save(db, &kept);
-        let undo = Undo { file: file.clone(), want, kept, fps, low };
+        let undo = Undo {
+            file: file.clone(),
+            want,
+            kept,
+            fps,
+            low,
+        };
         if want == now {
             return Some(undo);
         }
         match replace(&file, &write(&text, want), seen) {
             Ok(()) => {
-                log::info!("Roblox settings for this launch: FPS cap {:?}, graphics {:?}", want[0], want[2]);
+                log::info!(
+                    "Roblox settings for this launch: FPS cap {:?}, graphics {:?}",
+                    want[0],
+                    want[2]
+                );
                 return Some(undo);
             }
             Err(e) if e.kind() == ErrorKind::Interrupted => continue,
             Err(e) => {
-                log::warn!("FPS cap and graphics not written to {}: {e}", file.display());
+                log::warn!(
+                    "FPS cap and graphics not written to {}: {e}",
+                    file.display()
+                );
                 return None;
             }
         }
     }
-    log::warn!("FPS cap and graphics skipped: {} kept changing", file.display());
+    log::warn!(
+        "FPS cap and graphics skipped: {} kept changing",
+        file.display()
+    );
     None
 }
 
 /// Whether `log` has one of `READ_MARKS` (pure).
 fn shows_read(log: &[u8]) -> bool {
-    READ_MARKS.iter().any(|m| log.windows(m.len()).any(|w| w == *m))
+    READ_MARKS
+        .iter()
+        .any(|m| log.windows(m.len()).any(|w| w == *m))
 }
 
 /// Whether the log at `path` shows its client has read the file (its first 4 MB; the mark comes
 /// seconds in).
 fn has_read(path: &Path) -> bool {
     let mut head = Vec::new();
-    std::fs::File::open(path).and_then(|f| f.take(4 << 20).read_to_end(&mut head)).is_ok() && shows_read(&head)
+    std::fs::File::open(path)
+        .and_then(|f| f.take(4 << 20).read_to_end(&mut head))
+        .is_ok()
+        && shows_read(&head)
 }
 
 /// Waits until the client launched with `browser_tracker_id` at `since` has read the settings
 /// file: the newest log naming that id (`logwatch::find_log`) shows one of `READ_MARKS`. `client` (pid,
 /// start time; None under a bootstrapper, which exits by design) ending first ends the wait,
 /// unless Roblox's installer runs: it updates the client and starts it again, with a new log.
-pub async fn wait_until_read(browser_tracker_id: i64, since: SystemTime, client: Option<(u32, u64)>) {
+pub async fn wait_until_read(
+    browser_tracker_id: i64,
+    since: SystemTime,
+    client: Option<(u32, u64)>,
+) {
     use crate::instances::process;
     use tokio::time::Instant;
     let Some(dir) = logwatch::logs_dir() else {
-        log::warn!("Roblox settings: no Roblox logs folder; waiting {} s before putting the user's back", MARK_TIMEOUT.as_secs());
+        log::warn!(
+            "Roblox settings: no Roblox logs folder; waiting {} s before putting the user's back",
+            MARK_TIMEOUT.as_secs()
+        );
         return tokio::time::sleep(MARK_TIMEOUT).await;
     };
     let start = Instant::now();
@@ -434,12 +542,17 @@ pub async fn wait_until_read(browser_tracker_id: i64, since: SystemTime, client:
         }
         if let Some((pid, t)) = client.filter(|&(pid, t)| process::start_time(pid) != Some(t)) {
             client = None;
-            let installer = tokio::task::spawn_blocking(process::installer_running).await.unwrap_or_else(|e| {
-                log::debug!("Roblox settings: installer check failed: {e}");
-                false
-            });
+            let installer = tokio::task::spawn_blocking(process::installer_running)
+                .await
+                .unwrap_or_else(|e| {
+                    log::debug!("Roblox settings: installer check failed: {e}");
+                    false
+                });
             let lived = since.elapsed().map_or(0, |d| d.as_secs());
-            log::warn!("Roblox settings: the client (pid {pid}, started {t}) ended about {lived} s after its launch, before it read them (Roblox's installer running: {installer}, client log found: {})", log.is_some());
+            log::warn!(
+                "Roblox settings: the client (pid {pid}, started {t}) ended about {lived} s after its launch, before it read them (Roblox's installer running: {installer}, client log found: {})",
+                log.is_some()
+            );
             gone = Some((Instant::now(), installer));
         }
         let deadline = match (gone, &log) {
@@ -449,8 +562,16 @@ pub async fn wait_until_read(browser_tracker_id: i64, since: SystemTime, client:
             (None, None) => start + LOG_TIMEOUT,
         };
         if Instant::now() >= deadline {
-            let what = if gone.is_some() { "come back" } else if log.is_some() { "show it had read them" } else { "start logging" };
-            return log::warn!("Roblox settings: the client didn't {what} in time; putting the user's back. If it died, the \"autopsy\" lines of its instance say why, up to 2 minutes after its launch");
+            let what = if gone.is_some() {
+                "come back"
+            } else if log.is_some() {
+                "show it had read them"
+            } else {
+                "start logging"
+            };
+            return log::warn!(
+                "Roblox settings: the client didn't {what} in time; putting the user's back. If it died, the \"autopsy\" lines of its instance say why, up to 2 minutes after its launch"
+            );
         }
         tokio::time::sleep(Duration::from_millis(250)).await;
     }
@@ -469,7 +590,12 @@ fn restore_at(db: &Db, file: &Path) {
     let (text, seen) = match read_file(file) {
         Ok(Some(whole)) => whole,
         Ok(None) => return,
-        Err(e) => return log::debug!("Roblox settings: couldn't read {} to put the user's own back: {e}", file.display()),
+        Err(e) => {
+            return log::debug!(
+                "Roblox settings: couldn't read {} to put the user's own back: {e}",
+                file.display()
+            );
+        }
     };
     let now = read(&text);
     let mut kept = load(db);
@@ -493,7 +619,9 @@ fn settle(db: &Db, file: &Path) -> bool {
             // Once per distinct error: this is looked at again every `WATCH`.
             static LAST: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
             let why = e.to_string();
-            let mut last = LAST.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            let mut last = LAST
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             if *last != why {
                 log::warn!("Roblox settings: couldn't read {}: {why}", file.display());
                 *last = why;
@@ -513,7 +641,9 @@ fn settle(db: &Db, file: &Path) -> bool {
     }
     match replace(file, &write(&text, want), Some(seen)) {
         Ok(()) => {
-            log::info!("Roblox settings: a client that had a launch's FPS cap and graphics saved them as it closed; the user's own are back");
+            log::info!(
+                "Roblox settings: a client that had a launch's FPS cap and graphics saved them as it closed; the user's own are back"
+            );
             true
         }
         Err(e) if e.kind() == ErrorKind::Interrupted => false,
@@ -522,7 +652,10 @@ fn settle(db: &Db, file: &Path) -> bool {
             let again = e.kind() == ErrorKind::PermissionDenied || e.raw_os_error() == Some(32);
             // Retried every `WATCH`: only giving up is a warning.
             if again {
-                log::debug!("Roblox settings: couldn't put {} back yet: {e}", file.display());
+                log::debug!(
+                    "Roblox settings: couldn't put {} back yet: {e}",
+                    file.display()
+                );
             } else {
                 log::warn!("Roblox settings: couldn't put {} back: {e}", file.display());
             }
@@ -533,21 +666,25 @@ fn settle(db: &Db, file: &Path) -> bool {
 
 /// Watches the file for the app's lifetime: `settle` when it changed and no launch holds `LOCK`.
 pub fn spawn(app: AppHandle) {
-    let watching = std::thread::Builder::new().name("client-settings".into()).spawn(move || {
-        let mut seen = None;
-        loop {
-            std::thread::sleep(WATCH);
-            let Ok(_idle) = LOCK.try_lock() else { continue };
-            let Some(file) = file() else { continue };
-            let Ok(modified) = std::fs::metadata(&file).and_then(|m| m.modified()) else { continue };
-            if seen == Some(modified) {
-                continue;
+    let watching = std::thread::Builder::new()
+        .name("client-settings".into())
+        .spawn(move || {
+            let mut seen = None;
+            loop {
+                std::thread::sleep(WATCH);
+                let Ok(_idle) = LOCK.try_lock() else { continue };
+                let Some(file) = file() else { continue };
+                let Ok(modified) = std::fs::metadata(&file).and_then(|m| m.modified()) else {
+                    continue;
+                };
+                if seen == Some(modified) {
+                    continue;
+                }
+                if settle(&app.state::<App>().db, &file) {
+                    seen = Some(modified);
+                }
             }
-            if settle(&app.state::<App>().db, &file) {
-                seen = Some(modified);
-            }
-        }
-    });
+        });
     if let Err(e) = watching {
         log::warn!("Roblox settings watcher not running: {e}");
     }
@@ -566,7 +703,9 @@ mod tests {
 
     impl TestFile {
         fn new(name: &str, text: Option<&str>) -> Self {
-            let f = TestFile(std::env::temp_dir().join(format!("mtwin-test-{name}-{}.xml", std::process::id())));
+            let f = TestFile(
+                std::env::temp_dir().join(format!("mtwin-test-{name}-{}.xml", std::process::id())),
+            );
             let _ = std::fs::remove_file(&f.0);
             if let Some(t) = text {
                 std::fs::write(&f.0, t).unwrap();
@@ -593,7 +732,11 @@ mod tests {
         assert_eq!(read(XML), MINE);
         let t = write(XML, LOW);
         assert_eq!(read(&t), LOW);
-        assert_eq!(write(&t, MINE), XML, "putting back restores the file exactly");
+        assert_eq!(
+            write(&t, MINE),
+            XML,
+            "putting back restores the file exactly"
+        );
         assert_eq!(read(&set(XML, KEYS[0], None)), [None, Some(19), Some(9)]);
     }
 
@@ -601,9 +744,16 @@ mod tests {
     fn adds_a_missing_setting_in_the_files_layout() {
         let bare = XML.replace("\t\t\t<int name=\"FramerateCap\">240</int>\n", "");
         let t = set(&bare, KEYS[0], Some(30));
-        assert!(t.contains("\t\t\t<int name=\"FramerateCap\">30</int>\n\t\t</Properties>"), "{t}");
+        assert!(
+            t.contains("\t\t\t<int name=\"FramerateCap\">30</int>\n\t\t</Properties>"),
+            "{t}"
+        );
         assert_eq!(set(&t, KEYS[0], None).replace("\t\t\t\n", ""), bare);
-        assert_eq!(set("<roblox/>", KEYS[0], Some(30)), "<roblox/>", "no Properties: left alone");
+        assert_eq!(
+            set("<roblox/>", KEYS[0], Some(30)),
+            "<roblox/>",
+            "no Properties: left alone"
+        );
         assert_eq!(read("not xml"), [None; 3]);
         assert_eq!(read(&write(EMPTY, LOW)), LOW, "a missing file starts empty");
     }
@@ -617,15 +767,24 @@ mod tests {
 
     #[test]
     fn settles_each_setting_on_its_own() {
-        let kept = || Kept { user: Some(MINE), ours: [vec![15], vec![1], vec![1]] };
+        let kept = || Kept {
+            user: Some(MINE),
+            ours: [vec![15], vec![1], vec![1]],
+        };
         // A client that read a launch's values saved them: they go back, even with a quality
         // level Roblox rewrote by its own rule (that one is the user's then).
         let mut k = kept();
-        assert_eq!(settle_values(&mut k, [Some(15), Some(3), Some(1)]), [Some(240), Some(3), Some(9)]);
+        assert_eq!(
+            settle_values(&mut k, [Some(15), Some(3), Some(1)]),
+            [Some(240), Some(3), Some(9)]
+        );
         assert_eq!(k.user, Some([Some(240), Some(3), Some(9)]));
         // The user changed their own: kept.
         let mut k = kept();
-        assert_eq!(settle_values(&mut k, [Some(144), Some(19), Some(9)]), [Some(144), Some(19), Some(9)]);
+        assert_eq!(
+            settle_values(&mut k, [Some(144), Some(19), Some(9)]),
+            [Some(144), Some(19), Some(9)]
+        );
         assert_eq!(k.user, Some([Some(144), Some(19), Some(9)]));
         // Nothing known yet: what's there is the user's.
         let mut k = Kept::default();
@@ -669,7 +828,8 @@ mod tests {
         // A launch that leaves Roblox alone writes nothing, but still holds on until its client
         // has read the file, and gives it the user's own rather than a closed client's.
         let now = f.text();
-        let undo = apply_at(&db, f.0.clone(), 0, false).expect("held until its client has read the file");
+        let undo =
+            apply_at(&db, f.0.clone(), 0, false).expect("held until its client has read the file");
         assert_eq!(f.text(), now);
         undo.put_back();
         assert_eq!(f.text(), now);
@@ -737,7 +897,10 @@ mod tests {
         f.put(&write(XML, LOW)[..60]);
         assert!(!settle(&db, &f.0), "half written: look again");
         assert_eq!(load(&db).user, Some(MINE), "the user's own are untouched");
-        assert!(apply_at(&db, f.0.clone(), 15, true).is_none(), "a launch doesn't write over it");
+        assert!(
+            apply_at(&db, f.0.clone(), 15, true).is_none(),
+            "a launch doesn't write over it"
+        );
         assert_eq!(f.text(), write(XML, LOW)[..60]);
     }
 
@@ -752,7 +915,10 @@ mod tests {
         undo.put_back();
         assert_eq!(f.text(), XML);
         assert!(std::fs::metadata(&f.0).unwrap().permissions().readonly());
-        assert!(!f.0.with_extension("xml.mtwin").exists(), "no temporary file left");
+        assert!(
+            !f.0.with_extension("xml.mtwin").exists(),
+            "no temporary file left"
+        );
     }
 
     #[test]
@@ -766,19 +932,34 @@ mod tests {
         assert!(f.text().trim_end().ends_with("</roblox>"));
         // Roblox wrote one meanwhile: a write meant for a missing file stops.
         let roblox = f.text();
-        assert_eq!(replace(&f.0, EMPTY, None).unwrap_err().kind(), ErrorKind::Interrupted);
+        assert_eq!(
+            replace(&f.0, EMPTY, None).unwrap_err().kind(),
+            ErrorKind::Interrupted
+        );
         assert_eq!(f.text(), roblox);
 
         let none = TestFile::new("missing-alone", None);
-        apply_at(&db, none.0.clone(), 0, false).expect("held until read").put_back();
+        apply_at(&db, none.0.clone(), 0, false)
+            .expect("held until read")
+            .put_back();
         assert!(!none.0.exists(), "leaving Roblox alone creates nothing");
     }
 
     #[test]
     fn knows_when_the_client_has_read_the_file() {
-        assert!(!shows_read(b"[FLog::FlagFetchingStarterModule] Successfully loaded flags"));
-        assert!(!shows_read(b"x ! Joining game 'abc' place 1818 at 1.2.3.4"), "a join comes before the read");
-        assert!(shows_read(b"x [FLog::Graphics] SceneManager: resizing main targets to 1004x758"));
-        assert!(shows_read(b"x [FLog::Network] Replicator created: 000000007A26CF00"), "in a game");
+        assert!(!shows_read(
+            b"[FLog::FlagFetchingStarterModule] Successfully loaded flags"
+        ));
+        assert!(
+            !shows_read(b"x ! Joining game 'abc' place 1818 at 1.2.3.4"),
+            "a join comes before the read"
+        );
+        assert!(shows_read(
+            b"x [FLog::Graphics] SceneManager: resizing main targets to 1004x758"
+        ));
+        assert!(
+            shows_read(b"x [FLog::Network] Replicator created: 000000007A26CF00"),
+            "in a game"
+        );
     }
 }

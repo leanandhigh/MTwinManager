@@ -23,29 +23,51 @@ pub struct PlaceLaunch<'a> {
 /// Private: placeId, [accessCode], [linkCode], joinAttemptId, joinAttemptOrigin=PlayButton.
 /// Follow: userId, joinAttemptId, joinAttemptOrigin=JoinUser.
 pub fn place_launcher_url(p: &PlaceLaunch) -> String {
-    let some = |k, v: &Option<String>| v.as_deref().filter(|v| !v.is_empty()).map(|v| (k, v.to_owned()));
+    let some = |k, v: &Option<String>| {
+        v.as_deref()
+            .filter(|v| !v.is_empty())
+            .map(|v| (k, v.to_owned()))
+    };
     let (request, mut params, origin) = match p.join {
-        Join::Game { place_id, launch_data } => {
+        Join::Game {
+            place_id,
+            launch_data,
+        } => {
             let mut v = vec![("placeId", place_id.to_string())];
             v.extend(some("launchData", launch_data));
             v.push(("isPlayTogetherGame", "false".into()));
             ("RequestGame", v, "PlayButton")
         }
         Join::Job { place_id, job_id } => {
-            let v = vec![("placeId", place_id.to_string()), ("gameId", job_id.clone()), ("isPlayTogetherGame", "false".into())];
+            let v = vec![
+                ("placeId", place_id.to_string()),
+                ("gameId", job_id.clone()),
+                ("isPlayTogetherGame", "false".into()),
+            ];
             ("RequestGameJob", v, "JoinInstance")
         }
-        Join::Private { place_id, link_code, access_code } => {
+        Join::Private {
+            place_id,
+            link_code,
+            access_code,
+        } => {
             let mut v = vec![("placeId", place_id.to_string())];
             v.extend(some("accessCode", access_code));
             v.extend(some("linkCode", link_code));
             ("RequestPrivateGame", v, "PlayButton")
         }
-        Join::Follow { user_id } => ("RequestFollowUser", vec![("userId", user_id.to_string())], "JoinUser"),
+        Join::Follow { user_id } => (
+            "RequestFollowUser",
+            vec![("userId", user_id.to_string())],
+            "JoinUser",
+        ),
     };
     params.push(("joinAttemptId", p.join_attempt_id.to_string()));
     params.push(("joinAttemptOrigin", origin.into()));
-    let mut url = format!("{PLACE_LAUNCHER}?request={request}&browserTrackerId={}", p.browser_tracker_id);
+    let mut url = format!(
+        "{PLACE_LAUNCHER}?request={request}&browserTrackerId={}",
+        p.browser_tracker_id
+    );
     for (k, v) in params {
         let _ = write!(url, "&{}={}", encode(k), encode(&v).replace("%20", "+"));
     }
@@ -57,7 +79,12 @@ pub fn place_launcher_url(p: &PlaceLaunch) -> String {
 /// empty `channel:` before `LaunchExp`: the client then asks for production's version, whatever
 /// channel Roblox left in the registry. The result holds the ticket,
 /// so it is a `Secret`.
-pub fn player_uri(ticket: &Secret, launch_time_ms: i64, p: &PlaceLaunch, production: bool) -> Secret {
+pub fn player_uri(
+    ticket: &Secret,
+    launch_time_ms: i64,
+    p: &PlaceLaunch,
+    production: bool,
+) -> Secret {
     let url = place_launcher_url(p);
     // Sized up front so no reallocation leaves a copy of the ticket behind.
     let mut s = String::with_capacity(3 * (ticket.expose().len() + url.len()) + 256);
@@ -66,7 +93,11 @@ pub fn player_uri(ticket: &Secret, launch_time_ms: i64, p: &PlaceLaunch, product
     let _ = write!(s, "+launchtime:{launch_time_ms}+placelauncherurl:");
     encode_into(&mut s, &url);
     let channel = if production { "channel:+" } else { "" };
-    let _ = write!(s, "+browsertrackerid:{}+robloxLocale:en_us+gameLocale:en_us+{channel}LaunchExp:InApp", p.browser_tracker_id);
+    let _ = write!(
+        s,
+        "+browsertrackerid:{}+robloxLocale:en_us+gameLocale:en_us+{channel}LaunchExp:InApp",
+        p.browser_tracker_id
+    );
     Secret::new(s)
 }
 
@@ -75,28 +106,54 @@ pub fn player_uri(ticket: &Secret, launch_time_ms: i64, p: &PlaceLaunch, product
 /// MTwin Manager launches with its own. None for anything else, or a launcher URL off Roblox.
 pub fn target_of_player_uri(uri: &str) -> Option<crate::model::LaunchTarget> {
     use crate::model::LaunchTarget as T;
-    let rest = uri.get(..14).filter(|p| p.eq_ignore_ascii_case("roblox-player:")).map(|_| &uri[14..])?;
-    let encoded = rest.split('+').find_map(|part| part.strip_prefix("placelauncherurl:"))?;
+    let rest = uri
+        .get(..14)
+        .filter(|p| p.eq_ignore_ascii_case("roblox-player:"))
+        .map(|_| &uri[14..])?;
+    let encoded = rest
+        .split('+')
+        .find_map(|part| part.strip_prefix("placelauncherurl:"))?;
     // Form decoding: the value is encodeURIComponent'd, so a '+' in it can only be a separator's.
     let pair = format!("u={encoded}");
     let (_, decoded) = url::form_urlencoded::parse(pair.as_bytes()).next()?;
     let url = url::Url::parse(&decoded).ok()?;
-    let roblox = url.scheme() == "https" && matches!(url.host_str(), Some("www.roblox.com" | "assetgame.roblox.com"));
+    let roblox = url.scheme() == "https"
+        && matches!(
+            url.host_str(),
+            Some("www.roblox.com" | "assetgame.roblox.com")
+        );
     if !roblox || !url.path().eq_ignore_ascii_case("/Game/PlaceLauncher.ashx") {
         return None;
     }
-    let q: std::collections::HashMap<String, String> = url.query_pairs().map(|(k, v)| (k.into_owned(), v.into_owned())).collect();
+    let q: std::collections::HashMap<String, String> = url
+        .query_pairs()
+        .map(|(k, v)| (k.into_owned(), v.into_owned()))
+        .collect();
     let get = |k: &str| q.get(k).filter(|v| !v.is_empty()).cloned();
     let id = |k: &str| get(k)?.parse::<i64>().ok().filter(|n| *n > 0);
     match get("request")?.as_str() {
-        "RequestGame" => Some(T::Place { place_id: id("placeId")?, launch_data: get("launchData") }),
-        "RequestGameJob" => Some(T::Server { place_id: id("placeId")?, job_id: get("gameId")? }),
+        "RequestGame" => Some(T::Place {
+            place_id: id("placeId")?,
+            launch_data: get("launchData"),
+        }),
+        "RequestGameJob" => Some(T::Server {
+            place_id: id("placeId")?,
+            job_id: get("gameId")?,
+        }),
         "RequestPrivateGame" => match (get("accessCode"), get("linkCode")) {
-            (Some(access_code), _) => Some(T::PrivateAccess { place_id: id("placeId")?, access_code }),
-            (None, Some(link_code)) => Some(T::PrivateLink { place_id: id("placeId")?, link_code }),
+            (Some(access_code), _) => Some(T::PrivateAccess {
+                place_id: id("placeId")?,
+                access_code,
+            }),
+            (None, Some(link_code)) => Some(T::PrivateLink {
+                place_id: id("placeId")?,
+                link_code,
+            }),
             (None, None) => None,
         },
-        "RequestFollowUser" => Some(T::FollowUser { user_id: id("userId")? }),
+        "RequestFollowUser" => Some(T::FollowUser {
+            user_id: id("userId")?,
+        }),
         _ => None,
     }
 }
@@ -141,14 +198,33 @@ mod tests {
 
     #[test]
     fn website_examples() {
-        let path = format!("{}/../docs/research/fixtures/authlaunch-web-launch-uri-spec.json", env!("CARGO_MANIFEST_DIR"));
+        let path = format!(
+            "{}/../docs/research/fixtures/authlaunch-web-launch-uri-spec.json",
+            env!("CARGO_MANIFEST_DIR")
+        );
         let spec: Value = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
         let joins = [
-            ("RequestGame", Join::Game { place_id: 1818, launch_data: None }),
-            ("RequestGameJob", Join::Job { place_id: 1818, job_id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee".into() }),
+            (
+                "RequestGame",
+                Join::Game {
+                    place_id: 1818,
+                    launch_data: None,
+                },
+            ),
+            (
+                "RequestGameJob",
+                Join::Job {
+                    place_id: 1818,
+                    job_id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee".into(),
+                },
+            ),
             (
                 "RequestPrivateGame_linkCode",
-                Join::Private { place_id: 1818, link_code: Some("12345678901234567890123456789012".into()), access_code: None },
+                Join::Private {
+                    place_id: 1818,
+                    link_code: Some("12345678901234567890123456789012".into()),
+                    access_code: None,
+                },
             ),
             ("RequestFollowUser", Join::Follow { user_id: 1 }),
         ];
@@ -156,17 +232,33 @@ mod tests {
         let ticket = Secret::new("<TICKET>");
         for (name, join) in &joins {
             let uri = player_uri(&ticket, 1792839000000, &launch(join), false);
-            assert_eq!(uri.expose(), spec["examples"][name].as_str().unwrap(), "{name}");
+            assert_eq!(
+                uri.expose(),
+                spec["examples"][name].as_str().unwrap(),
+                "{name}"
+            );
             let production = player_uri(&ticket, 1792839000000, &launch(join), true);
-            assert_eq!(production.expose(), uri.expose().replace("+LaunchExp:", "+channel:+LaunchExp:"), "{name}");
+            assert_eq!(
+                production.expose(),
+                uri.expose().replace("+LaunchExp:", "+channel:+LaunchExp:"),
+                "{name}"
+            );
         }
     }
 
     #[test]
     fn encodes_like_the_website() {
-        let join = Join::Game { place_id: 1, launch_data: Some("a b+c&d=e/é!~*'()".into()) };
+        let join = Join::Game {
+            place_id: 1,
+            launch_data: Some("a b+c&d=e/é!~*'()".into()),
+        };
         let url = place_launcher_url(&launch(&join));
-        assert!(url.contains("&placeId=1&launchData=a+b%2Bc%26d%3De%2F%C3%A9!~*'()&isPlayTogetherGame=false&"), "{url}");
+        assert!(
+            url.contains(
+                "&placeId=1&launchData=a+b%2Bc%26d%3De%2F%C3%A9!~*'()&isPlayTogetherGame=false&"
+            ),
+            "{url}"
+        );
         let uri = player_uri(&Secret::new("a+b c"), 0, &launch(&join), false);
         assert!(uri.expose().contains("+gameinfo:a%2Bb%20c+launchtime:0+"));
         assert!(uri.expose().contains("launchData%3Da%2Bb%252Bc%2526d"));
@@ -174,9 +266,20 @@ mod tests {
 
     #[test]
     fn private_access_code_comes_before_link_code_and_empty_ones_are_dropped() {
-        let both = Join::Private { place_id: 1, link_code: Some("2".into()), access_code: Some("x".into()) };
-        assert!(place_launcher_url(&launch(&both)).contains("placeId=1&accessCode=x&linkCode=2&joinAttemptId="));
-        let empty = Join::Private { place_id: 1, link_code: Some(String::new()), access_code: None };
+        let both = Join::Private {
+            place_id: 1,
+            link_code: Some("2".into()),
+            access_code: Some("x".into()),
+        };
+        assert!(
+            place_launcher_url(&launch(&both))
+                .contains("placeId=1&accessCode=x&linkCode=2&joinAttemptId=")
+        );
+        let empty = Join::Private {
+            place_id: 1,
+            link_code: Some(String::new()),
+            access_code: None,
+        };
         assert!(place_launcher_url(&launch(&empty)).contains("placeId=1&joinAttemptId="));
     }
 
@@ -184,15 +287,72 @@ mod tests {
     fn reads_the_target_back_and_never_the_ticket() {
         use crate::model::LaunchTarget as T;
         let ticket = Secret::new("SECRET+TICKET");
-        let back = |join: Join| target_of_player_uri(player_uri(&ticket, 1, &launch(&join), false).expose());
-        assert_eq!(back(Join::Game { place_id: 1818, launch_data: Some("a b+c".into()) }), Some(T::Place { place_id: 1818, launch_data: Some("a b+c".into()) }));
-        assert_eq!(back(Join::Game { place_id: 7, launch_data: None }), Some(T::Place { place_id: 7, launch_data: None }));
-        assert_eq!(back(Join::Job { place_id: 7, job_id: "abc-def".into() }), Some(T::Server { place_id: 7, job_id: "abc-def".into() }));
-        assert_eq!(back(Join::Private { place_id: 7, link_code: Some("123".into()), access_code: None }), Some(T::PrivateLink { place_id: 7, link_code: "123".into() }));
-        assert_eq!(back(Join::Private { place_id: 7, link_code: None, access_code: Some("g".into()) }), Some(T::PrivateAccess { place_id: 7, access_code: "g".into() }));
-        assert_eq!(back(Join::Follow { user_id: 99 }), Some(T::FollowUser { user_id: 99 }));
+        let back = |join: Join| {
+            target_of_player_uri(player_uri(&ticket, 1, &launch(&join), false).expose())
+        };
+        assert_eq!(
+            back(Join::Game {
+                place_id: 1818,
+                launch_data: Some("a b+c".into())
+            }),
+            Some(T::Place {
+                place_id: 1818,
+                launch_data: Some("a b+c".into())
+            })
+        );
+        assert_eq!(
+            back(Join::Game {
+                place_id: 7,
+                launch_data: None
+            }),
+            Some(T::Place {
+                place_id: 7,
+                launch_data: None
+            })
+        );
+        assert_eq!(
+            back(Join::Job {
+                place_id: 7,
+                job_id: "abc-def".into()
+            }),
+            Some(T::Server {
+                place_id: 7,
+                job_id: "abc-def".into()
+            })
+        );
+        assert_eq!(
+            back(Join::Private {
+                place_id: 7,
+                link_code: Some("123".into()),
+                access_code: None
+            }),
+            Some(T::PrivateLink {
+                place_id: 7,
+                link_code: "123".into()
+            })
+        );
+        assert_eq!(
+            back(Join::Private {
+                place_id: 7,
+                link_code: None,
+                access_code: Some("g".into())
+            }),
+            Some(T::PrivateAccess {
+                place_id: 7,
+                access_code: "g".into()
+            })
+        );
+        assert_eq!(
+            back(Join::Follow { user_id: 99 }),
+            Some(T::FollowUser { user_id: 99 })
+        );
         let evil = "roblox-player:1+launchmode:play+placelauncherurl:https%3A%2F%2Fevil.com%2FGame%2FPlaceLauncher.ashx%3Frequest%3DRequestGame%26placeId%3D1";
-        for bad in ["https://www.roblox.com/", "roblox-player:1+launchmode:play", evil, "roblox-player:1+placelauncherurl:not%20a%20url"] {
+        for bad in [
+            "https://www.roblox.com/",
+            "roblox-player:1+launchmode:play",
+            evil,
+            "roblox-player:1+placelauncherurl:not%20a%20url",
+        ] {
             assert_eq!(target_of_player_uri(bad), None, "{bad}");
         }
     }
@@ -200,7 +360,10 @@ mod tests {
     #[test]
     fn browser_tracker_ids_are_16_random_digits() {
         let ids: Vec<i64> = (0..1000).map(|_| new_browser_tracker_id()).collect();
-        assert!(ids.iter().all(|id| (1_000_000_000_000_000..=8_999_999_999_999_999).contains(id)));
+        assert!(
+            ids.iter()
+                .all(|id| (1_000_000_000_000_000..=8_999_999_999_999_999).contains(id))
+        );
         assert!(ids.iter().all(|id| id.to_string().len() == 16));
         let mut unique = ids.clone();
         unique.sort_unstable();

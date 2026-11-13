@@ -55,11 +55,11 @@ use crate::App;
 use crate::error::{AppError, Result};
 use crate::instances::rejoin::backoff;
 use crate::instances::{auth_failed, challenged, wrong_account};
-use crate::roblox_api::types::UserPresence;
 use crate::model::{
-    AccountStatus, AccountSummary, BulkItem, BulkProgress, BulkRequest, BulkStage, GameServer, Instance,
-    InstanceState, LaunchTarget, PrivateServer, SameServer, ServerOrder,
+    AccountStatus, AccountSummary, BulkItem, BulkProgress, BulkRequest, BulkStage, GameServer,
+    Instance, InstanceState, LaunchTarget, PrivateServer, SameServer, ServerOrder,
 };
+use crate::roblox_api::types::UserPresence;
 use crate::vault::Secret;
 
 const EVENT: &str = "bulk://progress";
@@ -152,8 +152,16 @@ impl Bulk {
     /// the most a delay can be, less the jitter's second, so a batch's own jittered wait never adds to it.
     pub fn launch_gap(&self, delay_ms: u32, now: Instant) -> Duration {
         let (n, at) = *self.refusals.lock().unwrap_or_else(|e| e.into_inner());
-        let n = if at.is_some_and(|t| now.duration_since(t) < REFUSAL_LASTS) { n } else { 0 };
-        let wanted = if n > 0 { backoff(delay_ms, n).min(MAX_DELAY) } else { delay_ms };
+        let n = if at.is_some_and(|t| now.duration_since(t) < REFUSAL_LASTS) {
+            n
+        } else {
+            0
+        };
+        let wanted = if n > 0 {
+            backoff(delay_ms, n).min(MAX_DELAY)
+        } else {
+            delay_ms
+        };
         Duration::from_millis(u64::from(wanted.saturating_sub(1_000)))
     }
 
@@ -231,13 +239,17 @@ impl Bulk {
     pub fn begin_single_launch(&self) -> Result<Busy<'_>> {
         self.check_single_launch()?;
         // Taken atomically, so two launches asked for at once can't both start.
-        self.launches.compare_exchange(0, 1, Ordering::SeqCst, Ordering::SeqCst).map_err(|_| AppError::Invalid(launching()))?;
+        self.launches
+            .compare_exchange(0, 1, Ordering::SeqCst, Ordering::SeqCst)
+            .map_err(|_| AppError::Invalid(launching()))?;
         Ok(Busy(&self.launches))
     }
 
     /// A batch, launch or auto-rejoin is running.
     pub fn any_busy(&self) -> bool {
-        self.running() || self.rejoining.load(Ordering::SeqCst) > 0 || self.launches.load(Ordering::SeqCst) > 0
+        self.running()
+            || self.rejoining.load(Ordering::SeqCst) > 0
+            || self.launches.load(Ordering::SeqCst) > 0
     }
 
     /// Asks the running batch to stop after its current step. `NotFound` when `batch_id` isn't
@@ -303,17 +315,31 @@ pub fn start(app: AppHandle, mut req: BulkRequest) -> Result<String> {
         }
         let name = name_of(&a);
         if let Some(why) = cant_launch(a.status) {
-            return Err(AppError::Invalid(tr!("{name} can't launch: {why}", name = name, why = why)));
+            return Err(AppError::Invalid(tr!(
+                "{name} can't launch: {why}",
+                name = name,
+                why = why
+            )));
         }
         if s.tracker.has_live_client(id) {
-            return Err(AppError::Invalid(tr!("{name} is already running. Untick it or close its client first.", name = name)));
+            return Err(AppError::Invalid(tr!(
+                "{name} is already running. Untick it or close its client first.",
+                name = name
+            )));
         }
-        accounts.push(Account { id, user_id: a.user_id, name, allow_disconnect: a.allow_disconnect });
+        accounts.push(Account {
+            id,
+            user_id: a.user_id,
+            name,
+            allow_disconnect: a.allow_disconnect,
+        });
     }
     if ids.len() > 1 && !s.multi.is_active() {
         let v = s.db.settings()?;
         if !v.multi_instance {
-            return Err(AppError::Invalid(tr!("Turn on multi-instance to launch several accounts.")));
+            return Err(AppError::Invalid(tr!(
+                "Turn on multi-instance to launch several accounts."
+            )));
         }
         s.multi.enable()?;
     }
@@ -328,7 +354,10 @@ pub fn start(app: AppHandle, mut req: BulkRequest) -> Result<String> {
         if s.bulk.rejoining.load(Ordering::SeqCst) > 0 {
             return Err(AppError::Invalid(rejoining()));
         }
-        let last = batch.replace(Batch { progress: progress.clone(), cancel: cancel.clone() });
+        let last = batch.replace(Batch {
+            progress: progress.clone(),
+            cancel: cancel.clone(),
+        });
         // After registering: an install starting now sees this batch, one already running is seen here.
         if s.update.installing() {
             *batch = last;
@@ -336,12 +365,24 @@ pub fn start(app: AppHandle, mut req: BulkRequest) -> Result<String> {
         }
     }
     // Layout slots up front, in list order: clients reach a game in whatever order they load.
-    if s.db.settings().is_ok_and(|v| v.window_layout != crate::model::WindowLayout::Off) {
+    if s.db
+        .settings()
+        .is_ok_and(|v| v.window_layout != crate::model::WindowLayout::Off)
+    {
         s.tracker.reserve_slots(&laid_out, true);
     }
     let _ = app.emit(EVENT, &progress);
-    log::info!("bulk batch {}: {} account(s)", progress.batch_id, accounts.len());
-    let run = Run { app: app.clone(), batch_id: progress.batch_id.clone(), cancel, accounts };
+    log::info!(
+        "bulk batch {}: {} account(s)",
+        progress.batch_id,
+        accounts.len()
+    );
+    let run = Run {
+        app: app.clone(),
+        batch_id: progress.batch_id.clone(),
+        cancel,
+        accounts,
+    };
     tauri::async_runtime::spawn(run.run(req));
     Ok(progress.batch_id)
 }
@@ -372,7 +413,9 @@ pub fn jittered(delay_ms: u32) -> Duration {
 /// `Failed` with the instance's note (or "Disconnected"); `exited` → `Failed` with the note
 /// (or "Closed").
 pub fn stage_of(instance: &Instance, allow_disconnect: bool) -> BulkStage {
-    let failed = |default: fn() -> String| BulkStage::Failed { message: instance.note.clone().unwrap_or_else(default) };
+    let failed = |default: fn() -> String| BulkStage::Failed {
+        message: instance.note.clone().unwrap_or_else(default),
+    };
     match instance.state {
         InstanceState::Starting => BulkStage::Starting,
         InstanceState::Joining => BulkStage::Joining,
@@ -430,7 +473,10 @@ impl Run {
     async fn run(self, req: BulkRequest) {
         let stop = match self.launch_all(&req).await {
             Some(why) => Some(why),
-            None => self.wait(SETTLE_WAIT, || self.progress().is_none_or(|p| settled(&p))).await,
+            None => {
+                self.wait(SETTLE_WAIT, || self.progress().is_none_or(|p| settled(&p)))
+                    .await
+            }
         };
         if let Some(why) = &stop {
             log::warn!("bulk batch {} stopped early: {why}", self.batch_id);
@@ -465,7 +511,9 @@ impl Run {
         let (mut started, mut pace) = (false, Pace::default());
         for (i, a) in self.accounts.iter().enumerate() {
             if i > 0
-                && let Some(why) = self.wait(jittered(pace.delay(req.delay_ms)), || false).await
+                && let Some(why) = self
+                    .wait(jittered(pace.delay(req.delay_ms)), || false)
+                    .await
             {
                 return Some(why);
             }
@@ -480,7 +528,11 @@ impl Run {
             match s.db.account(a.id) {
                 Ok(x) if x.user_id == a.user_id => {
                     if let Some(why) = cant_launch(x.status) {
-                        log::debug!("bulk batch {}: account {} can't launch: {why}", self.batch_id, a.id);
+                        log::debug!(
+                            "bulk batch {}: account {} can't launch: {why}",
+                            self.batch_id,
+                            a.id
+                        );
                         self.set_stage(i, BulkStage::Failed { message: why });
                         if x.status == AccountStatus::Challenged {
                             return stop_reason(&AppError::Challenge, &a.name);
@@ -489,10 +541,23 @@ impl Run {
                     }
                 }
                 r => {
-                    if let Some(e) = r.as_ref().err().filter(|e| !matches!(e, AppError::NotFound)) {
-                        log::warn!("bulk batch {}: account {} could not be read: {e}", self.batch_id, a.id);
+                    if let Some(e) = r
+                        .as_ref()
+                        .err()
+                        .filter(|e| !matches!(e, AppError::NotFound))
+                    {
+                        log::warn!(
+                            "bulk batch {}: account {} could not be read: {e}",
+                            self.batch_id,
+                            a.id
+                        );
                     }
-                    self.set_stage(i, BulkStage::Failed { message: tr!("Removed during the batch") });
+                    self.set_stage(
+                        i,
+                        BulkStage::Failed {
+                            message: tr!("Removed during the batch"),
+                        },
+                    );
                     continue;
                 }
             }
@@ -506,7 +571,18 @@ impl Run {
             loop {
                 self.set_stage(i, BulkStage::Ticket);
                 let favourite = if started { None } else { req.favourite_id };
-                let refused = match crate::commands::launch_tracked(&self.app, &s, a.id, target.clone(), favourite, Some(req.delay_ms), req.fps_cap, true).await {
+                let refused = match crate::commands::launch_tracked(
+                    &self.app,
+                    &s,
+                    a.id,
+                    target.clone(),
+                    favourite,
+                    Some(req.delay_ms),
+                    req.fps_cap,
+                    true,
+                )
+                .await
+                {
                     Ok((info, inst)) => {
                         started = true;
                         self.update(|p| {
@@ -516,8 +592,17 @@ impl Run {
                                 p.note = info.warning;
                             }
                         });
-                        let refused = |x: &Instance| x.note.as_deref().is_some_and(|n| n == auth_failed());
-                        let through = || self.instance(&inst.id).is_none_or(|x| refused(&x) || !matches!(x.state, InstanceState::Starting | InstanceState::Joining));
+                        let refused =
+                            |x: &Instance| x.note.as_deref().is_some_and(|n| n == auth_failed());
+                        let through = || {
+                            self.instance(&inst.id).is_none_or(|x| {
+                                refused(&x)
+                                    || !matches!(
+                                        x.state,
+                                        InstanceState::Starting | InstanceState::Joining
+                                    )
+                            })
+                        };
                         if let Some(why) = self.wait(BIND_WAIT, through).await {
                             return Some(why);
                         }
@@ -547,7 +632,12 @@ impl Run {
                     Err(e) => {
                         log::warn!("bulk batch {}: account {} failed: {e}", self.batch_id, a.id);
                         if !e.is_forbidden() {
-                            self.set_stage(i, BulkStage::Failed { message: e.message() });
+                            self.set_stage(
+                                i,
+                                BulkStage::Failed {
+                                    message: e.message(),
+                                },
+                            );
                             if let Some(why) = stop_reason(&e, &a.name) {
                                 return Some(why);
                             }
@@ -560,12 +650,22 @@ impl Run {
                     break;
                 }
                 if pace.refused() {
-                    self.set_stage(i, BulkStage::Failed { message: auth_failed() });
-                    return Some(tr!("Roblox keeps refusing sign-ins (error 403). Wait a few minutes."));
+                    self.set_stage(
+                        i,
+                        BulkStage::Failed {
+                            message: auth_failed(),
+                        },
+                    );
+                    return Some(tr!(
+                        "Roblox keeps refusing sign-ins (error 403). Wait a few minutes."
+                    ));
                 }
                 self.set_stage(i, BulkStage::Queued);
                 self.note(tr!("Roblox refused {name} (error 403). Trying it once more, with more time between launches.", name = a.name));
-                if let Some(why) = self.wait(jittered(pace.delay(req.delay_ms)), || false).await {
+                if let Some(why) = self
+                    .wait(jittered(pace.delay(req.delay_ms)), || false)
+                    .await
+                {
                     return Some(why);
                 }
             }
@@ -579,19 +679,29 @@ impl Run {
         self.update(|p| p.items[i].instance_id = None);
         let s = self.app.state::<App>();
         if let Some((pid, started)) = s.tracker.mark_closing(id) {
-            match tauri::async_runtime::spawn_blocking(move || crate::instances::process::close(pid, started, true, Duration::ZERO)).await {
+            match tauri::async_runtime::spawn_blocking(move || {
+                crate::instances::process::close(pid, started, true, Duration::ZERO)
+            })
+            .await
+            {
                 Ok(Ok(())) => {}
                 Ok(Err(e)) => log::warn!("could not close refused client {pid}: {e}"),
                 Err(e) => log::warn!("close of refused client {pid} failed: {e}"),
             }
         }
-        self.wait(CLOSE_WAIT, || self.instance(id).is_none_or(|x| x.state == InstanceState::Exited)).await
+        self.wait(CLOSE_WAIT, || {
+            self.instance(id)
+                .is_none_or(|x| x.state == InstanceState::Exited)
+        })
+        .await
     }
 
     /// The server everyone is sent to (`PickFirst`), or the place whose server the rest follow
     /// the first started client into (module docs, step 1).
     async fn same_server(&self, req: &BulkRequest) -> (Option<(i64, String)>, Option<i64>) {
-        let Some((place_id, cookie)) = self.resolve_place(req).await else { return (None, None) };
+        let Some((place_id, cookie)) = self.resolve_place(req).await else {
+            return (None, None);
+        };
         let s = self.app.state::<App>();
         let first = &self.accounts[0];
         if req.same_server == SameServer::FollowFirst {
@@ -600,10 +710,20 @@ impl Run {
         let n = self.accounts.len();
         let why = match pick_server(&s.api, first.id, &cookie, place_id, n).await {
             Ok(Some(job_id)) => return (Some((place_id, job_id)), None),
-            Ok(None) => trn!(n, "No server had room for all {n} accounts", "No server had room for all {n} accounts"),
-            Err(e) => tr!("The server list couldn't be read ({why})", why = e.message()),
+            Ok(None) => trn!(
+                n,
+                "No server had room for all {n} accounts",
+                "No server had room for all {n} accounts"
+            ),
+            Err(e) => tr!(
+                "The server list couldn't be read ({why})",
+                why = e.message()
+            ),
         };
-        self.note(tr!("{why}, so the rest follow the first account's server.", why = why));
+        self.note(tr!(
+            "{why}, so the rest follow the first account's server.",
+            why = why
+        ));
         (None, Some(place_id))
     }
 
@@ -613,14 +733,19 @@ impl Run {
         let s = self.app.state::<App>();
         let first = &self.accounts[0];
         let resolved = match super::account_cookie(&s, first.id) {
-            Ok(cookie) => super::resolve(&s.api, first.id, &cookie, &req.target).await.map(|(join, _)| (join, cookie)),
+            Ok(cookie) => super::resolve(&s.api, first.id, &cookie, &req.target)
+                .await
+                .map(|(join, _)| (join, cookie)),
             Err(e) => Err(e),
         };
         match resolved {
             Ok((Join::Game { place_id, .. }, cookie)) => Some((place_id, cookie)),
             Ok(_) => None,
             Err(e) => {
-                self.note(tr!("The target couldn't be checked ({why}), so each account joins on its own.", why = e.message()));
+                self.note(tr!(
+                    "The target couldn't be checked ({why}), so each account joins on its own.",
+                    why = e.message()
+                ));
                 None
             }
         }
@@ -636,7 +761,8 @@ impl Run {
             SameServer::MostEmpty => ServerOrder::OccupancyAsc,
             _ => ServerOrder::Recommended,
         };
-        let public = match server_page(&s.api, self.accounts[0].id, &cookie, place_id, order).await {
+        let public = match server_page(&s.api, self.accounts[0].id, &cookie, place_id, order).await
+        {
             Ok(list) => spread_list(list, req.same_server),
             Err(e) => {
                 self.note(tr!("The server list couldn't be read ({why}), so accounts were matched by Roblox on their own.", why = e.message()));
@@ -651,12 +777,23 @@ impl Run {
     async fn spread_target(&self, a: &Account, sp: &mut Spread, req: &BulkRequest) -> LaunchTarget {
         if req.same_server == SameServer::OwnPrivate {
             match self.own_private(a, sp.place_id).await {
-                Some(access_code) => return LaunchTarget::PrivateAccess { place_id: sp.place_id, access_code },
-                None => self.note(tr!("{name} has no private server of this game, so it joins a public one.", name = a.name)),
+                Some(access_code) => {
+                    return LaunchTarget::PrivateAccess {
+                        place_id: sp.place_id,
+                        access_code,
+                    };
+                }
+                None => self.note(tr!(
+                    "{name} has no private server of this game, so it joins a public one.",
+                    name = a.name
+                )),
             }
         }
         match sp.public.pop_front() {
-            Some(job_id) => LaunchTarget::Server { place_id: sp.place_id, job_id },
+            Some(job_id) => LaunchTarget::Server {
+                place_id: sp.place_id,
+                job_id,
+            },
             None => {
                 self.note(tr!("Not enough servers with room were listed, so the rest were matched by Roblox on their own."));
                 req.target.clone()
@@ -668,14 +805,24 @@ impl Run {
     async fn own_private(&self, a: &Account, place_id: i64) -> Option<String> {
         let s = self.app.state::<App>();
         let cookie = super::account_cookie(&s, a.id)
-            .inspect_err(|e| log::warn!("bulk batch {}: cookie of account {} could not be read: {e}", self.batch_id, a.id))
+            .inspect_err(|e| {
+                log::warn!(
+                    "bulk batch {}: cookie of account {} could not be read: {e}",
+                    self.batch_id,
+                    a.id
+                )
+            })
             .ok()?;
         // shortcut: first page of the list only, enough unless an account owns a page's worth of servers of one game.
         match s.api.private_servers(a.id, &cookie, place_id, None).await {
             Ok(page) if !page.join_restricted => own_server(&page.servers, a.user_id),
             Ok(_) => None,
             Err(e) => {
-                log::warn!("bulk batch {}: private servers of account {} could not be read: {e}", self.batch_id, a.id);
+                log::warn!(
+                    "bulk batch {}: private servers of account {} could not be read: {e}",
+                    self.batch_id,
+                    a.id
+                );
                 None
             }
         }
@@ -690,24 +837,44 @@ impl Run {
         instance_id: &str,
         place_id: i64,
     ) -> std::result::Result<Option<(i64, String)>, String> {
-        let known = |i: Instance| i.job_id.is_some() || matches!(i.state, InstanceState::Disconnected | InstanceState::Exited);
-        if let Some(why) = self.wait(FOLLOW_WAIT, || self.instance(instance_id).is_none_or(known)).await {
+        let known = |i: Instance| {
+            i.job_id.is_some()
+                || matches!(i.state, InstanceState::Disconnected | InstanceState::Exited)
+        };
+        if let Some(why) = self
+            .wait(FOLLOW_WAIT, || self.instance(instance_id).is_none_or(known))
+            .await
+        {
             return Err(why);
         }
         let inst = self.instance(instance_id);
-        if let Some(found) = inst.as_ref().and_then(|i| server_of(i.place_id, i.job_id.as_deref())) {
+        if let Some(found) = inst
+            .as_ref()
+            .and_then(|i| server_of(i.place_id, i.job_id.as_deref()))
+        {
             return Ok(Some(found));
         }
         let s = self.app.state::<App>();
         let cookie = match super::account_cookie(&s, a.id) {
             Ok(cookie) => cookie,
             Err(e) => {
-                log::warn!("bulk batch {}: cookie of account {} could not be read: {e}", self.batch_id, a.id);
+                log::warn!(
+                    "bulk batch {}: cookie of account {} could not be read: {e}",
+                    self.batch_id,
+                    a.id
+                );
                 return Ok(None);
             }
         };
-        let rows = s.api.presence(a.id, &cookie, &[a.user_id]).await.unwrap_or_default();
-        Ok(rows.iter().find(|p| p.user_id == a.user_id).and_then(|p| presence_server(p, place_id)))
+        let rows = s
+            .api
+            .presence(a.id, &cookie, &[a.user_id])
+            .await
+            .unwrap_or_default();
+        Ok(rows
+            .iter()
+            .find(|p| p.user_id == a.user_id)
+            .and_then(|p| presence_server(p, place_id)))
     }
 
     /// Mirrors the started clients until `done()` or `max`; `Some(why)` on cancel or when a
@@ -735,11 +902,15 @@ impl Run {
         let mut stop = None;
         self.update(|p| {
             for (item, a) in p.items.iter_mut().zip(&self.accounts) {
-                let Some(id) = item.instance_id.clone() else { continue };
+                let Some(id) = item.instance_id.clone() else {
+                    continue;
+                };
                 let mut inst = s.tracker.get(&id);
                 // An auto-rejoin or restart brought the account back as a new client: the item follows
                 // that one, or it would call a launch failed that is back in its game.
-                if inst.as_ref().is_none_or(|i| i.state == InstanceState::Exited)
+                if inst
+                    .as_ref()
+                    .is_none_or(|i| i.state == InstanceState::Exited)
                     && let Some(next) = s.tracker.successor(&id, a.id)
                 {
                     item.instance_id = Some(next.id.clone());
@@ -783,7 +954,12 @@ impl Run {
         let s = self.app.state::<App>();
         let changed = {
             let mut batch = s.bulk.batch();
-            let Some(b) = batch.as_mut().filter(|b| b.progress.batch_id == self.batch_id) else { return };
+            let Some(b) = batch
+                .as_mut()
+                .filter(|b| b.progress.batch_id == self.batch_id)
+            else {
+                return;
+            };
             let before = b.progress.clone();
             f(&mut b.progress);
             (b.progress != before).then(|| b.progress.clone())
@@ -803,7 +979,10 @@ async fn pick_server(
     place_id: i64,
     n: usize,
 ) -> Result<Option<String>> {
-    Ok(choose_server(&server_page(api, account_id, cookie, place_id, ServerOrder::Recommended).await?, n))
+    Ok(choose_server(
+        &server_page(api, account_id, cookie, place_id, ServerOrder::Recommended).await?,
+        n,
+    ))
 }
 
 /// The emptiest public server with room for one more that isn't `current`: where a moved client
@@ -811,7 +990,12 @@ async fn pick_server(
 pub fn smallest_other(servers: &[GameServer], current: &str) -> Option<String> {
     servers
         .iter()
-        .filter(|s| is_uuid(&s.id) && !s.id.eq_ignore_ascii_case(current) && s.playing >= 0 && s.playing < s.max_players)
+        .filter(|s| {
+            is_uuid(&s.id)
+                && !s.id.eq_ignore_ascii_case(current)
+                && s.playing >= 0
+                && s.playing < s.max_players
+        })
         .min_by_key(|s| s.playing)
         .map(|s| s.id.clone())
 }
@@ -825,7 +1009,8 @@ pub(crate) async fn server_page(
     place_id: i64,
     order: ServerOrder,
 ) -> Result<Vec<GameServer>> {
-    let list = |order| api.servers_public(account_id, Some(cookie), place_id, order, true, 100, None);
+    let list =
+        |order| api.servers_public(account_id, Some(cookie), place_id, order, true, 100, None);
     let page = match list(order).await {
         Err(AppError::Invalid(_)) => list(ServerOrder::OccupancyDesc).await?,
         r => r?,
@@ -848,7 +1033,10 @@ pub fn spread_list(mut servers: Vec<GameServer>, mode: SameServer) -> VecDeque<S
         SameServer::MostEmpty => servers.sort_by_key(|s| s.playing),
         _ => {}
     }
-    spread_servers(&servers, matches!(mode, SameServer::RandomPublic | SameServer::OwnPrivate))
+    spread_servers(
+        &servers,
+        matches!(mode, SameServer::RandomPublic | SameServer::OwnPrivate),
+    )
 }
 
 /// Public servers for a spreading batch, one per account: GUID ids with room for one more and a
@@ -857,7 +1045,9 @@ pub fn spread_servers(servers: &[GameServer], shuffle: bool) -> VecDeque<String>
     let mut seen = HashSet::new();
     let mut ids: Vec<String> = servers
         .iter()
-        .filter(|s| is_uuid(&s.id) && s.playing >= 0 && i64::from(s.playing) + 2 <= i64::from(s.max_players))
+        .filter(|s| {
+            is_uuid(&s.id) && s.playing >= 0 && i64::from(s.playing) + 2 <= i64::from(s.max_players)
+        })
         .filter(|s| seen.insert(s.id.as_str()))
         .map(|s| s.id.clone())
         .collect();
@@ -869,13 +1059,20 @@ pub fn spread_servers(servers: &[GameServer], shuffle: bool) -> VecDeque<String>
 
 /// The access code of a private server `user_id` owns and may join.
 fn own_server(servers: &[PrivateServer], user_id: i64) -> Option<String> {
-    servers.iter().filter(|p| p.owner_id == Some(user_id)).find_map(|p| p.access_code.clone())
+    servers
+        .iter()
+        .filter(|p| p.owner_id == Some(user_id))
+        .find_map(|p| p.access_code.clone())
 }
 
 /// A new batch: every account `Queued`, the delay clamped.
 fn new_progress(batch_id: String, req: &BulkRequest, accounts: &[Account]) -> BulkProgress {
-    let queued =
-        |a: &Account| BulkItem { account_id: a.id, user_id: a.user_id, stage: BulkStage::Queued, instance_id: None };
+    let queued = |a: &Account| BulkItem {
+        account_id: a.id,
+        user_id: a.user_id,
+        stage: BulkStage::Queued,
+        instance_id: None,
+    };
     BulkProgress {
         batch_id,
         target: req.target.clone(),
@@ -891,7 +1088,11 @@ fn new_progress(batch_id: String, req: &BulkRequest, accounts: &[Account]) -> Bu
 
 /// Alias, else display name, else username.
 pub(crate) fn name_of(a: &AccountSummary) -> String {
-    [&a.alias, &a.display_name, &a.username].into_iter().find(|n| !n.trim().is_empty()).cloned().unwrap_or_default()
+    [&a.alias, &a.display_name, &a.username]
+        .into_iter()
+        .find(|n| !n.trim().is_empty())
+        .cloned()
+        .unwrap_or_default()
 }
 
 /// Why an account can't be in a batch (None when its cookie is valid).
@@ -909,9 +1110,10 @@ fn cant_launch(status: AccountStatus) -> Option<String> {
 /// installer, a public network) refuses every account the same way, so it stops the rest too.
 fn stop_reason(e: &AppError, name: &str) -> Option<String> {
     match e {
-        AppError::Challenge => {
-            Some(tr!("Roblox wants a human check for {name}. Sign in to it again with Add account > Sign in with Roblox.", name = name))
-        }
+        AppError::Challenge => Some(tr!(
+            "Roblox wants a human check for {name}. Sign in to it again with Add account > Sign in with Roblox.",
+            name = name
+        )),
         AppError::Locked => Some(tr!("The vault locked. Unlock it.")),
         AppError::Wait(why) => Some(why.clone()),
         _ => None,
@@ -924,7 +1126,9 @@ fn mirror_item(item: &mut BulkItem, inst: &Instance, a: &Account) -> Option<Stri
     let name = &a.name;
     let why = match inst.note.as_deref() {
         Some(n) if n == auth_failed() => {
-            item.stage = BulkStage::Failed { message: n.to_owned() };
+            item.stage = BulkStage::Failed {
+                message: n.to_owned(),
+            };
             return None;
         }
         Some(n) if n == wrong_account() => tr!(
@@ -933,27 +1137,42 @@ fn mirror_item(item: &mut BulkItem, inst: &Instance, a: &Account) -> Option<Stri
             name = name
         ),
         Some(n) if n == challenged() => {
-            tr!("Roblox wants a human check for {name}. Finish it in that client or close it.", name = name)
+            tr!(
+                "Roblox wants a human check for {name}. Finish it in that client or close it.",
+                name = name
+            )
         }
         _ => {
-            item.stage = if coming_back(inst) { BulkStage::Starting } else { stage_of(inst, a.allow_disconnect) };
+            item.stage = if coming_back(inst) {
+                BulkStage::Starting
+            } else {
+                stage_of(inst, a.allow_disconnect)
+            };
             return None;
         }
     };
-    item.stage = BulkStage::Failed { message: inst.note.clone().unwrap_or_default() };
+    item.stage = BulkStage::Failed {
+        message: inst.note.clone().unwrap_or_default(),
+    };
     Some(why)
 }
 
 /// Dropped out (disconnected, crashed, closed for its memory) with a relaunch of it under way
 /// (`instances::rejoin`): on its way again, not failed.
 fn coming_back(inst: &Instance) -> bool {
-    inst.relaunching && matches!(inst.state, InstanceState::Disconnected | InstanceState::Exited)
+    inst.relaunching
+        && matches!(
+            inst.state,
+            InstanceState::Disconnected | InstanceState::Exited
+        )
 }
 
 /// A started client that left the tracker: it ended.
 fn gone(item: &mut BulkItem) {
     if !matches!(item.stage, BulkStage::Failed { .. }) {
-        item.stage = BulkStage::Failed { message: crate::instances::closed() };
+        item.stage = BulkStage::Failed {
+            message: crate::instances::closed(),
+        };
     }
 }
 
@@ -961,7 +1180,11 @@ fn gone(item: &mut BulkItem) {
 fn presence_server(p: &UserPresence, place_id: i64) -> Option<(i64, String)> {
     const IN_GAME: i64 = 2;
     let same_game = p.place_id == Some(place_id) || p.root_place_id == Some(place_id);
-    if p.user_presence_type == IN_GAME && same_game { server_of(p.place_id, p.game_id.as_deref()) } else { None }
+    if p.user_presence_type == IN_GAME && same_game {
+        server_of(p.place_id, p.game_id.as_deref())
+    } else {
+        None
+    }
 }
 
 /// A server to send the rest to: a known place and a GUID job id.
@@ -973,7 +1196,10 @@ fn server_of(place_id: Option<i64>, job_id: Option<&str>) -> Option<(i64, String
 /// What one account launches into: the shared server once known, else the target as given.
 fn target_for(given: &LaunchTarget, server: Option<&(i64, String)>) -> LaunchTarget {
     match server {
-        Some((place_id, job_id)) => LaunchTarget::Server { place_id: *place_id, job_id: job_id.clone() },
+        Some((place_id, job_id)) => LaunchTarget::Server {
+            place_id: *place_id,
+            job_id: job_id.clone(),
+        },
         None => given.clone(),
     }
 }
@@ -989,17 +1215,22 @@ fn halt(p: &mut BulkProgress, why: String) {
         }
     }
     p.stopped = Some(match why.strip_suffix('.') {
-        Some(s) if cancelled && why != self::cancelled() => tr!("{why}, then launch the accounts that were cancelled.", why = s),
+        Some(s) if cancelled && why != self::cancelled() => tr!(
+            "{why}, then launch the accounts that were cancelled.",
+            why = s
+        ),
         _ => why,
     });
 }
 
 /// Every started client is in game, done or ended.
 fn settled(p: &BulkProgress) -> bool {
-    p.items
-        .iter()
-        .filter(|i| i.instance_id.is_some())
-        .all(|i| matches!(i.stage, BulkStage::InGame | BulkStage::Done | BulkStage::Failed { .. }))
+    p.items.iter().filter(|i| i.instance_id.is_some()).all(|i| {
+        matches!(
+            i.stage,
+            BulkStage::InGame | BulkStage::Done | BulkStage::Failed { .. }
+        )
+    })
 }
 
 #[cfg(test)]
@@ -1015,7 +1246,14 @@ mod tests {
     }
 
     fn server(id: &str, playing: i32, max_players: i32) -> GameServer {
-        GameServer { id: id.into(), playing, max_players, fps: None, ping: None, friend_count: None }
+        GameServer {
+            id: id.into(),
+            playing,
+            max_players,
+            fps: None,
+            ping: None,
+            friend_count: None,
+        }
     }
 
     fn instance(state: InstanceState, note: Option<&str>) -> Instance {
@@ -1024,7 +1262,10 @@ mod tests {
             account_id: 1,
             pid: 100,
             state,
-            target: LaunchTarget::Place { place_id: 1818, launch_data: None },
+            target: LaunchTarget::Place {
+                place_id: 1818,
+                launch_data: None,
+            },
             place_id: Some(1818),
             job_id: None,
             started_at: 0,
@@ -1047,41 +1288,82 @@ mod tests {
     }
 
     fn accounts(ids: &[i64]) -> Vec<Account> {
-        ids.iter().map(|&id| Account { id, user_id: id * 1_000, name: format!("A{id}"), allow_disconnect: false }).collect()
+        ids.iter()
+            .map(|&id| Account {
+                id,
+                user_id: id * 1_000,
+                name: format!("A{id}"),
+                allow_disconnect: false,
+            })
+            .collect()
     }
 
     fn item(stage: BulkStage, started: bool) -> BulkItem {
-        BulkItem { account_id: 1, user_id: 1, stage, instance_id: started.then(|| "i1".into()) }
+        BulkItem {
+            account_id: 1,
+            user_id: 1,
+            stage,
+            instance_id: started.then(|| "i1".into()),
+        }
     }
 
     fn failed(message: &str) -> BulkStage {
-        BulkStage::Failed { message: message.into() }
+        BulkStage::Failed {
+            message: message.into(),
+        }
     }
 
     #[test]
     fn choose_server_prefers_the_fullest_with_a_spare_seat() {
         let (a, b, c, d) = (guid(1), guid(2), guid(3), guid(4));
         // n = 3: b (33/35) doesn't fit; d (32/35) fits exactly; a (30/35) and c (20/35) have a spare seat.
-        let list = [server(&c, 20, 35), server(&b, 33, 35), server(&d, 32, 35), server(&a, 30, 35)];
+        let list = [
+            server(&c, 20, 35),
+            server(&b, 33, 35),
+            server(&d, 32, 35),
+            server(&a, 30, 35),
+        ];
         assert_eq!(choose_server(&list, 3), Some(a.clone()));
         // No spare seat anywhere: the fullest exact fit.
         let exact = [server(&b, 33, 35), server(&d, 32, 35), server(&c, 31, 34)];
         assert_eq!(choose_server(&exact, 3), Some(d.clone()));
         // Nothing fits.
-        assert_eq!(choose_server(&[server(&b, 33, 35), server(&a, 35, 35)], 3), None);
+        assert_eq!(
+            choose_server(&[server(&b, 33, 35), server(&a, 35, 35)], 3),
+            None
+        );
         assert_eq!(choose_server(&[], 1), None);
         // Duplicates (pages repeat servers) change nothing.
-        assert_eq!(choose_server(&[server(&a, 30, 35), server(&c, 20, 35), server(&a, 30, 35)], 3), Some(a.clone()));
+        assert_eq!(
+            choose_server(
+                &[server(&a, 30, 35), server(&c, 20, 35), server(&a, 30, 35)],
+                3
+            ),
+            Some(a.clone())
+        );
     }
 
     #[test]
     fn smallest_other_skips_the_current_and_full_ones() {
         let (a, b, c, d) = (guid(1), guid(2), guid(3), guid(4));
         // a is the current one (emptiest), b is full, "x" isn't a GUID: c (5) beats d (12).
-        let list = [server(&d, 12, 20), server(&a, 1, 20), server(&b, 20, 20), server("x", 0, 20), server(&c, 5, 20)];
+        let list = [
+            server(&d, 12, 20),
+            server(&a, 1, 20),
+            server(&b, 20, 20),
+            server("x", 0, 20),
+            server(&c, 5, 20),
+        ];
         assert_eq!(smallest_other(&list, &a), Some(c.clone()));
-        assert_eq!(smallest_other(&list, &a.to_uppercase()), Some(c), "job ids compare without case");
-        assert_eq!(smallest_other(&[server(&a, 1, 20), server(&b, 20, 20)], &a), None);
+        assert_eq!(
+            smallest_other(&list, &a.to_uppercase()),
+            Some(c),
+            "job ids compare without case"
+        );
+        assert_eq!(
+            smallest_other(&[server(&a, 1, 20), server(&b, 20, 20)], &a),
+            None
+        );
         assert_eq!(smallest_other(&[], &a), None);
     }
 
@@ -1098,7 +1380,11 @@ mod tests {
             server(&d, 18, 20),
         ];
         let kept = [a.clone(), c.clone(), d.clone()];
-        assert_eq!(spread_servers(&list, false), kept, "list order kept (Closest)");
+        assert_eq!(
+            spread_servers(&list, false),
+            kept,
+            "list order kept (Closest)"
+        );
         let mut shuffled: Vec<String> = spread_servers(&list, true).into();
         shuffled.sort();
         assert_eq!(shuffled, kept, "shuffled, the same servers");
@@ -1109,10 +1395,25 @@ mod tests {
     fn spread_list_orders_by_player_count() {
         let (a, b, c, d) = (guid(1), guid(2), guid(3), guid(4));
         // Out of order, as a refused sort's fallback page would be; d (19/20) has no spare seat.
-        let list = vec![server(&b, 10, 20), server(&a, 2, 20), server(&d, 19, 20), server(&c, 15, 20)];
-        assert_eq!(spread_list(list.clone(), SameServer::MostEmpty), [a.clone(), b.clone(), c.clone()]);
-        assert_eq!(spread_list(list.clone(), SameServer::MostFull), [c.clone(), b.clone(), a.clone()]);
-        assert_eq!(spread_list(list, SameServer::Closest), [b, a, c], "Closest keeps the list's order");
+        let list = vec![
+            server(&b, 10, 20),
+            server(&a, 2, 20),
+            server(&d, 19, 20),
+            server(&c, 15, 20),
+        ];
+        assert_eq!(
+            spread_list(list.clone(), SameServer::MostEmpty),
+            [a.clone(), b.clone(), c.clone()]
+        );
+        assert_eq!(
+            spread_list(list.clone(), SameServer::MostFull),
+            [c.clone(), b.clone(), a.clone()]
+        );
+        assert_eq!(
+            spread_list(list, SameServer::Closest),
+            [b, a, c],
+            "Closest keeps the list's order"
+        );
     }
 
     #[test]
@@ -1127,7 +1428,12 @@ mod tests {
             job_id: None,
             access_code: code.map(Into::into),
         };
-        let list = [ps(Some(7), Some("friend")), ps(Some(5), None), ps(Some(5), Some("mine")), ps(Some(5), Some("second"))];
+        let list = [
+            ps(Some(7), Some("friend")),
+            ps(Some(5), None),
+            ps(Some(5), Some("mine")),
+            ps(Some(5), Some("second")),
+        ];
         assert_eq!(own_server(&list, 5), Some("mine".into()));
         assert_eq!(own_server(&list, 9), None);
         assert_eq!(own_server(&[ps(None, Some("x"))], 5), None);
@@ -1135,7 +1441,12 @@ mod tests {
 
     #[test]
     fn choose_server_skips_ids_that_are_not_guids() {
-        let bad = ["not-a-guid", "", "aaaaaaaa-0000-4000-8000-00000000001", "aaaaaaaa_0000_4000_8000_000000000001"];
+        let bad = [
+            "not-a-guid",
+            "",
+            "aaaaaaaa-0000-4000-8000-00000000001",
+            "aaaaaaaa_0000_4000_8000_000000000001",
+        ];
         let mut list: Vec<GameServer> = bad.iter().map(|id| server(id, 30, 35)).collect();
         assert_eq!(choose_server(&list, 2), None);
         list.push(server(&guid(9), 5, 35));
@@ -1153,7 +1464,8 @@ mod tests {
             assert!((1_000..=3_000).contains(&ms(2_000)));
             assert!((59_000..=61_000).contains(&ms(u32::MAX)));
         }
-        let spread: std::collections::HashSet<u128> = (0..50).map(|_| jittered(6_000).as_millis()).collect();
+        let spread: std::collections::HashSet<u128> =
+            (0..50).map(|_| jittered(6_000).as_millis()).collect();
         assert!(spread.len() > 1, "jitter is random");
     }
 
@@ -1161,7 +1473,11 @@ mod tests {
     fn a_refusal_slows_every_launch_for_a_while() {
         let b = Bulk::new();
         let now = Instant::now();
-        assert_eq!(b.launch_gap(6_000, now), Duration::from_secs(5), "as ever, less the jitter");
+        assert_eq!(
+            b.launch_gap(6_000, now),
+            Duration::from_secs(5),
+            "as ever, less the jitter"
+        );
         assert_eq!(b.launch_gap(0, now), Duration::ZERO);
         b.refused();
         let now = Instant::now();
@@ -1171,10 +1487,22 @@ mod tests {
         for _ in 0..30 {
             b.refused();
         }
-        assert_eq!(b.launch_gap(6_000, now), Duration::from_secs(59), "never past the longest delay");
-        assert_eq!(b.launch_gap(6_000, now + REFUSAL_LASTS + Duration::from_secs(1)), Duration::from_secs(5), "forgotten in time");
+        assert_eq!(
+            b.launch_gap(6_000, now),
+            Duration::from_secs(59),
+            "never past the longest delay"
+        );
+        assert_eq!(
+            b.launch_gap(6_000, now + REFUSAL_LASTS + Duration::from_secs(1)),
+            Duration::from_secs(5),
+            "forgotten in time"
+        );
         b.got_through();
-        assert_eq!(b.launch_gap(6_000, Instant::now()), Duration::from_secs(5), "over once a client gets through");
+        assert_eq!(
+            b.launch_gap(6_000, Instant::now()),
+            Duration::from_secs(5),
+            "over once a client gets through"
+        );
     }
 
     #[test]
@@ -1193,7 +1521,17 @@ mod tests {
     fn a_refused_client_fails_its_item_without_stopping_the_batch() {
         let a = accounts(&[1]).remove(0);
         let mut it = item(BulkStage::Joining, true);
-        assert_eq!(mirror_item(&mut it, &instance(InstanceState::Joining, Some("Roblox refused the sign-in (error 403)")), &a), None);
+        assert_eq!(
+            mirror_item(
+                &mut it,
+                &instance(
+                    InstanceState::Joining,
+                    Some("Roblox refused the sign-in (error 403)")
+                ),
+                &a
+            ),
+            None
+        );
         assert_eq!(it.stage, failed("Roblox refused the sign-in (error 403)"));
     }
 
@@ -1218,28 +1556,65 @@ mod tests {
     #[test]
     fn stages_mirror_the_instance() {
         use InstanceState::*;
-        assert_eq!(stage_of(&instance(Starting, None), false), BulkStage::Starting);
-        assert_eq!(stage_of(&instance(Joining, None), false), BulkStage::Joining);
+        assert_eq!(
+            stage_of(&instance(Starting, None), false),
+            BulkStage::Starting
+        );
+        assert_eq!(
+            stage_of(&instance(Joining, None), false),
+            BulkStage::Joining
+        );
         assert_eq!(stage_of(&instance(InGame, None), false), BulkStage::InGame);
-        assert_eq!(stage_of(&instance(Disconnected, None), false), failed("Disconnected"));
+        assert_eq!(
+            stage_of(&instance(Disconnected, None), false),
+            failed("Disconnected")
+        );
         assert_eq!(stage_of(&instance(Exited, None), false), failed("Closed"));
-        assert_eq!(stage_of(&instance(Exited, Some("Closed unexpectedly")), false), failed("Closed unexpectedly"));
-        assert_eq!(stage_of(&instance(Disconnected, Some("Roblox wants a human check")), false), failed("Roblox wants a human check"));
+        assert_eq!(
+            stage_of(&instance(Exited, Some("Closed unexpectedly")), false),
+            failed("Closed unexpectedly")
+        );
+        assert_eq!(
+            stage_of(
+                &instance(Disconnected, Some("Roblox wants a human check")),
+                false
+            ),
+            failed("Roblox wants a human check")
+        );
     }
 
     #[test]
     fn a_disconnect_is_done_when_the_account_allows_it() {
         use InstanceState::*;
-        assert_eq!(stage_of(&instance(Disconnected, None), true), BulkStage::Done);
-        assert_eq!(stage_of(&instance(Disconnected, Some("Not responding")), true), BulkStage::Done);
+        assert_eq!(
+            stage_of(&instance(Disconnected, None), true),
+            BulkStage::Done
+        );
+        assert_eq!(
+            stage_of(&instance(Disconnected, Some("Not responding")), true),
+            BulkStage::Done
+        );
         assert_eq!(stage_of(&instance(InGame, None), true), BulkStage::InGame);
-        assert_eq!(stage_of(&instance(Exited, Some("Closed unexpectedly")), true), failed("Closed unexpectedly"));
+        assert_eq!(
+            stage_of(&instance(Exited, Some("Closed unexpectedly")), true),
+            failed("Closed unexpectedly")
+        );
         let mut a = accounts(&[1]).remove(0);
         a.allow_disconnect = true;
         let mut it = item(BulkStage::InGame, true);
-        assert_eq!(mirror_item(&mut it, &instance(Disconnected, None), &a), None);
+        assert_eq!(
+            mirror_item(&mut it, &instance(Disconnected, None), &a),
+            None
+        );
         assert_eq!(it.stage, BulkStage::Done);
-        let req = BulkRequest { account_ids: vec![1], target: LaunchTarget::FollowUser { user_id: 1 }, delay_ms: 0, same_server: SameServer::Off, favourite_id: None, fps_cap: None };
+        let req = BulkRequest {
+            account_ids: vec![1],
+            target: LaunchTarget::FollowUser { user_id: 1 },
+            delay_ms: 0,
+            same_server: SameServer::Off,
+            favourite_id: None,
+            fps_cap: None,
+        };
         let mut p = new_progress("b".into(), &req, &[a]);
         p.items[0] = it;
         assert!(settled(&p));
@@ -1249,21 +1624,37 @@ mod tests {
     fn launches_are_spaced_out_by_the_cooldown() {
         let b = Bulk::new();
         let (t0, gap) = (Instant::now(), Duration::from_secs(5));
-        assert_eq!(b.reserve(t0, gap).0, Duration::ZERO, "the first goes at once");
+        assert_eq!(
+            b.reserve(t0, gap).0,
+            Duration::ZERO,
+            "the first goes at once"
+        );
         // Two asked for at once queue up one gap apart.
-        assert_eq!(b.reserve(t0 + Duration::from_secs(1), gap).0, Duration::from_secs(4));
+        assert_eq!(
+            b.reserve(t0 + Duration::from_secs(1), gap).0,
+            Duration::from_secs(4)
+        );
         let (wait, slot) = b.reserve(t0 + Duration::from_secs(1), gap);
         assert_eq!(wait, Duration::from_secs(9));
         // A failed launch gives its slot back: the next one takes it.
         b.release(slot);
-        assert_eq!(b.reserve(t0 + Duration::from_secs(1), gap).0, Duration::from_secs(9));
+        assert_eq!(
+            b.reserve(t0 + Duration::from_secs(1), gap).0,
+            Duration::from_secs(9)
+        );
         // Not when another queued behind it meanwhile.
         let (_, slot) = b.reserve(t0 + Duration::from_secs(1), gap);
         b.reserve(t0 + Duration::from_secs(1), gap);
         b.release(slot);
-        assert_eq!(b.reserve(t0 + Duration::from_secs(1), gap).0, Duration::from_secs(24));
+        assert_eq!(
+            b.reserve(t0 + Duration::from_secs(1), gap).0,
+            Duration::from_secs(24)
+        );
         // Long after: at once again.
-        assert_eq!(b.reserve(t0 + Duration::from_secs(60), gap).0, Duration::ZERO);
+        assert_eq!(
+            b.reserve(t0 + Duration::from_secs(60), gap).0,
+            Duration::ZERO
+        );
         assert_eq!(Bulk::new().cooldown(gap).0, Duration::ZERO);
     }
 
@@ -1284,9 +1675,22 @@ mod tests {
         drop(rejoin);
         assert!(b.check_single_launch().is_ok() && !b.any_busy());
 
-        let req = BulkRequest { account_ids: vec![1], target: LaunchTarget::Place { place_id: 1, launch_data: None }, delay_ms: 0, same_server: SameServer::PickFirst, favourite_id: None, fps_cap: None };
+        let req = BulkRequest {
+            account_ids: vec![1],
+            target: LaunchTarget::Place {
+                place_id: 1,
+                launch_data: None,
+            },
+            delay_ms: 0,
+            same_server: SameServer::PickFirst,
+            favourite_id: None,
+            fps_cap: None,
+        };
         let progress = new_progress("b".into(), &req, &accounts(&[1]));
-        *b.batch() = Some(Batch { progress, cancel: Arc::new(AtomicBool::new(false)) });
+        *b.batch() = Some(Batch {
+            progress,
+            cancel: Arc::new(AtomicBool::new(false)),
+        });
         assert!(b.begin_rejoin().is_none() && b.any_busy());
     }
 
@@ -1294,29 +1698,74 @@ mod tests {
     fn only_a_challenge_a_locked_vault_a_refusal_for_now_or_a_wrong_account_stops_the_batch() {
         let why = stop_reason(&AppError::Challenge, "Alt 1").unwrap();
         assert!(why.contains("Alt 1") && why.contains("Sign in"), "{why}");
-        assert!(stop_reason(&AppError::Locked, "Alt 1").unwrap().contains("Unlock"));
+        assert!(
+            stop_reason(&AppError::Locked, "Alt 1")
+                .unwrap()
+                .contains("Unlock")
+        );
         // The update hold refuses every account alike: said once, not on each row.
         let hold = "Roblox has an update. Close your clients first, then launch.";
-        assert_eq!(stop_reason(&AppError::Wait(hold.into()), "Alt 1").as_deref(), Some(hold));
+        assert_eq!(
+            stop_reason(&AppError::Wait(hold.into()), "Alt 1").as_deref(),
+            Some(hold)
+        );
         // One account being busy is about that account only: the rest go on.
-        assert_eq!(stop_reason(&AppError::Busy("Alt 1 is already running.".into()), "Alt 1"), None);
-        for e in [AppError::CookieInvalid, AppError::Network("x".into()), AppError::Roblox("HTTP 500".into())] {
+        assert_eq!(
+            stop_reason(&AppError::Busy("Alt 1 is already running.".into()), "Alt 1"),
+            None
+        );
+        for e in [
+            AppError::CookieInvalid,
+            AppError::Network("x".into()),
+            AppError::Roblox("HTTP 500".into()),
+        ] {
             assert_eq!(stop_reason(&e, "Alt 1"), None, "{e}");
         }
 
-        let alt = Account { id: 1, user_id: 1, name: "Alt 1".into(), allow_disconnect: true };
+        let alt = Account {
+            id: 1,
+            user_id: 1,
+            name: "Alt 1".into(),
+            allow_disconnect: true,
+        };
         let mut it = item(BulkStage::Starting, true);
-        assert_eq!(mirror_item(&mut it, &instance(InstanceState::InGame, None), &alt), None);
+        assert_eq!(
+            mirror_item(&mut it, &instance(InstanceState::InGame, None), &alt),
+            None
+        );
         assert_eq!(it.stage, BulkStage::InGame);
-        let why = mirror_item(&mut it, &instance(InstanceState::Joining, Some(WRONG_ACCOUNT)), &alt).unwrap();
-        assert!(why.starts_with("Alt 1's client signed in as another account"), "{why}");
+        let why = mirror_item(
+            &mut it,
+            &instance(InstanceState::Joining, Some(WRONG_ACCOUNT)),
+            &alt,
+        )
+        .unwrap();
+        assert!(
+            why.starts_with("Alt 1's client signed in as another account"),
+            "{why}"
+        );
         assert_eq!(it.stage, failed(WRONG_ACCOUNT));
         // A human check stops it too; other notes only mirror.
-        let why = mirror_item(&mut it, &instance(InstanceState::Joining, Some(CHALLENGED)), &alt).unwrap();
-        assert!(why.starts_with("Roblox wants a human check for Alt 1"), "{why}");
+        let why = mirror_item(
+            &mut it,
+            &instance(InstanceState::Joining, Some(CHALLENGED)),
+            &alt,
+        )
+        .unwrap();
+        assert!(
+            why.starts_with("Roblox wants a human check for Alt 1"),
+            "{why}"
+        );
         assert_eq!(it.stage, failed(CHALLENGED));
         let replaced = "Replaced by another Roblox client";
-        assert_eq!(mirror_item(&mut it, &instance(InstanceState::Joining, Some(replaced)), &alt), None);
+        assert_eq!(
+            mirror_item(
+                &mut it,
+                &instance(InstanceState::Joining, Some(replaced)),
+                &alt
+            ),
+            None
+        );
         assert_eq!(it.stage, BulkStage::Joining);
 
         // A client that left the tracker ended; an earlier failure is kept.
@@ -1339,19 +1788,36 @@ mod tests {
             game_id: Some(guid(1)),
             universe_id: None,
         };
-        assert_eq!(presence_server(&row(2, 1818, 1818), 1818), Some((1818, guid(1))));
+        assert_eq!(
+            presence_server(&row(2, 1818, 1818), 1818),
+            Some((1818, guid(1)))
+        );
         // A sub-place of the game counts (by its root place).
-        assert_eq!(presence_server(&row(2, 77, 1818), 1818), Some((77, guid(1))));
+        assert_eq!(
+            presence_server(&row(2, 77, 1818), 1818),
+            Some((77, guid(1)))
+        );
         assert_eq!(presence_server(&row(2, 5, 5), 1818), None, "another game");
-        assert_eq!(presence_server(&row(1, 1818, 1818), 1818), None, "online, not in game");
-        assert_eq!(presence_server(&row(3, 1818, 1818), 1818), None, "in Studio");
+        assert_eq!(
+            presence_server(&row(1, 1818, 1818), 1818),
+            None,
+            "online, not in game"
+        );
+        assert_eq!(
+            presence_server(&row(3, 1818, 1818), 1818),
+            None,
+            "in Studio"
+        );
     }
 
     #[test]
     fn halting_cancels_only_what_has_not_launched() {
         let req = BulkRequest {
             account_ids: vec![1, 2, 3, 4, 5],
-            target: LaunchTarget::Place { place_id: 1818, launch_data: None },
+            target: LaunchTarget::Place {
+                place_id: 1818,
+                launch_data: None,
+            },
             delay_ms: 6_000,
             same_server: SameServer::Off,
             favourite_id: None,
@@ -1366,17 +1832,35 @@ mod tests {
         halt(&mut p, cancelled());
         let stages: Vec<_> = p.items.iter().map(|i| i.stage.clone()).collect();
         let cancelled = BulkStage::Cancelled;
-        assert_eq!(stages, [BulkStage::InGame, failed("HTTP 500"), cancelled.clone(), cancelled.clone(), cancelled]);
+        assert_eq!(
+            stages,
+            [
+                BulkStage::InGame,
+                failed("HTTP 500"),
+                cancelled.clone(),
+                cancelled.clone(),
+                cancelled
+            ]
+        );
         assert_eq!((p.stopped.as_deref(), p.done), (Some("Cancelled"), false));
 
         // A reason says what to do only when something was cancelled.
         let mut stopped = fresh.clone();
         halt(&mut stopped, "The vault locked. Unlock it.".into());
-        assert_eq!(stopped.stopped.as_deref(), Some("The vault locked. Unlock it, then launch the accounts that were cancelled."));
+        assert_eq!(
+            stopped.stopped.as_deref(),
+            Some("The vault locked. Unlock it, then launch the accounts that were cancelled.")
+        );
         let mut settled = fresh;
-        settled.items.iter_mut().for_each(|i| i.stage = BulkStage::InGame);
+        settled
+            .items
+            .iter_mut()
+            .for_each(|i| i.stage = BulkStage::InGame);
         halt(&mut settled, "The vault locked. Unlock it.".into());
-        assert_eq!(settled.stopped.as_deref(), Some("The vault locked. Unlock it."));
+        assert_eq!(
+            settled.stopped.as_deref(),
+            Some("The vault locked. Unlock it.")
+        );
     }
 
     #[test]
@@ -1392,10 +1876,28 @@ mod tests {
         let accounts = accounts(&req.account_ids);
         let mut p = new_progress("b".into(), &req, &accounts);
         assert_eq!(p.delay_ms, 2_000);
-        assert_eq!(new_progress("b".into(), &BulkRequest { delay_ms: 90_000, ..req.clone() }, &accounts).delay_ms, 60_000);
-        assert!(p.items.iter().all(|i| i.stage == BulkStage::Queued && i.instance_id.is_none()));
+        assert_eq!(
+            new_progress(
+                "b".into(),
+                &BulkRequest {
+                    delay_ms: 90_000,
+                    ..req.clone()
+                },
+                &accounts
+            )
+            .delay_ms,
+            60_000
+        );
+        assert!(
+            p.items
+                .iter()
+                .all(|i| i.stage == BulkStage::Queued && i.instance_id.is_none())
+        );
         assert!(settled(&p), "nothing started");
-        p.items = vec![item(BulkStage::InGame, true), item(BulkStage::Joining, true)];
+        p.items = vec![
+            item(BulkStage::InGame, true),
+            item(BulkStage::Joining, true),
+        ];
         assert!(!settled(&p));
         p.items[1] = item(failed("Closed"), true);
         assert!(settled(&p));
@@ -1412,10 +1914,19 @@ mod tests {
         assert_eq!(server_of(Some(1818), None), None);
         assert_eq!(server_of(Some(1818), Some("1818' place 1")), None);
 
-        let given = LaunchTarget::Place { place_id: 1818, launch_data: Some("x".into()) };
+        let given = LaunchTarget::Place {
+            place_id: 1818,
+            launch_data: Some("x".into()),
+        };
         assert_eq!(target_for(&given, None), given);
         let server = target_for(&given, Some(&(4483381587, job.clone())));
-        assert_eq!(server, LaunchTarget::Server { place_id: 4483381587, job_id: job });
+        assert_eq!(
+            server,
+            LaunchTarget::Server {
+                place_id: 4483381587,
+                job_id: job
+            }
+        );
     }
 
     #[test]
@@ -1441,7 +1952,6 @@ mod tests {
             main: false,
             custom_flags: Default::default(),
             fps_cap: None,
-
         };
         assert_eq!(name_of(&a), "Alt 01");
         a.alias.clear();
@@ -1449,7 +1959,11 @@ mod tests {
         a.display_name = " ".into();
         assert_eq!(name_of(&a), "nova_alt01");
         assert_eq!(cant_launch(AccountStatus::Valid), None);
-        for s in [AccountStatus::Invalid, AccountStatus::Challenged, AccountStatus::Unknown] {
+        for s in [
+            AccountStatus::Invalid,
+            AccountStatus::Challenged,
+            AccountStatus::Unknown,
+        ] {
             assert!(cant_launch(s).is_some(), "{s:?}");
         }
     }

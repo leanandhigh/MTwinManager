@@ -21,16 +21,20 @@ static RELEASED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::
 
 use windows::Win32::Foundation::HANDLE;
 use windows::Win32::System::JobObjects::{
-    AssignProcessToJobObject, CreateJobObjectW, IsProcessInJob, JOB_OBJECT_CPU_RATE_CONTROL, JOB_OBJECT_CPU_RATE_CONTROL_ENABLE,
-    JOB_OBJECT_CPU_RATE_CONTROL_HARD_CAP, JOBOBJECT_CPU_RATE_CONTROL_INFORMATION, JOBOBJECT_CPU_RATE_CONTROL_INFORMATION_0,
+    AssignProcessToJobObject, CreateJobObjectW, IsProcessInJob, JOB_OBJECT_CPU_RATE_CONTROL,
+    JOB_OBJECT_CPU_RATE_CONTROL_ENABLE, JOB_OBJECT_CPU_RATE_CONTROL_HARD_CAP,
+    JOBOBJECT_CPU_RATE_CONTROL_INFORMATION, JOBOBJECT_CPU_RATE_CONTROL_INFORMATION_0,
     JobObjectCpuRateControlInformation, SetInformationJobObject,
 };
 use windows::Win32::System::ProcessStatus::K32EmptyWorkingSet;
 use windows::Win32::System::Threading::{
-    BELOW_NORMAL_PRIORITY_CLASS, GetProcessAffinityMask, MEMORY_PRIORITY_INFORMATION, MEMORY_PRIORITY_NORMAL, MEMORY_PRIORITY_VERY_LOW, SetProcessAffinityMask, NORMAL_PRIORITY_CLASS,
-    PROCESS_ACCESS_RIGHTS, PROCESS_POWER_THROTTLING_CURRENT_VERSION, PROCESS_POWER_THROTTLING_EXECUTION_SPEED, PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION,
-    PROCESS_POWER_THROTTLING_STATE, PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_SET_INFORMATION, PROCESS_SET_QUOTA, PROCESS_SYNCHRONIZE, PROCESS_TERMINATE,
-    ProcessMemoryPriority, ProcessPowerThrottling, SetPriorityClass, SetProcessInformation,
+    BELOW_NORMAL_PRIORITY_CLASS, GetProcessAffinityMask, MEMORY_PRIORITY_INFORMATION,
+    MEMORY_PRIORITY_NORMAL, MEMORY_PRIORITY_VERY_LOW, NORMAL_PRIORITY_CLASS, PROCESS_ACCESS_RIGHTS,
+    PROCESS_POWER_THROTTLING_CURRENT_VERSION, PROCESS_POWER_THROTTLING_EXECUTION_SPEED,
+    PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION, PROCESS_POWER_THROTTLING_STATE,
+    PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_SET_INFORMATION, PROCESS_SET_QUOTA,
+    PROCESS_SYNCHRONIZE, PROCESS_TERMINATE, ProcessMemoryPriority, ProcessPowerThrottling,
+    SetPriorityClass, SetProcessAffinityMask, SetProcessInformation,
 };
 use windows::core::{BOOL, Owned, PCWSTR};
 
@@ -75,7 +79,12 @@ struct TrimFollow {
 
 /// A reading as the trim log shows it (pure).
 fn memory_line(r: &super::metrics::Reading) -> String {
-    format!("working set {} MB, private working set {} MB, commit {} MB", r.working_set >> 20, r.memory >> 20, r.private >> 20)
+    format!(
+        "working set {} MB, private working set {} MB, commit {} MB",
+        r.working_set >> 20,
+        r.memory >> 20,
+        r.private >> 20
+    )
 }
 
 /// Our own job object; never a handle to the client.
@@ -111,7 +120,21 @@ struct Applied {
 impl Applied {
     fn new(pid: u32, t0: u64) -> Applied {
         let now = Instant::now();
-        Applied { pid, t0, job: None, limits: Limits::default(), next_trim: now, last_trim: None, baseline: None, steady: None, look_at: now, gap: TRIM_GAP, regrew: false, failed: None, cap_failed: false }
+        Applied {
+            pid,
+            t0,
+            job: None,
+            limits: Limits::default(),
+            next_trim: now,
+            last_trim: None,
+            baseline: None,
+            steady: None,
+            look_at: now,
+            gap: TRIM_GAP,
+            regrew: false,
+            failed: None,
+            cap_failed: false,
+        }
     }
 
     /// It is being trimmed at `now`, on a schedule of `every` minutes.
@@ -153,7 +176,11 @@ pub struct Limiter {
 
 impl Limiter {
     pub fn new() -> Limiter {
-        Limiter { applied: Mutex::new(HashMap::new()), free: Mutex::new((Vec::new(), None)), follows: Mutex::new(Vec::new()) }
+        Limiter {
+            applied: Mutex::new(HashMap::new()),
+            free: Mutex::new((Vec::new(), None)),
+            follows: Mutex::new(Vec::new()),
+        }
     }
 
     /// Trims the client and logs its memory now and at `TRIM_FOLLOW_SECS` after. The Memory column
@@ -163,26 +190,56 @@ impl Limiter {
         let before = read();
         trim(pid, t0).inspect_err(|e| log::warn!("trim of client {pid} ({why}) failed: {e}"))?;
         let after = read();
-        let line = |r: &Option<super::metrics::Reading>| r.as_ref().map_or_else(|| "unreadable".to_owned(), memory_line);
-        log::info!("trim of client {pid} ({why}): before: {}; right after: {}", line(&before), line(&after));
-        self.follows.lock().unwrap_or_else(|e| e.into_inner()).push(TrimFollow { why, pid, t0, at: Instant::now(), done: 0 });
+        let line = |r: &Option<super::metrics::Reading>| {
+            r.as_ref()
+                .map_or_else(|| "unreadable".to_owned(), memory_line)
+        };
+        log::info!(
+            "trim of client {pid} ({why}): before: {}; right after: {}",
+            line(&before),
+            line(&after)
+        );
+        self.follows
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .push(TrimFollow {
+                why,
+                pid,
+                t0,
+                at: Instant::now(),
+                done: 0,
+            });
         let mb = |r: Option<super::metrics::Reading>| r.map_or(0, |r| r.memory >> 20);
         Ok((mb(before), mb(after)))
     }
 
     /// Logs the memory of the clients a trim's next measurement is due for (`read`, as
     /// `metrics::read`); done with those finished or gone.
-    fn follow_trims(&self, now: Instant, read: impl Fn(u32, u64) -> Option<super::metrics::Reading>) {
-        self.follows.lock().unwrap_or_else(|e| e.into_inner()).retain_mut(|f| {
-            let secs = TRIM_FOLLOW_SECS[f.done];
-            if now < f.at + Duration::from_secs(secs) {
-                return true;
-            }
-            let Some(r) = read(f.pid, f.t0) else { return false };
-            log::info!("trim of client {} ({}): {secs} s later: {}", f.pid, f.why, memory_line(&r));
-            f.done += 1;
-            f.done < TRIM_FOLLOW_SECS.len()
-        });
+    fn follow_trims(
+        &self,
+        now: Instant,
+        read: impl Fn(u32, u64) -> Option<super::metrics::Reading>,
+    ) {
+        self.follows
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .retain_mut(|f| {
+                let secs = TRIM_FOLLOW_SECS[f.done];
+                if now < f.at + Duration::from_secs(secs) {
+                    return true;
+                }
+                let Some(r) = read(f.pid, f.t0) else {
+                    return false;
+                };
+                log::info!(
+                    "trim of client {} ({}): {secs} s later: {}",
+                    f.pid,
+                    f.why,
+                    memory_line(&r)
+                );
+                f.done += 1;
+                f.done < TRIM_FOLLOW_SECS.len()
+            });
     }
 
     /// Its trim failed: sooner than the schedule again.
@@ -195,7 +252,12 @@ impl Limiter {
 
     /// What each client really has now, for the UI: what `apply` managed to set.
     pub fn in_force(&self) -> Vec<(String, Limits)> {
-        self.applied.lock().unwrap_or_else(|e| e.into_inner()).iter().map(|(id, a)| (id.clone(), a.limits)).collect()
+        self.applied
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .iter()
+            .map(|(id, a)| (id.clone(), a.limits))
+            .collect()
     }
 
     /// Brings the client `pid` (started at `t0`) of instance `id` to `limits`, changing only
@@ -203,7 +265,9 @@ impl Limiter {
     /// (a cap under RDS, say) doesn't cost the others; the first error is returned.
     pub fn apply(&self, id: &str, pid: u32, t0: u64, limits: Limits) -> Result<()> {
         let mut map = self.applied.lock().unwrap_or_else(|e| e.into_inner());
-        let a = map.entry(id.to_owned()).or_insert_with(|| Applied::new(pid, t0));
+        let a = map
+            .entry(id.to_owned())
+            .or_insert_with(|| Applied::new(pid, t0));
         if (a.pid, a.t0) != (pid, t0) {
             *a = Applied::new(pid, t0);
         }
@@ -244,7 +308,13 @@ impl Limiter {
 
     /// The ids whose CPU cap failed, for `plan`.
     pub fn uncapped(&self) -> Vec<String> {
-        self.applied.lock().unwrap_or_else(|e| e.into_inner()).iter().filter(|(_, a)| a.cap_failed).map(|(id, _)| id.clone()).collect()
+        self.applied
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .iter()
+            .filter(|(_, a)| a.cap_failed)
+            .map(|(id, _)| id.clone())
+            .collect()
     }
 
     /// One client whose trim is due at `now`, its next one set. One a call: trimming 50 clients at
@@ -252,7 +322,10 @@ impl Limiter {
     fn due_trim(&self, now: Instant) -> Option<(u32, u64)> {
         let mut map = self.applied.lock().unwrap_or_else(|e| e.into_inner());
         map.values_mut().find_map(|a| {
-            let m = a.limits.trim_every_min.filter(|&m| m > 0 && now >= a.next_trim)?;
+            let m = a
+                .limits
+                .trim_every_min
+                .filter(|&m| m > 0 && now >= a.next_trim)?;
             // Quiet for a whole interval: growth may act quickly again.
             if !a.regrew {
                 a.gap = TRIM_GAP;
@@ -266,10 +339,18 @@ impl Limiter {
     /// scheduled trims. Never one running `free`: the schedule is all a client in use asked for. The
     /// gap doubles up to the interval each time: a client whose memory keeps coming back only pays
     /// for faulting it in again, so it soon gets no more than the schedule.
-    fn grown_trim(&self, now: Instant, free: impl Fn(&str, u32) -> bool, read: impl Fn(u32, u64) -> Option<u64>) -> Option<(u32, u64)> {
+    fn grown_trim(
+        &self,
+        now: Instant,
+        free: impl Fn(&str, u32) -> bool,
+        read: impl Fn(u32, u64) -> Option<u64>,
+    ) -> Option<(u32, u64)> {
         let mut map = self.applied.lock().unwrap_or_else(|e| e.into_inner());
         for (id, a) in map.iter_mut() {
-            let (Some(m), Some(last)) = (a.limits.trim_every_min.filter(|&m| m > 0), a.last_trim) else { continue };
+            let (Some(m), Some(last)) = (a.limits.trim_every_min.filter(|&m| m > 0), a.last_trim)
+            else {
+                continue;
+            };
             if free(id, a.pid) {
                 // What it takes meanwhile isn't growth to trim as soon as it leaves the front.
                 a.forget_memory();
@@ -280,8 +361,11 @@ impl Limiter {
                 continue;
             }
             a.look_at = now + LOOK;
-            let Some(memory) = read(a.pid, a.t0) else { continue };
-            let steady = |base: u64| memory.abs_diff(base) <= (base / 20).max(STEADY_MB * 1024 * 1024);
+            let Some(memory) = read(a.pid, a.t0) else {
+                continue;
+            };
+            let steady =
+                |base: u64| memory.abs_diff(base) <= (base / 20).max(STEADY_MB * 1024 * 1024);
             match a.baseline {
                 Some(base) if grew(memory, base) => {
                     if now >= last + a.gap {
@@ -321,13 +405,21 @@ impl Limiter {
         for (id, a) in applied {
             let mut r = Ok(());
             if let Some(job) = a.job.as_ref().filter(|_| a.limits.cpu_cap.is_some()) {
-                r = r.and(set_cap(job, None).inspect_err(|e| log::debug!("instance {id}: CPU cap not taken off: {e}")));
+                r = r.and(
+                    set_cap(job, None)
+                        .inspect_err(|e| log::debug!("instance {id}: CPU cap not taken off: {e}")),
+                );
             }
             if a.limits.eco {
-                r = r.and(set_eco(a.pid, a.t0, false).inspect_err(|e| log::debug!("instance {id}: efficiency mode not taken off: {e}")));
+                r = r.and(set_eco(a.pid, a.t0, false).inspect_err(|e| {
+                    log::debug!("instance {id}: efficiency mode not taken off: {e}")
+                }));
             }
             if a.limits.affinity.is_some() {
-                r = r.and(set_affinity(a.pid, a.t0, None).inspect_err(|e| log::debug!("instance {id}: cores not given back: {e}")));
+                r = r.and(
+                    set_affinity(a.pid, a.t0, None)
+                        .inspect_err(|e| log::debug!("instance {id}: cores not given back: {e}")),
+                );
             }
             if let Err(e) = r {
                 log::warn!("could not take the limits off instance {id}: {e}");
@@ -342,11 +434,15 @@ impl Limiter {
         if RELEASED.load(std::sync::atomic::Ordering::Relaxed) {
             return;
         }
-        self.applied.lock().unwrap_or_else(|e| e.into_inner()).retain(|id, _| clients.iter().any(|c| c.0 == *id));
+        self.applied
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .retain(|id, _| clients.iter().any(|c| c.0 == *id));
         for (id, pid, t0, limits) in clients {
             let failed = {
                 let map = self.applied.lock().unwrap_or_else(|e| e.into_inner());
-                map.get(id).is_some_and(|a| a.pid == *pid && a.failed == Some(*limits))
+                map.get(id)
+                    .is_some_and(|a| a.pid == *pid && a.failed == Some(*limits))
             };
             if failed {
                 continue;
@@ -355,15 +451,23 @@ impl Limiter {
             if let Err(e) = &r {
                 log::warn!("could not apply limits to instance {id}: {e}");
             }
-            if let Some(a) = self.applied.lock().unwrap_or_else(|e| e.into_inner()).get_mut(id) {
+            if let Some(a) = self
+                .applied
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .get_mut(id)
+            {
                 a.failed = r.is_err().then_some(*limits);
             }
         }
         let now = Instant::now();
         let free = self.free.lock().unwrap_or_else(|e| e.into_inner()).clone();
         let is_free = |id: &str, pid: u32| free.1 == Some(pid) || free.0.iter().any(|f| f == id);
-        if let Some((pid, t0)) = self.due_trim(now).or_else(|| self.grown_trim(now, is_free, |pid, t0| super::metrics::read(pid, t0).map(|r| r.memory)))
-            && self.logged_trim("scheduled", pid, t0).is_err()
+        if let Some((pid, t0)) = self.due_trim(now).or_else(|| {
+            self.grown_trim(now, is_free, |pid, t0| {
+                super::metrics::read(pid, t0).map(|r| r.memory)
+            })
+        }) && self.logged_trim("scheduled", pid, t0).is_err()
         {
             self.trim_failed(pid, t0, now);
         }
@@ -382,16 +486,25 @@ pub fn reset_followed(pid: u32, t0: u64) {
     if let Err(e) = set_eco(pid, t0, false).and_then(|()| set_affinity(pid, t0, None)) {
         log::warn!("could not reset the limits of client {pid}: {e}");
     }
-    let Ok(h) = client(pid, t0, PROCESS_QUERY_LIMITED_INFORMATION) else { return };
+    let Ok(h) = client(pid, t0, PROCESS_QUERY_LIMITED_INFORMATION) else {
+        return;
+    };
     let mut inside = BOOL(0);
     // SAFETY: `h` is live; `inside` is a local.
     if unsafe { IsProcessInJob(*h, None, &mut inside) }.is_ok() && inside.as_bool() {
-        log::info!("client {pid} is already in a job: a CPU cap from before MTwin Manager restarted may stay on until it closes");
+        log::info!(
+            "client {pid} is already in a job: a CPU cap from before MTwin Manager restarted may stay on until it closes"
+        );
     }
 }
 
 /// `plan` for the clients running now, from what the tracker and the limiter know.
-pub fn plan_now(s: &crate::App, v: &Settings, clients: &[(String, u32, u64, Limits)], throttled: &[String]) -> Vec<(String, u32, u64, Limits)> {
+pub fn plan_now(
+    s: &crate::App,
+    v: &Settings,
+    clients: &[(String, u32, u64, Limits)],
+    throttled: &[String],
+) -> Vec<(String, u32, u64, Limits)> {
     let full_quality = s.db.full_quality_accounts().unwrap_or_else(|e| {
         log::debug!("could not read the Full quality accounts: {e}");
         Vec::new()
@@ -399,7 +512,15 @@ pub fn plan_now(s: &crate::App, v: &Settings, clients: &[(String, u32, u64, Limi
     let free = s.tracker.free(&full_quality, crate::commands::now_ms());
     let front = super::process::foreground_pid();
     s.limiter.note_free(&free, front);
-    plan(clients, v, front, crate::commands::cores(), throttled, &free, &s.limiter.uncapped())
+    plan(
+        clients,
+        v,
+        front,
+        crate::commands::cores(),
+        throttled,
+        &free,
+        &s.limiter.uncapped(),
+    )
 }
 
 /// The limits each running client gets (`clients` as `Tracker::clients`, with the limits the
@@ -427,7 +548,13 @@ pub fn plan(
                 true => spread(i, n, cores),
                 false => None,
             };
-            let mut l = effective(*manual, foreground == Some(*pid) || free.contains(id), v, share, fair);
+            let mut l = effective(
+                *manual,
+                foreground == Some(*pid) || free.contains(id),
+                v,
+                share,
+                fair,
+            );
             if v.mem_throttle.mb > 0 && throttled.contains(id) {
                 l.cpu_cap = Some(throttle_cap(l.cpu_cap, v.mem_throttle.cpu_cap));
             }
@@ -439,11 +566,21 @@ pub fn plan(
 /// One client's limits (pure): its own, and nothing more when it runs `free`. Otherwise each limit
 /// it says nothing about comes from the adaptive manager's background limits, then the default
 /// trim, the auto-spread `share` and the `fair` cap (which also tightens the adaptive manager's).
-pub fn effective(manual: Limits, free: bool, v: &Settings, share: Option<u64>, fair: Option<u8>) -> Limits {
+pub fn effective(
+    manual: Limits,
+    free: bool,
+    v: &Settings,
+    share: Option<u64>,
+    fair: Option<u8>,
+) -> Limits {
     if free {
         return manual;
     }
-    let bg = if v.adaptive.enabled { v.adaptive.background } else { Limits::default() };
+    let bg = if v.adaptive.enabled {
+        v.adaptive.background
+    } else {
+        Limits::default()
+    };
     let mut l = Limits {
         cpu_cap: manual.cpu_cap.or(bg.cpu_cap),
         eco: manual.eco || bg.eco,
@@ -470,7 +607,9 @@ pub fn throttle_cap(own: Option<u8>, throttle: u8) -> u8 {
 /// Each of `n` clients' CPU cap (percent of all `cores`, pure): its share of `BUDGET`, at least
 /// `FLOOR` of one core.
 pub fn fair_cap(n: u32, cores: u32) -> u8 {
-    (BUDGET / n.max(1)).max(FLOOR.div_ceil(cores.max(1))).clamp(1, 100) as u8
+    (BUDGET / n.max(1))
+        .max(FLOOR.div_ceil(cores.max(1)))
+        .clamp(1, 100) as u8
 }
 
 /// When a client is next trimmed after its trim interval became `every` (pure): `FIRST_TRIM` from
@@ -503,7 +642,9 @@ fn pin(i: u32, n: u32, cores: u32) -> u64 {
     if n >= cores {
         return 1 << (i % cores);
     }
-    (0..cores).filter(|c| c % n == i % n).fold(0, |m, c| m | 1 << c)
+    (0..cores)
+        .filter(|c| c % n == i % n)
+        .fold(0, |m, c| m | 1 << c)
 }
 
 /// The mask actually set: the cores asked for that exist (`system`); None when none do (pure).
@@ -515,9 +656,13 @@ pub fn clamp_affinity(mask: u64, system: u64) -> Option<u64> {
 pub fn trim(pid: u32, t0: u64) -> Result<()> {
     let h = client(pid, t0, PROCESS_SET_QUOTA)?;
     // SAFETY: `h` is live with PROCESS_SET_QUOTA | PROCESS_QUERY_LIMITED_INFORMATION.
-    unsafe { K32EmptyWorkingSet(*h) }
-        .ok()
-        .map_err(|e| AppError::Internal(tr!("Could not trim Roblox (process {pid}): {why}", pid = pid, why = e.message())))
+    unsafe { K32EmptyWorkingSet(*h) }.ok().map_err(|e| {
+        AppError::Internal(tr!(
+            "Could not trim Roblox (process {pid}): {why}",
+            pid = pid,
+            why = e.message()
+        ))
+    })
 }
 
 /// Sets the cores the client may use; None: all of them (the system's mask). A mask naming no
@@ -529,7 +674,8 @@ fn set_affinity(pid: u32, t0: u64, mask: Option<u64>) -> Result<()> {
     // out pointers are locals.
     unsafe { GetProcessAffinityMask(*h, &mut own, &mut system) }.map_err(|e| failed(pid, e))?;
     let mask = match mask {
-        Some(m) => clamp_affinity(m, system as u64).ok_or_else(|| AppError::Invalid(tr!("None of those CPU cores exist here.")))?,
+        Some(m) => clamp_affinity(m, system as u64)
+            .ok_or_else(|| AppError::Invalid(tr!("None of those CPU cores exist here.")))?,
         None => system as u64,
     };
     // SAFETY: as above; `mask` is a subset of the system mask.
@@ -538,7 +684,9 @@ fn set_affinity(pid: u32, t0: u64, mask: Option<u64>) -> Result<()> {
 
 pub(crate) fn new_job() -> Result<Job> {
     // SAFETY: default security, no name; Owned closes the handle on drop.
-    unsafe { CreateJobObjectW(None, PCWSTR::null()) }.map(|h| Job(unsafe { Owned::new(h) })).map_err(|e| AppError::Internal(e.message()))
+    unsafe { CreateJobObjectW(None, PCWSTR::null()) }
+        .map(|h| Job(unsafe { Owned::new(h) }))
+        .map_err(|e| AppError::Internal(e.message()))
 }
 
 /// None turns the cap off (the job stays, with no limit).
@@ -549,7 +697,9 @@ fn set_cap(job: &Job, cap: Option<u8>) -> Result<()> {
             None => JOB_OBJECT_CPU_RATE_CONTROL(0),
         },
         // In 1/100 of a percent of all processors.
-        Anonymous: JOBOBJECT_CPU_RATE_CONTROL_INFORMATION_0 { CpuRate: u32::from(cap.unwrap_or(100)) * 100 },
+        Anonymous: JOBOBJECT_CPU_RATE_CONTROL_INFORMATION_0 {
+            CpuRate: u32::from(cap.unwrap_or(100)) * 100,
+        },
     };
     // SAFETY: `info` is a local of the size passed.
     unsafe {
@@ -569,13 +719,37 @@ fn set_cap(job: &Job, cap: Option<u8>) -> Result<()> {
 fn set_eco(pid: u32, t0: u64, on: bool) -> Result<()> {
     let h = client(pid, t0, PROCESS_SET_INFORMATION)?;
     let throttling = |mask: u32| {
-        let state = PROCESS_POWER_THROTTLING_STATE { Version: PROCESS_POWER_THROTTLING_CURRENT_VERSION, ControlMask: mask, StateMask: mask };
+        let state = PROCESS_POWER_THROTTLING_STATE {
+            Version: PROCESS_POWER_THROTTLING_CURRENT_VERSION,
+            ControlMask: mask,
+            StateMask: mask,
+        };
         // SAFETY: `h` is live with PROCESS_SET_INFORMATION; `state` is a local of the size passed.
-        unsafe { SetProcessInformation(*h, ProcessPowerThrottling, (&raw const state).cast(), size_of::<PROCESS_POWER_THROTTLING_STATE>() as u32) }
+        unsafe {
+            SetProcessInformation(
+                *h,
+                ProcessPowerThrottling,
+                (&raw const state).cast(),
+                size_of::<PROCESS_POWER_THROTTLING_STATE>() as u32,
+            )
+        }
     };
-    let memory = MEMORY_PRIORITY_INFORMATION { MemoryPriority: if on { MEMORY_PRIORITY_VERY_LOW } else { MEMORY_PRIORITY_NORMAL } };
+    let memory = MEMORY_PRIORITY_INFORMATION {
+        MemoryPriority: if on {
+            MEMORY_PRIORITY_VERY_LOW
+        } else {
+            MEMORY_PRIORITY_NORMAL
+        },
+    };
     // SAFETY: as above, for `memory`.
-    let memory = unsafe { SetProcessInformation(*h, ProcessMemoryPriority, (&raw const memory).cast(), size_of::<MEMORY_PRIORITY_INFORMATION>() as u32) };
+    let memory = unsafe {
+        SetProcessInformation(
+            *h,
+            ProcessMemoryPriority,
+            (&raw const memory).cast(),
+            size_of::<MEMORY_PRIORITY_INFORMATION>() as u32,
+        )
+    };
     // First, so that a refusal leaves nothing half on while efficiency mode counts as off.
     match memory {
         Err(e) if on => return Err(failed(pid, e)),
@@ -584,7 +758,11 @@ fn set_eco(pid: u32, t0: u64, on: bool) -> Result<()> {
     }
     // In one call: each replaces both masks of the one before.
     let done = match on {
-        true => throttling(PROCESS_POWER_THROTTLING_EXECUTION_SPEED | PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION).or_else(|e| {
+        true => throttling(
+            PROCESS_POWER_THROTTLING_EXECUTION_SPEED
+                | PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION,
+        )
+        .or_else(|e| {
             log::debug!("process {pid}: timer resolution requests not ignored: {e}");
             throttling(PROCESS_POWER_THROTTLING_EXECUTION_SPEED)
         }),
@@ -592,13 +770,26 @@ fn set_eco(pid: u32, t0: u64, on: bool) -> Result<()> {
     };
     done.map_err(|e| failed(pid, e))?;
     // SAFETY: as above.
-    unsafe { SetPriorityClass(*h, if on { BELOW_NORMAL_PRIORITY_CLASS } else { NORMAL_PRIORITY_CLASS }) }.map_err(|e| failed(pid, e))
+    unsafe {
+        SetPriorityClass(
+            *h,
+            if on {
+                BELOW_NORMAL_PRIORITY_CLASS
+            } else {
+                NORMAL_PRIORITY_CLASS
+            },
+        )
+    }
+    .map_err(|e| failed(pid, e))
 }
 
 /// A short-lived handle to the client, only if `pid` is still the process started at `t0`.
 fn client(pid: u32, t0: u64, rights: PROCESS_ACCESS_RIGHTS) -> Result<Owned<HANDLE>> {
-    let h = open(pid, rights | PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_SYNCHRONIZE)
-        .ok_or_else(|| AppError::Internal(tr!("Could not reach Roblox (process {pid}).", pid = pid)))?;
+    let h = open(
+        pid,
+        rights | PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_SYNCHRONIZE,
+    )
+    .ok_or_else(|| AppError::Internal(tr!("Could not reach Roblox (process {pid}).", pid = pid)))?;
     if started(*h) != Some(t0) {
         return Err(AppError::Invalid(tr!("That client has closed.")));
     }
@@ -606,7 +797,11 @@ fn client(pid: u32, t0: u64, rights: PROCESS_ACCESS_RIGHTS) -> Result<Owned<HAND
 }
 
 fn failed(pid: u32, e: windows::core::Error) -> AppError {
-    AppError::Internal(tr!("Could not limit Roblox (process {pid}): {why}", pid = pid, why = e.message()))
+    AppError::Internal(tr!(
+        "Could not limit Roblox (process {pid}): {why}",
+        pid = pid,
+        why = e.message()
+    ))
 }
 
 #[cfg(test)]
@@ -637,23 +832,66 @@ mod tests {
     fn caps_and_frees_a_process() {
         let (mut child, pid, t0) = ping();
         let l = Limiter::new();
-        let capped = Limits { cpu_cap: Some(15), eco: true, ..Limits::default() };
+        let capped = Limits {
+            cpu_cap: Some(15),
+            eco: true,
+            ..Limits::default()
+        };
         l.apply("i", pid, t0, capped).unwrap();
-        l.apply("i", pid, t0, Limits { cpu_cap: Some(50), ..Limits::default() }).unwrap(); // same job, new rate
+        l.apply(
+            "i",
+            pid,
+            t0,
+            Limits {
+                cpu_cap: Some(50),
+                ..Limits::default()
+            },
+        )
+        .unwrap(); // same job, new rate
         // One core, then every core again; trimmed now, and on a schedule from then on.
-        l.apply("i", pid, t0, Limits { affinity: Some(1), trim_every_min: Some(5), ..Limits::default() }).unwrap();
+        l.apply(
+            "i",
+            pid,
+            t0,
+            Limits {
+                affinity: Some(1),
+                trim_every_min: Some(5),
+                ..Limits::default()
+            },
+        )
+        .unwrap();
         assert_eq!(affinity(pid), 1);
         trim(pid, t0).unwrap();
-        assert!(trim(pid, t0 - 10).is_err(), "a reused pid must not be trimmed");
+        assert!(
+            trim(pid, t0 - 10).is_err(),
+            "a reused pid must not be trimmed"
+        );
         l.apply("i", pid, t0, Limits::default()).unwrap();
         assert_eq!(affinity(pid), system(), "back to every core");
         if system().count_ones() < 64 {
-            assert!(set_affinity(pid, t0, Some(1 << 63)).is_err(), "only cores that don't exist");
+            assert!(
+                set_affinity(pid, t0, Some(1 << 63)).is_err(),
+                "only cores that don't exist"
+            );
         }
-        assert!(l.apply("j", pid, t0 - 10, capped).is_err(), "a reused pid must not be limited");
+        assert!(
+            l.apply("j", pid, t0 - 10, capped).is_err(),
+            "a reused pid must not be limited"
+        );
         l.sync(&[]);
         assert!(l.applied.lock().unwrap().is_empty());
-        l.apply("i", pid, t0, Limits { cpu_cap: Some(15), eco: true, affinity: Some(1), ..Limits::default() }).unwrap();
+        l.apply(
+            "i",
+            pid,
+            t0,
+            Limits {
+                cpu_cap: Some(15),
+                eco: true,
+                affinity: Some(1),
+                ..Limits::default()
+            },
+        )
+        .unwrap();
         l.release_all();
         assert_eq!(affinity(pid), system(), "every core again at exit");
         assert!(l.applied.lock().unwrap().is_empty());
@@ -664,7 +902,14 @@ mod tests {
     fn system() -> u64 {
         let (mut own, mut system) = (0usize, 0usize);
         // SAFETY: the pseudo handle of this process; the out pointers are locals.
-        unsafe { GetProcessAffinityMask(windows::Win32::System::Threading::GetCurrentProcess(), &mut own, &mut system) }.unwrap();
+        unsafe {
+            GetProcessAffinityMask(
+                windows::Win32::System::Threading::GetCurrentProcess(),
+                &mut own,
+                &mut system,
+            )
+        }
+        .unwrap();
         system as u64
     }
 
@@ -680,9 +925,20 @@ mod tests {
     /// Windows can't read them back (before Windows 11), though it still sets them.
     fn throttling(pid: u32) -> Option<(u32, u32)> {
         let h = open(pid, PROCESS_QUERY_LIMITED_INFORMATION).unwrap();
-        let mut s = PROCESS_POWER_THROTTLING_STATE { Version: PROCESS_POWER_THROTTLING_CURRENT_VERSION, ControlMask: 0, StateMask: 0 };
+        let mut s = PROCESS_POWER_THROTTLING_STATE {
+            Version: PROCESS_POWER_THROTTLING_CURRENT_VERSION,
+            ControlMask: 0,
+            StateMask: 0,
+        };
         // SAFETY: `h` is live with that right; `s` is a local of the size passed.
-        match unsafe { GetProcessInformation(*h, ProcessPowerThrottling, (&raw mut s).cast(), size_of::<PROCESS_POWER_THROTTLING_STATE>() as u32) } {
+        match unsafe {
+            GetProcessInformation(
+                *h,
+                ProcessPowerThrottling,
+                (&raw mut s).cast(),
+                size_of::<PROCESS_POWER_THROTTLING_STATE>() as u32,
+            )
+        } {
             Err(e) if e.code() == E_INVALIDARG => None,
             r => {
                 r.unwrap();
@@ -695,7 +951,8 @@ mod tests {
     fn efficiency_mode_holds_and_goes_back_to_the_system() {
         let (mut child, pid, t0) = ping();
         set_eco(pid, t0, true).unwrap();
-        let both = PROCESS_POWER_THROTTLING_EXECUTION_SPEED | PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION;
+        let both = PROCESS_POWER_THROTTLING_EXECUTION_SPEED
+            | PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION;
         if let Some(masks) = throttling(pid) {
             assert_eq!(masks, (both, both));
         }
@@ -711,7 +968,18 @@ mod tests {
     fn a_followed_client_gets_its_efficiency_mode_and_cores_back() {
         let (mut child, pid, t0) = ping();
         // What a MTwin Manager that was killed leaves behind: it never told this one.
-        Limiter::new().apply("i", pid, t0, Limits { eco: true, affinity: Some(1), ..Limits::default() }).unwrap();
+        Limiter::new()
+            .apply(
+                "i",
+                pid,
+                t0,
+                Limits {
+                    eco: true,
+                    affinity: Some(1),
+                    ..Limits::default()
+                },
+            )
+            .unwrap();
         reset_followed(pid, t0);
         if let Some(masks) = throttling(pid) {
             assert_eq!(masks, (0, 0));
@@ -724,28 +992,62 @@ mod tests {
     #[test]
     fn a_client_back_from_the_front_keeps_its_trim_schedule() {
         let now = Instant::now();
-        assert_eq!(next_trim(now, None, Some(15)), now + FIRST_TRIM, "never trimmed");
+        assert_eq!(
+            next_trim(now, None, Some(15)),
+            now + FIRST_TRIM,
+            "never trimmed"
+        );
         let an_hour_ago = now.checked_sub(Duration::from_secs(3600)).unwrap();
-        assert_eq!(next_trim(now, Some(an_hour_ago), Some(15)), now + FIRST_TRIM, "overdue, but it settles first");
-        assert_eq!(next_trim(now, Some(now), Some(15)), now + Duration::from_secs(15 * 60), "trimmed just now");
+        assert_eq!(
+            next_trim(now, Some(an_hour_ago), Some(15)),
+            now + FIRST_TRIM,
+            "overdue, but it settles first"
+        );
+        assert_eq!(
+            next_trim(now, Some(now), Some(15)),
+            now + Duration::from_secs(15 * 60),
+            "trimmed just now"
+        );
         assert_eq!(next_trim(now, Some(now), None), now + FIRST_TRIM);
     }
 
     #[test]
     fn one_trim_per_sync_and_the_first_after_settling() {
         let l = Limiter::new();
-        let every = |m| Limits { trim_every_min: Some(m), ..Limits::default() };
+        let every = |m| Limits {
+            trim_every_min: Some(m),
+            ..Limits::default()
+        };
         let now = Instant::now();
         {
             let mut map = l.applied.lock().unwrap();
-            for (id, pid, limits) in [("a", 1, every(15)), ("b", 2, every(15)), ("off", 3, every(0)), ("none", 4, Limits::default())] {
-                map.insert(id.to_owned(), Applied { limits, next_trim: now, ..Applied::new(pid, 1) });
+            for (id, pid, limits) in [
+                ("a", 1, every(15)),
+                ("b", 2, every(15)),
+                ("off", 3, every(0)),
+                ("none", 4, Limits::default()),
+            ] {
+                map.insert(
+                    id.to_owned(),
+                    Applied {
+                        limits,
+                        next_trim: now,
+                        ..Applied::new(pid, 1)
+                    },
+                );
             }
         }
         let first = l.due_trim(now).unwrap().0;
         let second = l.due_trim(now).unwrap().0;
-        assert!(first != second && first <= 2 && second <= 2, "one each, one a call");
-        assert_eq!(l.due_trim(now), None, "not again until its interval has passed");
+        assert!(
+            first != second && first <= 2 && second <= 2,
+            "one each, one a call"
+        );
+        assert_eq!(
+            l.due_trim(now),
+            None,
+            "not again until its interval has passed"
+        );
         assert!(l.due_trim(now + Duration::from_secs(15 * 60)).is_some());
 
         // Its interval being set (a client settling) puts the first trim off.
@@ -769,8 +1071,18 @@ mod tests {
 
         let l = Limiter::new();
         let start = Instant::now();
-        let every = Limits { trim_every_min: Some(15), ..Limits::default() };
-        l.applied.lock().unwrap().insert("a".to_owned(), Applied { limits: every, next_trim: start + Duration::from_secs(3600), ..Applied::new(1, 1) });
+        let every = Limits {
+            trim_every_min: Some(15),
+            ..Limits::default()
+        };
+        l.applied.lock().unwrap().insert(
+            "a".to_owned(),
+            Applied {
+                limits: every,
+                next_trim: start + Duration::from_secs(3600),
+                ..Applied::new(1, 1)
+            },
+        );
         let at = |s: u64| start + Duration::from_secs(s);
         let busy = |_: &str, _: u32| false;
         let grown = |s: u64, mb: u64| l.grown_trim(at(s), busy, |_, _| Some(mb * MB));
@@ -781,18 +1093,43 @@ mod tests {
             assert_eq!(l.applied.lock().unwrap()["a"].baseline, Some(mb * MB));
         };
 
-        assert_eq!(grown(0, 900), None, "never trimmed yet: the schedule goes first");
-        l.applied.lock().unwrap().get_mut("a").unwrap().trimmed(at(0), 15);
-        assert_eq!(l.grown_trim(at(30), busy, |_, _| panic!("read while it gets its memory back")), None);
+        assert_eq!(
+            grown(0, 900),
+            None,
+            "never trimmed yet: the schedule goes first"
+        );
+        l.applied
+            .lock()
+            .unwrap()
+            .get_mut("a")
+            .unwrap()
+            .trimmed(at(0), 15);
+        assert_eq!(
+            l.grown_trim(at(30), busy, |_, _| panic!(
+                "read while it gets its memory back"
+            )),
+            None
+        );
 
         // Still faulting back in: never settles, so nothing reads as growth.
-        for (s, mb) in [(60, 100), (70, 200), (80, 300), (90, 400), (100, 500), (110, 600), (120, 700)] {
+        for (s, mb) in [
+            (60, 100),
+            (70, 200),
+            (80, 300),
+            (90, 400),
+            (100, 500),
+            (110, 600),
+            (120, 700),
+        ] {
             assert_eq!(grown(s, mb), None);
         }
         assert_eq!(l.applied.lock().unwrap()["a"].baseline, None);
 
         settle(130, 700);
-        assert_eq!(l.grown_trim(at(195), busy, |_, _| panic!("read before the next look")), None);
+        assert_eq!(
+            l.grown_trim(at(195), busy, |_, _| panic!("read before the next look")),
+            None
+        );
         assert_eq!(grown(200, 850), None, "under a quarter");
         assert_eq!(grown(210, 850), None);
         // Far lower without a trim of MTwin Manager's: the user's, or Windows'. It must settle again.
@@ -801,7 +1138,11 @@ mod tests {
         assert_eq!(grown(230, 900), None, "not growth");
 
         settle(240, 700);
-        assert_eq!(grown(310, 1000), Some((1, 1)), "grown, 2 min after the last");
+        assert_eq!(
+            grown(310, 1000),
+            Some((1, 1)),
+            "grown, 2 min after the last"
+        );
         assert_eq!(l.applied.lock().unwrap()["a"].gap, Duration::from_secs(240));
 
         // Coming back at once: each trim for growth waits twice as long, up to the interval.
@@ -810,7 +1151,11 @@ mod tests {
         assert!(l.applied.lock().unwrap()["a"].regrew);
         assert_eq!(grown(550, 1000), Some((1, 1)));
         assert_eq!(l.applied.lock().unwrap()["a"].gap, Duration::from_secs(480));
-        assert_eq!(l.applied.lock().unwrap()["a"].next_trim, at(550 + 15 * 60), "the schedule starts over");
+        assert_eq!(
+            l.applied.lock().unwrap()["a"].next_trim,
+            at(550 + 15 * 60),
+            "the schedule starts over"
+        );
         assert!(!l.applied.lock().unwrap()["a"].regrew);
 
         // The schedule running out while it keeps growing: the wait holds.
@@ -824,13 +1169,28 @@ mod tests {
 
         // In use: not read, and what it took meanwhile doesn't count when it leaves.
         settle(2410, 700);
-        assert_eq!(l.grown_trim(at(2480), |_, _| true, |_, _| panic!("free")), None);
+        assert_eq!(
+            l.grown_trim(at(2480), |_, _| true, |_, _| panic!("free")),
+            None
+        );
         assert_eq!(l.applied.lock().unwrap()["a"].baseline, None);
-        assert_eq!(l.grown_trim(at(2490), busy, |_, _| panic!("settling after the front")), None);
+        assert_eq!(
+            l.grown_trim(at(2490), busy, |_, _| panic!("settling after the front")),
+            None
+        );
 
         // No trim set: not read at all.
-        l.applied.lock().unwrap().get_mut("a").unwrap().limits.trim_every_min = None;
-        assert_eq!(l.grown_trim(at(9000), busy, |_, _| panic!("no trim set")), None);
+        l.applied
+            .lock()
+            .unwrap()
+            .get_mut("a")
+            .unwrap()
+            .limits
+            .trim_every_min = None;
+        assert_eq!(
+            l.grown_trim(at(9000), busy, |_, _| panic!("no trim set")),
+            None
+        );
     }
 
     #[test]
@@ -838,21 +1198,46 @@ mod tests {
         let (mut child, pid, t0) = ping();
         let l = Limiter::new();
         // A rate Windows refuses, standing in for one refused under RDS.
-        let bad = Limits { cpu_cap: Some(0), affinity: Some(1), trim_every_min: Some(5), eco: true };
+        let bad = Limits {
+            cpu_cap: Some(0),
+            affinity: Some(1),
+            trim_every_min: Some(5),
+            eco: true,
+        };
         assert!(l.apply("i", pid, t0, bad).is_err());
         assert_eq!(l.uncapped(), ["i"]);
         assert_eq!(affinity(pid), 1, "cores set all the same");
         {
             let map = l.applied.lock().unwrap();
             let a = &map["i"];
-            assert!(a.limits.eco && a.limits.cpu_cap.is_none() && a.limits.trim_every_min == Some(5));
+            assert!(
+                a.limits.eco && a.limits.cpu_cap.is_none() && a.limits.trim_every_min == Some(5)
+            );
         }
         // No cap wanted any more clears it.
-        l.apply("i", pid, t0, Limits { cpu_cap: None, ..bad }).unwrap();
+        l.apply(
+            "i",
+            pid,
+            t0,
+            Limits {
+                cpu_cap: None,
+                ..bad
+            },
+        )
+        .unwrap();
         assert!(l.uncapped().is_empty());
         assert!(l.apply("i", pid, t0, bad).is_err());
         // So does a cap that works.
-        l.apply("i", pid, t0, Limits { cpu_cap: Some(50), ..bad }).unwrap();
+        l.apply(
+            "i",
+            pid,
+            t0,
+            Limits {
+                cpu_cap: Some(50),
+                ..bad
+            },
+        )
+        .unwrap();
         assert!(l.uncapped().is_empty());
         child.kill().unwrap();
         child.wait().unwrap();
@@ -872,7 +1257,15 @@ mod tests {
         assert_eq!(spread(1, 2, 8), Some(0b1010_1010));
         assert_eq!(spread(0, 3, 6), Some(0b00_1001));
         // Too few cores for two each: not pinned.
-        assert_eq!((spread(2, 3, 4), spread(0, 3, 5), spread(4, 6, 4), spread(0, u32::MAX, 8)), (None, None, None, None));
+        assert_eq!(
+            (
+                spread(2, 3, 4),
+                spread(0, 3, 5),
+                spread(4, 6, 4),
+                spread(0, u32::MAX, 8)
+            ),
+            (None, None, None, None)
+        );
         assert_eq!(spread(1, 32, 200), Some(0b10 | 1 << 33), "at most 64 cores");
         assert_eq!(spread(1, 33, 200), None);
         // Every core is used, none twice.
@@ -895,18 +1288,42 @@ mod tests {
         a.next_trim = now;
         limiter.applied.lock().unwrap().insert("i".into(), a);
         assert_eq!(limiter.due_trim(now), Some((7, 9)));
-        assert_eq!(limiter.due_trim(now + TRIM_RETRY), None, "the next is an interval away");
+        assert_eq!(
+            limiter.due_trim(now + TRIM_RETRY),
+            None,
+            "the next is an interval away"
+        );
         limiter.trim_failed(7, 9, now);
-        assert_eq!(limiter.due_trim(now + TRIM_RETRY), Some((7, 9)), "sooner after a failure");
+        assert_eq!(
+            limiter.due_trim(now + TRIM_RETRY),
+            Some((7, 9)),
+            "sooner after a failure"
+        );
     }
 
     #[test]
     fn a_trim_is_followed_until_its_last_measurement() {
         let limiter = Limiter::new();
         let at = Instant::now();
-        limiter.follows.lock().unwrap().push(TrimFollow { why: "test", pid: 1, t0: 2, at, done: 0 });
-        let r = super::super::metrics::Reading { cpu: 0, memory: 2 << 20, working_set: 3 << 20, private: 5 << 20, read: 0, write: 0 };
-        assert_eq!(memory_line(&r), "working set 3 MB, private working set 2 MB, commit 5 MB");
+        limiter.follows.lock().unwrap().push(TrimFollow {
+            why: "test",
+            pid: 1,
+            t0: 2,
+            at,
+            done: 0,
+        });
+        let r = super::super::metrics::Reading {
+            cpu: 0,
+            memory: 2 << 20,
+            working_set: 3 << 20,
+            private: 5 << 20,
+            read: 0,
+            write: 0,
+        };
+        assert_eq!(
+            memory_line(&r),
+            "working set 3 MB, private working set 2 MB, commit 5 MB"
+        );
         let left = || limiter.follows.lock().unwrap().first().map(|f| f.done);
         limiter.follow_trims(at + Duration::from_secs(9), |_, _| Some(r));
         assert_eq!(left(), Some(0), "not yet");
@@ -915,7 +1332,13 @@ mod tests {
             assert_eq!(left(), done, "at {secs} s");
         }
         // A client gone ends it.
-        limiter.follows.lock().unwrap().push(TrimFollow { why: "test", pid: 1, t0: 2, at, done: 0 });
+        limiter.follows.lock().unwrap().push(TrimFollow {
+            why: "test",
+            pid: 1,
+            t0: 2,
+            at,
+            done: 0,
+        });
         limiter.follow_trims(at + Duration::from_secs(10), |_, _| None);
         assert_eq!(left(), None);
     }
@@ -925,7 +1348,11 @@ mod tests {
         assert_eq!(fair_cap(1, 8), 75);
         assert_eq!(fair_cap(3, 8), 25);
         assert_eq!(fair_cap(10, 8), 7);
-        assert_eq!(fair_cap(50, 8), 4, "at least a quarter of a core: 3 % of 8 would be less");
+        assert_eq!(
+            fair_cap(50, 8),
+            4,
+            "at least a quarter of a core: 3 % of 8 would be less"
+        );
         assert_eq!(fair_cap(50, 16), 2);
         assert_eq!(fair_cap(500, 64), 1, "never 0: Windows has no such rate");
         assert_eq!((fair_cap(0, 1), fair_cap(200, 1)), (75, 25));
@@ -933,16 +1360,55 @@ mod tests {
 
     #[test]
     fn adaptive_limits_background_clients_and_manual_ones_win() {
-        let bg = Limits { cpu_cap: Some(25), eco: true, ..Limits::default() };
-        let mut v = Settings { adaptive: crate::model::Adaptive { enabled: true, background: bg }, ..Settings::default() };
+        let bg = Limits {
+            cpu_cap: Some(25),
+            eco: true,
+            ..Limits::default()
+        };
+        let mut v = Settings {
+            adaptive: crate::model::Adaptive {
+                enabled: true,
+                background: bg,
+            },
+            ..Settings::default()
+        };
         let none = Limits::default();
-        let mine = Limits { cpu_cap: Some(50), ..Limits::default() };
-        assert_eq!(effective(none, false, &v, None, None), bg, "in the background");
-        assert_eq!(effective(none, true, &v, None, None), none, "in front: lifted");
+        let mine = Limits {
+            cpu_cap: Some(50),
+            ..Limits::default()
+        };
+        assert_eq!(
+            effective(none, false, &v, None, None),
+            bg,
+            "in the background"
+        );
+        assert_eq!(
+            effective(none, true, &v, None, None),
+            none,
+            "in front: lifted"
+        );
         // A limit set on the client wins for that limit only: the rest stay the background's.
-        assert_eq!(effective(mine, false, &v, None, None), Limits { cpu_cap: Some(50), eco: true, ..Limits::default() });
-        let cores = Limits { affinity: Some(0b11), ..Limits::default() };
-        assert_eq!(effective(cores, false, &v, None, None), Limits { cpu_cap: Some(25), eco: true, affinity: Some(0b11), ..Limits::default() });
+        assert_eq!(
+            effective(mine, false, &v, None, None),
+            Limits {
+                cpu_cap: Some(50),
+                eco: true,
+                ..Limits::default()
+            }
+        );
+        let cores = Limits {
+            affinity: Some(0b11),
+            ..Limits::default()
+        };
+        assert_eq!(
+            effective(cores, false, &v, None, None),
+            Limits {
+                cpu_cap: Some(25),
+                eco: true,
+                affinity: Some(0b11),
+                ..Limits::default()
+            }
+        );
         v.adaptive.enabled = false;
         assert_eq!(effective(mine, false, &v, None, None), mine, "adaptive off");
         assert_eq!(effective(none, false, &v, None, None), none, "off");
@@ -950,9 +1416,20 @@ mod tests {
         // Defaults fill what the client's own limits leave open.
         v.trim_every_min = 15;
         let filled = effective(none, false, &v, Some(0b11), None);
-        assert_eq!((filled.trim_every_min, filled.affinity), (Some(15), Some(0b11)));
-        let own = Limits { trim_every_min: Some(0), affinity: Some(0b100), ..Limits::default() };
-        assert_eq!(effective(own, false, &v, Some(0b11), None), own, "its own trim (off) and cores");
+        assert_eq!(
+            (filled.trim_every_min, filled.affinity),
+            (Some(15), Some(0b11))
+        );
+        let own = Limits {
+            trim_every_min: Some(0),
+            affinity: Some(0b100),
+            ..Limits::default()
+        };
+        assert_eq!(
+            effective(own, false, &v, Some(0b11), None),
+            own,
+            "its own trim (off) and cores"
+        );
 
         // A free client gets none of the defaults, and keeps what the user set for it.
         assert_eq!(effective(none, true, &v, Some(0b11), Some(5)), none);
@@ -969,13 +1446,33 @@ mod tests {
         v.auto_spread = true;
         let c = |id: &str, pid| (id.to_owned(), pid, 1, none);
         let p = plan(&[c("a", 10), c("b", 20)], &v, Some(20), 4, &[], &[], &[]);
-        assert_eq!(p[0].3, Limits { trim_every_min: Some(15), affinity: Some(0b0101), ..bg });
+        assert_eq!(
+            p[0].3,
+            Limits {
+                trim_every_min: Some(15),
+                affinity: Some(0b0101),
+                ..bg
+            }
+        );
         assert_eq!(p[1].3, none);
-        assert_eq!(plan(&[c("a", 10)], &v, None, 4, &[], &[], &[])[0].3.affinity, None);
+        assert_eq!(
+            plan(&[c("a", 10)], &v, None, 4, &[], &[], &[])[0]
+                .3
+                .affinity,
+            None
+        );
 
         // Loading, hung and Full quality clients are lifted the same way, the fair cap too.
         v.fair_cap = true;
-        let p = plan(&[c("a", 10), c("b", 20), c("c", 30)], &v, None, 6, &[], &["b".to_owned()], &[]);
+        let p = plan(
+            &[c("a", 10), c("b", 20), c("c", 30)],
+            &v,
+            None,
+            6,
+            &[],
+            &["b".to_owned()],
+            &[],
+        );
         assert_eq!(p[0].3.cpu_cap, Some(25));
         assert_eq!(p[1].3, none);
         v.fair_cap = false;
@@ -983,21 +1480,59 @@ mod tests {
         // Too few cores for two each: no pin, unless the CPU cap failed and it is all that's left.
         let three = [c("a", 10), c("b", 20), c("c", 30)];
         assert_eq!(plan(&three, &v, None, 4, &[], &[], &[])[0].3.affinity, None);
-        assert_eq!(plan(&three, &v, None, 4, &[], &[], &["a".to_owned()])[0].3.affinity, Some(0b1001));
+        assert_eq!(
+            plan(&three, &v, None, 4, &[], &[], &["a".to_owned()])[0]
+                .3
+                .affinity,
+            Some(0b1001)
+        );
 
         // The memory throttle tightens the cap of the clients it holds, the one in front too.
-        v.mem_throttle = crate::model::MemThrottle { mb: 4_096, cpu_cap: 10 };
+        v.mem_throttle = crate::model::MemThrottle {
+            mb: 4_096,
+            cpu_cap: 10,
+        };
         let held = ["b".to_owned()];
         let p = plan(&[c("a", 10), c("b", 20)], &v, Some(20), 4, &held, &[], &[]);
         assert_eq!((p[0].3.cpu_cap, p[1].3.cpu_cap), (Some(25), Some(10)));
-        let tight = Limits { cpu_cap: Some(5), ..none };
-        assert_eq!(plan(&[("b".to_owned(), 20, 1, tight)], &v, None, 4, &held, &[], &[])[0].3.cpu_cap, Some(5), "its own tighter cap");
+        let tight = Limits {
+            cpu_cap: Some(5),
+            ..none
+        };
+        assert_eq!(
+            plan(
+                &[("b".to_owned(), 20, 1, tight)],
+                &v,
+                None,
+                4,
+                &held,
+                &[],
+                &[]
+            )[0]
+            .3
+            .cpu_cap,
+            Some(5),
+            "its own tighter cap"
+        );
         v.mem_throttle.mb = 0;
-        assert_eq!(plan(&[c("b", 20)], &v, Some(20), 4, &held, &[], &[])[0].3.cpu_cap, None, "off");
+        assert_eq!(
+            plan(&[c("b", 20)], &v, Some(20), 4, &held, &[], &[])[0]
+                .3
+                .cpu_cap,
+            None,
+            "off"
+        );
     }
 
     #[test]
     fn throttle_cap_only_tightens() {
-        assert_eq!((throttle_cap(None, 10), throttle_cap(Some(50), 10), throttle_cap(Some(5), 10)), (10, 10, 5));
+        assert_eq!(
+            (
+                throttle_cap(None, 10),
+                throttle_cap(Some(50), 10),
+                throttle_cap(Some(5), 10)
+            ),
+            (10, 10, 5)
+        );
     }
 }

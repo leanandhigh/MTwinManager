@@ -14,8 +14,11 @@ pub mod multi;
 pub mod process;
 pub mod qos;
 pub mod resize;
-pub mod window;
 mod tracker;
+pub mod window;
 
 pub mod rejoin;
-pub use tracker::{Tracker, Transition, auth_failed, challenged, closed, frame_size, hung, layout_batch_done, unexpected, wrong_account};
+pub use tracker::{
+    Tracker, Transition, auth_failed, challenged, closed, frame_size, hung, layout_batch_done,
+    unexpected, wrong_account,
+};

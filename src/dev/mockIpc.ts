@@ -213,7 +213,7 @@ const PERF_KEYS = ["fpsCap", "lowGraphics", "lighterRendering", "renderFlags", "
 function perfProfile(previewFps: number) {
   const s: Record<string, unknown> = {};
   for (const k of PERF_KEYS) s[k] = settings[k];
-  return JSON.stringify({ format: "roalt-performance", version: 1, exportedAt: Date.now(), settings: { ...s, previewFps } }, null, 2);
+  return JSON.stringify({ format: "mtwin-performance", version: 1, exportedAt: Date.now(), settings: { ...s, previewFps } }, null, 2);
 }
 
 /** The profile in `text` as performance_parse returns it, or the error message. */
@@ -225,7 +225,7 @@ function perfParse(text: string): Record<string, unknown> | string {
   } catch {
     return refused;
   }
-  if (file?.format !== "roalt-performance") return refused;
+  if (file?.format !== "mtwin-performance") return refused;
   if ((file.version ?? 0) > 1) return "This profile was made by a newer MTwin Manager; update MTwin Manager first.";
   const p = file.settings ?? {};
   const fps = p.fpsCap as number | undefined;

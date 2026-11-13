@@ -11,7 +11,9 @@ pub enum AppError {
     WrongPassword,
     #[error("This cookie is not valid or has expired. Sign in again.")]
     CookieInvalid,
-    #[error("Roblox wants a human check for this account. Sign in to it again with Add account > Sign in with Roblox.")]
+    #[error(
+        "Roblox wants a human check for this account. Sign in to it again with Add account > Sign in with Roblox."
+    )]
     Challenge,
     #[error("Roblox is limiting requests. Try again in {0} s.")]
     RateLimited(u64),
@@ -66,7 +68,11 @@ impl AppError {
     /// again later. A bad cookie or a refused target (Roblox's 4xx) stays until someone acts.
     pub fn temporary(&self) -> bool {
         match self {
-            Self::Locked | Self::RateLimited(_) | Self::Network(_) | Self::Wait(_) | Self::Busy(_) => true,
+            Self::Locked
+            | Self::RateLimited(_)
+            | Self::Network(_)
+            | Self::Wait(_)
+            | Self::Busy(_) => true,
             Self::Roblox(why) => !why.starts_with("HTTP 4"),
             _ => false,
         }
@@ -81,7 +87,13 @@ impl AppError {
     /// Logs this error (English, secret-free like every message) at a level fit for its kind.
     pub fn log(&self) {
         let level = match self {
-            Self::Cancelled | Self::Invalid(_) | Self::Wait(_) | Self::Busy(_) | Self::Locked | Self::WrongPassword | Self::NotFound => log::Level::Debug,
+            Self::Cancelled
+            | Self::Invalid(_)
+            | Self::Wait(_)
+            | Self::Busy(_)
+            | Self::Locked
+            | Self::WrongPassword
+            | Self::NotFound => log::Level::Debug,
             Self::Internal(_) | Self::Storage(_) | Self::Crypto => log::Level::Error,
             _ => log::Level::Warn,
         };
@@ -95,10 +107,17 @@ impl AppError {
             Self::WrongPassword => tr!("Wrong password."),
             Self::CookieInvalid => tr!("This cookie is not valid or has expired. Sign in again."),
             Self::Challenge => {
-                tr!("Roblox wants a human check for this account. Sign in to it again with Add account > Sign in with Roblox.")
+                tr!(
+                    "Roblox wants a human check for this account. Sign in to it again with Add account > Sign in with Roblox."
+                )
             }
-            Self::RateLimited(s) => tr!("Roblox is limiting requests. Try again in {seconds} s.", seconds = s),
-            Self::BoundSessionRequired => tr!("Roblox now requires a bound session for this account."),
+            Self::RateLimited(s) => tr!(
+                "Roblox is limiting requests. Try again in {seconds} s.",
+                seconds = s
+            ),
+            Self::BoundSessionRequired => {
+                tr!("Roblox now requires a bound session for this account.")
+            }
             Self::Roblox(why) => tr!("Roblox answered unexpectedly ({why}).", why = why),
             Self::Network(why) => tr!("Network error: {why}", why = why),
             Self::NotFound => tr!("Not found."),
@@ -122,7 +141,11 @@ impl Serialize for AppError {
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
         // Only IPC serializes an AppError: every command error the UI gets is logged here once.
         self.log();
-        ErrorPayload { kind: self.kind().into(), message: self.message() }.serialize(s)
+        ErrorPayload {
+            kind: self.kind().into(),
+            message: self.message(),
+        }
+        .serialize(s)
     }
 }
 

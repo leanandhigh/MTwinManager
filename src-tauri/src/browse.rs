@@ -16,7 +16,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use serde::{Deserialize, Serialize};
 use tauri::webview::{NewWindowResponse, PageLoadEvent, WebviewBuilder};
-use tauri::{AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, State, Webview, WebviewUrl};
+use tauri::{
+    AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, State, Webview, WebviewUrl,
+};
 use ts_rs::TS;
 use url::Url;
 
@@ -72,7 +74,8 @@ fn money_page(url: &Url) -> bool {
     let under = |p: &str| path == p || path.starts_with(&format!("{p}/"));
     host == "billing.roblox.com"
         || (host == "apis.roblox.com" && under("/payments-gateway"))
-        || (matches!(host.as_str(), "www.roblox.com" | "roblox.com") && (under("/upgrades") || under("/premium") || under("/robux")))
+        || (matches!(host.as_str(), "www.roblox.com" | "roblox.com")
+            && (under("/upgrades") || under("/premium") || under("/robux")))
 }
 
 /// What a request spends under the purchase lock (pure), for the account with Roblox user id `me`:
@@ -87,7 +90,9 @@ fn spend_of(method: &str, url: &Url, body: Option<&[u8]>, me: i64) -> Option<Spe
     let path = url.path().to_ascii_lowercase();
     // Redeeming a gift card or a promo code adds Robux or credit: nothing is spent. Only those two
     // (turning credit into Robux, `/credit/redeem-robux`, spends).
-    if host == "billing.roblox.com" && (path.ends_with("/gamecard/redeem") || path.ends_with("/promocodes/redeem")) {
+    if host == "billing.roblox.com"
+        && (path.ends_with("/gamecard/redeem") || path.ends_with("/promocodes/redeem"))
+    {
         return None;
     }
     if money_page(url) {
@@ -99,12 +104,20 @@ fn spend_of(method: &str, url: &Url, body: Option<&[u8]>, me: i64) -> Option<Spe
     let json = || body.and_then(|b| serde_json::from_slice::<Value>(b).ok());
     match host.as_str() {
         // Renewing a private server's subscription spends each month; turning it off spends nothing.
-        "games.roblox.com" if path.starts_with("/v1/vip-servers/") && path.ends_with("/subscription") => {
+        "games.roblox.com"
+            if path.starts_with("/v1/vip-servers/") && path.ends_with("/subscription") =>
+        {
             let off = json().and_then(|v| v.get("active").and_then(Value::as_bool)) == Some(false);
             return Some(if off { Spend::Free } else { Spend::Robux });
         }
         // Creating a community, renaming one (100 Robux), paying out.
-        "groups.roblox.com" if path == "/v1/groups/create" || path.ends_with("/name") || path.contains("/payouts") => return Some(Spend::Robux),
+        "groups.roblox.com"
+            if path == "/v1/groups/create"
+                || path.ends_with("/name")
+                || path.contains("/payouts") =>
+        {
+            return Some(Spend::Robux);
+        }
         "auth.roblox.com" if path.ends_with("/username") => return Some(Spend::Robux),
         "trades.roblox.com" if path.ends_with("/accept") => return Some(Spend::Robux),
         "trades.roblox.com" if path.ends_with("/send") || path.ends_with("/counter") => {
@@ -114,28 +127,48 @@ fn spend_of(method: &str, url: &Url, body: Option<&[u8]>, me: i64) -> Option<Spe
                     return o.get("robux").and_then(Value::as_i64);
                 }
                 let offers = v.get("offers")?.as_array()?;
-                offers.iter().find(|o| o.get("userId").and_then(Value::as_i64) == Some(me))?.get("robux").and_then(Value::as_i64)
+                offers
+                    .iter()
+                    .find(|o| o.get("userId").and_then(Value::as_i64) == Some(me))?
+                    .get("robux")
+                    .and_then(Value::as_i64)
             };
             // Only a readable offer of 0 Robux from this account passes.
-            return if json().and_then(mine) == Some(0) { None } else { Some(Spend::Robux) };
+            return if json().and_then(mine) == Some(0) {
+                None
+            } else {
+                Some(Spend::Robux)
+            };
         }
         _ => {}
     }
-    let buys = matches!(host.as_str(), "economy.roblox.com" | "apis.roblox.com" | "catalog.roblox.com" | "games.roblox.com")
-        && (path.contains("purchase") || (host == "games.roblox.com" && path.starts_with("/v1/games/vip-servers/")));
+    let buys = matches!(
+        host.as_str(),
+        "economy.roblox.com" | "apis.roblox.com" | "catalog.roblox.com" | "games.roblox.com"
+    ) && (path.contains("purchase")
+        || (host == "games.roblox.com" && path.starts_with("/v1/games/vip-servers/")));
     if !buys {
         return None;
     }
     let price = json().and_then(|v| v.get("expectedPrice").and_then(Value::as_i64));
-    Some(if price == Some(0) { Spend::Free } else { Spend::Robux })
+    Some(if price == Some(0) {
+        Spend::Free
+    } else {
+        Spend::Robux
+    })
 }
 
 /// Roblox's Log Out (pure): it ends the very session MTwin Manager keeps for the account (Browse runs on
 /// the stored cookie), so it is never sent from Browse, lock or not.
 fn signs_out(method: &str, url: &Url) -> bool {
     method.eq_ignore_ascii_case("POST")
-        && url.host_str().is_some_and(|h| h.eq_ignore_ascii_case("auth.roblox.com"))
-        && matches!(url.path().to_ascii_lowercase().as_str(), "/v1/logout" | "/v2/logout")
+        && url
+            .host_str()
+            .is_some_and(|h| h.eq_ignore_ascii_case("auth.roblox.com"))
+        && matches!(
+            url.path().to_ascii_lowercase().as_str(),
+            "/v1/logout" | "/v2/logout"
+        )
 }
 
 /// `browse://blocked`: what Browse just refused, for the UI to say.
@@ -212,8 +245,11 @@ impl PageCard {
 /// or the page shows another profile by now (the script checks).
 #[tauri::command]
 pub fn browse_card(app: AppHandle, card: Option<PageCard>) -> Result<()> {
-    let Some(wv) = app.get_webview(LABEL) else { return Ok(()) };
-    let json = serde_json::to_string(&card.map(PageCard::clipped)).map_err(|e| AppError::Internal(e.to_string()))?;
+    let Some(wv) = app.get_webview(LABEL) else {
+        return Ok(());
+    };
+    let json = serde_json::to_string(&card.map(PageCard::clipped))
+        .map_err(|e| AppError::Internal(e.to_string()))?;
     // JSON is a JS expression: no string of the card's can become code.
     wv.eval(format!("window.__mtwinCard&&window.__mtwinCard({json})"))?;
     Ok(())
@@ -233,7 +269,9 @@ pub enum BrowseNav {
 /// (never Create).
 fn page_url(path: &str) -> Result<Url> {
     let refused = || AppError::Invalid(tr!("That page isn't available in Browse."));
-    let url = Url::parse(ROBLOX).and_then(|base| base.join(path.trim_start_matches('/'))).map_err(|_| refused())?;
+    let url = Url::parse(ROBLOX)
+        .and_then(|base| base.join(path.trim_start_matches('/')))
+        .map_err(|_| refused())?;
     if url.host_str() != Some("www.roblox.com") || !webview::allowed(&url) {
         return Err(refused());
     }
@@ -243,13 +281,20 @@ fn page_url(path: &str) -> Result<Url> {
 /// What the UI shows for a page: its path and query on Roblox (pure).
 fn path_of(url: &Url) -> String {
     let path = url.path().trim_start_matches('/');
-    url.query().map_or_else(|| path.to_owned(), |q| format!("{path}?{q}"))
+    url.query()
+        .map_or_else(|| path.to_owned(), |q| format!("{path}?{q}"))
 }
 
 /// Shows www.roblox.com/`path` as `account_id` at `rect` (first opening it, or moving it over from
 /// another account). Returns once the page is on its way.
 #[tauri::command]
-pub async fn browse_open(app: AppHandle, s: State<'_, App>, account_id: i64, path: String, rect: PaneRect) -> Result<()> {
+pub async fn browse_open(
+    app: AppHandle,
+    s: State<'_, App>,
+    account_id: i64,
+    path: String,
+    rect: PaneRect,
+) -> Result<()> {
     if s.vault.is_locked() {
         return Err(AppError::Locked);
     }
@@ -259,7 +304,10 @@ pub async fn browse_open(app: AppHandle, s: State<'_, App>, account_id: i64, pat
     let data_dir = s.data_dir.clone();
     // Off the async threads: making the webview waits for the main thread, closing one waits for
     // its browser process.
-    tauri::async_runtime::spawn_blocking(move || open(&app, &data_dir, a.id, a.user_id, cookie, url, rect)).await?
+    tauri::async_runtime::spawn_blocking(move || {
+        open(&app, &data_dir, a.id, a.user_id, cookie, url, rect)
+    })
+    .await?
 }
 
 /// The UI shows Browse's page (`browse_bounds`). The main window going to the tray or minimizing
@@ -269,17 +317,29 @@ static PANE_SHOWN: AtomicBool = AtomicBool::new(false);
 /// Moves Browse's page to `rect`, and shows or hides it (under a dialog, on another view).
 #[tauri::command]
 pub fn browse_bounds(app: AppHandle, rect: PaneRect, shown: bool) -> Result<()> {
-    let Some(wv) = app.get_webview(LABEL) else { return Ok(()) };
+    let Some(wv) = app.get_webview(LABEL) else {
+        return Ok(());
+    };
     place(&wv, rect)?;
     PANE_SHOWN.store(shown, Ordering::Relaxed);
-    if shown && crate::main_shown() { wv.show()? } else { wv.hide()? }
+    if shown && crate::main_shown() {
+        wv.show()?
+    } else {
+        wv.hide()?
+    }
     Ok(())
 }
 
 /// The main window went to the tray or minimized (`shown` false), or is back.
 pub fn window_shown(app: &AppHandle, shown: bool) {
-    let Some(wv) = app.get_webview(LABEL) else { return };
-    if let Err(e) = if shown && PANE_SHOWN.load(Ordering::Relaxed) { wv.show() } else { wv.hide() } {
+    let Some(wv) = app.get_webview(LABEL) else {
+        return;
+    };
+    if let Err(e) = if shown && PANE_SHOWN.load(Ordering::Relaxed) {
+        wv.show()
+    } else {
+        wv.hide()
+    } {
         log::debug!("Browse: could not follow the main window: {e}");
     }
     webview::memory_target(&wv, !shown);
@@ -287,15 +347,19 @@ pub fn window_shown(app: &AppHandle, shown: bool) {
 
 #[tauri::command]
 pub fn browse_nav(app: AppHandle, action: BrowseNav) -> Result<()> {
-    let Some(wv) = app.get_webview(LABEL) else { return Ok(()) };
+    let Some(wv) = app.get_webview(LABEL) else {
+        return Ok(());
+    };
     wv.with_webview(move |pv| {
         // SAFETY: main thread (with_webview), live controller.
         let r = unsafe {
-            pv.controller().CoreWebView2().and_then(|core| match action {
-                BrowseNav::Back => core.GoBack(),
-                BrowseNav::Forward => core.GoForward(),
-                BrowseNav::Reload => core.Reload(),
-            })
+            pv.controller()
+                .CoreWebView2()
+                .and_then(|core| match action {
+                    BrowseNav::Back => core.GoBack(),
+                    BrowseNav::Forward => core.GoForward(),
+                    BrowseNav::Reload => core.Reload(),
+                })
         };
         if let Err(e) = r {
             log::debug!("Browse: {action:?} failed: {e}");
@@ -318,7 +382,15 @@ fn place(wv: &Webview, rect: PaneRect) -> Result<()> {
 }
 
 /// Blocking (never on the main thread): the webview needs it free.
-fn open(app: &AppHandle, data_dir: &Path, account_id: i64, user_id: i64, cookie: Secret, url: Url, rect: PaneRect) -> Result<()> {
+fn open(
+    app: &AppHandle,
+    data_dir: &Path,
+    account_id: i64,
+    user_id: i64,
+    cookie: Secret,
+    url: Url,
+    rect: PaneRect,
+) -> Result<()> {
     let mut slot = OPEN.lock().unwrap_or_else(|e| e.into_inner());
     // Waited behind a lock's close: the vault is locked now, and nothing opens over its screen.
     if app.state::<App>().vault.is_locked() {
@@ -351,7 +423,15 @@ fn open(app: &AppHandle, data_dir: &Path, account_id: i64, user_id: i64, cookie:
     }
 }
 
-fn create(app: &AppHandle, data_dir: &Path, account_id: i64, user_id: i64, cookie: Secret, url: Url, rect: PaneRect) -> Result<Open> {
+fn create(
+    app: &AppHandle,
+    data_dir: &Path,
+    account_id: i64,
+    user_id: i64,
+    cookie: Secret,
+    url: Url,
+    rect: PaneRect,
+) -> Result<Open> {
     let profile = webview::session_profile(data_dir, account_id);
     // Marked with nothing open: left by a crash or a removal that failed (maybe of an earlier
     // account with this id), so nothing of it is reused.
@@ -359,50 +439,65 @@ fn create(app: &AppHandle, data_dir: &Path, account_id: i64, user_id: i64, cooki
         webview::remove_profile(&profile);
     }
     webview::mark_open(&profile);
-    let window = app.get_window("main").ok_or_else(|| AppError::Internal("the main window is missing".into()))?;
+    let window = app
+        .get_window("main")
+        .ok_or_else(|| AppError::Internal("the main window is missing".into()))?;
     if let Ok(v) = app.state::<App>().db.settings() {
         set_lock(v.lock_purchases);
     }
     let (links, pages, refused) = (app.clone(), app.clone(), app.clone());
     // Blank first, so nothing loads from Roblox before the cookie is in place.
-    let builder = WebviewBuilder::new(LABEL, WebviewUrl::External(webview::parse_url("about:blank")?))
-        .data_directory(profile.clone())
-        .incognito(false)
-        .devtools(cfg!(debug_assertions))
-        .general_autofill_enabled(false)
-        .on_navigation(move |url| {
-            let why = if webview::creating(url) {
-                Some(BrowseBlocked::Create)
-            } else if LOCK.load(Ordering::Relaxed) && money_page(url) {
-                Some(BrowseBlocked::Money)
-            } else {
-                None
-            };
-            if let Some(why) = why {
-                let _ = refused.emit("browse://blocked", why);
-                return false;
-            }
-            webview::allowed(url)
-        })
-        .on_new_window(move |url, _| {
-            // A new window or tab would be out of MTwin Manager's hands: the link opens here instead.
-            if webview::allowed(&url)
-                && let Some(wv) = links.get_webview(LABEL)
-                && let Err(e) = wv.navigate(url)
-            {
-                log::debug!("Browse: a link for a new window didn't open: {e}");
-            }
-            NewWindowResponse::Deny
-        })
-        .on_download(|_, _| false)
-        .on_page_load(move |_, p| {
-            if p.event() == PageLoadEvent::Finished && p.url().host_str() == Some("www.roblox.com") {
-                // Browsing is using MTwin Manager: the master password's auto-lock waits.
-                pages.state::<App>().vault.touch();
-                let _ = pages.emit("browse://page", BrowsePage { account_id, path: path_of(p.url()) });
-            }
-        });
-    let wv = window.add_child(builder, LogicalPosition::new(rect.x, rect.y), LogicalSize::new(rect.width.max(1.0), rect.height.max(1.0)))?;
+    let builder = WebviewBuilder::new(
+        LABEL,
+        WebviewUrl::External(webview::parse_url("about:blank")?),
+    )
+    .data_directory(profile.clone())
+    .incognito(false)
+    .devtools(cfg!(debug_assertions))
+    .general_autofill_enabled(false)
+    .on_navigation(move |url| {
+        let why = if webview::creating(url) {
+            Some(BrowseBlocked::Create)
+        } else if LOCK.load(Ordering::Relaxed) && money_page(url) {
+            Some(BrowseBlocked::Money)
+        } else {
+            None
+        };
+        if let Some(why) = why {
+            let _ = refused.emit("browse://blocked", why);
+            return false;
+        }
+        webview::allowed(url)
+    })
+    .on_new_window(move |url, _| {
+        // A new window or tab would be out of MTwin Manager's hands: the link opens here instead.
+        if webview::allowed(&url)
+            && let Some(wv) = links.get_webview(LABEL)
+            && let Err(e) = wv.navigate(url)
+        {
+            log::debug!("Browse: a link for a new window didn't open: {e}");
+        }
+        NewWindowResponse::Deny
+    })
+    .on_download(|_, _| false)
+    .on_page_load(move |_, p| {
+        if p.event() == PageLoadEvent::Finished && p.url().host_str() == Some("www.roblox.com") {
+            // Browsing is using MTwin Manager: the master password's auto-lock waits.
+            pages.state::<App>().vault.touch();
+            let _ = pages.emit(
+                "browse://page",
+                BrowsePage {
+                    account_id,
+                    path: path_of(p.url()),
+                },
+            );
+        }
+    });
+    let wv = window.add_child(
+        builder,
+        LogicalPosition::new(rect.x, rect.y),
+        LogicalSize::new(rect.width.max(1.0), rect.height.max(1.0)),
+    )?;
     let set_up = || -> Result<u32> {
         // Hidden until the UI shows it: Browse may be gone, or a dialog up, by the time this returns.
         PANE_SHOWN.store(false, Ordering::Relaxed);
@@ -425,7 +520,12 @@ fn create(app: &AppHandle, data_dir: &Path, account_id: i64, user_id: i64, cooki
         let _ = wv.close();
     })?;
     watch_cookie(app.clone(), account_id, user_id, pid);
-    Ok(Open { account_id, user_id, pid, profile })
+    Ok(Open {
+        account_id,
+        user_id,
+        pid,
+        profile,
+    })
 }
 
 /// Play or Join on a Roblox page starts the client through a `roblox-player:` link: Browse never
@@ -435,7 +535,9 @@ fn create(app: &AppHandle, data_dir: &Path, account_id: i64, user_id: i64, cooki
 /// LaunchingExternalUriScheme (WebView2 1.0.1518+), which also keeps every other app's link in.
 fn watch_play(wv: &Webview, app: AppHandle, account_id: i64) -> Result<()> {
     use webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2_18;
-    use webview2_com::{LaunchingExternalUriSchemeEventHandler, NavigationStartingEventHandler, take_pwstr};
+    use webview2_com::{
+        LaunchingExternalUriSchemeEventHandler, NavigationStartingEventHandler, take_pwstr,
+    };
     use windows::core::{Interface, PWSTR};
     wv.with_webview(move |pv| {
         let (top, other) = (app.clone(), app);
@@ -453,16 +555,18 @@ fn watch_play(wv: &Webview, app: AppHandle, account_id: i64) -> Result<()> {
                     Ok(())
                 }));
                 core.add_NavigationStarting(&nav, &mut token)?;
-                let ext = LaunchingExternalUriSchemeEventHandler::create(Box::new(move |_, args| {
-                    if let Some(args) = args {
-                        args.SetCancel(true)?;
-                        let mut uri = PWSTR::null();
-                        args.Uri(&mut uri)?;
-                        play(&other, account_id, &take_pwstr(uri));
-                    }
-                    Ok(())
-                }));
-                core.cast::<ICoreWebView2_18>()?.add_LaunchingExternalUriScheme(&ext, &mut token)
+                let ext =
+                    LaunchingExternalUriSchemeEventHandler::create(Box::new(move |_, args| {
+                        if let Some(args) = args {
+                            args.SetCancel(true)?;
+                            let mut uri = PWSTR::null();
+                            args.Uri(&mut uri)?;
+                            play(&other, account_id, &take_pwstr(uri));
+                        }
+                        Ok(())
+                    }));
+                core.cast::<ICoreWebView2_18>()?
+                    .add_LaunchingExternalUriScheme(&ext, &mut token)
             })
         };
         if let Err(e) = r {
@@ -491,7 +595,13 @@ fn watch_page(wv: &Webview, app: AppHandle, account_id: i64) -> Result<()> {
                         if let Ok(url) = Url::parse(&take_pwstr(uri))
                             && url.host_str() == Some("www.roblox.com")
                         {
-                            let _ = app.emit("browse://page", BrowsePage { account_id, path: path_of(&url) });
+                            let _ = app.emit(
+                                "browse://page",
+                                BrowsePage {
+                                    account_id,
+                                    path: path_of(&url),
+                                },
+                            );
                         }
                     }
                     Ok(())
@@ -511,7 +621,9 @@ fn watch_page(wv: &Webview, app: AppHandle, account_id: i64) -> Result<()> {
 /// "failed". Log Out (`signs_out`) is answered so always. Only the hosts Roblox spends or signs
 /// out through are watched; a body is read only for POST and PATCH while the lock is on.
 fn guard_purchases(wv: &Webview, app: AppHandle, me: i64) -> Result<()> {
-    use webview2_com::Microsoft::Web::WebView2::Win32::{COREWEBVIEW2_WEB_RESOURCE_CONTEXT_ALL, ICoreWebView2_2};
+    use webview2_com::Microsoft::Web::WebView2::Win32::{
+        COREWEBVIEW2_WEB_RESOURCE_CONTEXT_ALL, ICoreWebView2_2,
+    };
     use webview2_com::{WebResourceRequestedEventHandler, take_pwstr};
     use windows::core::{HSTRING, Interface, PWSTR, w};
     wv.with_webview(move |pv| {
@@ -521,8 +633,13 @@ fn guard_purchases(wv: &Webview, app: AppHandle, me: i64) -> Result<()> {
             pv.controller().CoreWebView2().and_then(|core| {
                 let env = core.cast::<ICoreWebView2_2>()?.Environment()?;
                 // Not www: its pages are refused before they load (`on_navigation`), and it serves most requests.
-                for host in ["economy", "apis", "games", "catalog", "billing", "groups", "auth", "trades"] {
-                    core.AddWebResourceRequestedFilter(&HSTRING::from(format!("https://{host}.roblox.com/*")), COREWEBVIEW2_WEB_RESOURCE_CONTEXT_ALL)?;
+                for host in [
+                    "economy", "apis", "games", "catalog", "billing", "groups", "auth", "trades",
+                ] {
+                    core.AddWebResourceRequestedFilter(
+                        &HSTRING::from(format!("https://{host}.roblox.com/*")),
+                        COREWEBVIEW2_WEB_RESOURCE_CONTEXT_ALL,
+                    )?;
                 }
                 let handler = WebResourceRequestedEventHandler::create(Box::new(move |_, args| {
                     let Some(args) = args else { return Ok(()) };
@@ -531,12 +648,19 @@ fn guard_purchases(wv: &Webview, app: AppHandle, me: i64) -> Result<()> {
                     req.Method(&mut m)?;
                     req.Uri(&mut u)?;
                     let (method, uri) = (take_pwstr(m), take_pwstr(u));
-                    let Ok(url) = Url::parse(&uri) else { return Ok(()) };
+                    let Ok(url) = Url::parse(&uri) else {
+                        return Ok(());
+                    };
                     let refused = if signs_out(&method, &url) {
                         Some(BrowseBlocked::SignOut)
                     } else if LOCK.load(Ordering::Relaxed) {
-                        let posts = method.eq_ignore_ascii_case("POST") || method.eq_ignore_ascii_case("PATCH");
-                        let body = if posts { req.Content().ok().map(|s| read_stream(&s)) } else { None };
+                        let posts = method.eq_ignore_ascii_case("POST")
+                            || method.eq_ignore_ascii_case("PATCH");
+                        let body = if posts {
+                            req.Content().ok().map(|s| read_stream(&s))
+                        } else {
+                            None
+                        };
                         match spend_of(&method, &url, body.as_deref(), me) {
                             Some(Spend::Robux) => Some(BrowseBlocked::Robux),
                             Some(Spend::Money) => Some(BrowseBlocked::Money),
@@ -546,7 +670,12 @@ fn guard_purchases(wv: &Webview, app: AppHandle, me: i64) -> Result<()> {
                         None
                     };
                     if let Some(why) = refused {
-                        let refusal = env.CreateWebResourceResponse(None, 403, w!("Forbidden"), w!("Content-Type: application/json"))?;
+                        let refusal = env.CreateWebResourceResponse(
+                            None,
+                            403,
+                            w!("Forbidden"),
+                            w!("Content-Type: application/json"),
+                        )?;
                         args.SetResponse(&refusal)?;
                         log::info!("Browse: refused {} {} ({why:?})", method, url.path());
                         let _ = app.emit("browse://blocked", why);
@@ -576,7 +705,10 @@ unsafe fn read_stream(s: &windows::Win32::System::Com::IStream) -> Vec<u8> {
     unsafe {
         while out.len() < 64 * 1024 {
             let mut read = 0u32;
-            if s.Read(buf.as_mut_ptr().cast(), buf.len() as u32, Some(&mut read)).is_err() || read == 0 {
+            if s.Read(buf.as_mut_ptr().cast(), buf.len() as u32, Some(&mut read))
+                .is_err()
+                || read == 0
+            {
                 break;
             }
             out.extend_from_slice(&buf[..read as usize]);
@@ -599,7 +731,10 @@ pub struct BrowsePlay {
 /// top). Never logs the link: it carries a launch ticket.
 fn play(app: &AppHandle, account_id: i64, uri: &str) {
     static LAST: Mutex<Option<(std::time::Instant, String)>> = Mutex::new(None);
-    if !uri.get(..14).is_some_and(|p| p.eq_ignore_ascii_case("roblox-player:")) {
+    if !uri
+        .get(..14)
+        .is_some_and(|p| p.eq_ignore_ascii_case("roblox-player:"))
+    {
         return;
     }
     let Some(target) = crate::launcher::uri::target_of_player_uri(uri) else {
@@ -608,7 +743,10 @@ fn play(app: &AppHandle, account_id: i64, uri: &str) {
     };
     let key = format!("{target:?}");
     let mut last = LAST.lock().unwrap_or_else(|e| e.into_inner());
-    if last.as_ref().is_some_and(|(at, k)| *k == key && at.elapsed() < std::time::Duration::from_secs(3)) {
+    if last
+        .as_ref()
+        .is_some_and(|(at, k)| *k == key && at.elapsed() < std::time::Duration::from_secs(3))
+    {
         return;
     }
     *last = Some((std::time::Instant::now(), key));
@@ -622,9 +760,17 @@ fn watch_cookie(app: AppHandle, account_id: i64, user_id: i64, pid: u32) {
         loop {
             std::thread::sleep(std::time::Duration::from_secs(60));
             // Closed, or open again as another account or page since: this watch is over.
-            let still = OPEN.lock().unwrap_or_else(|e| e.into_inner()).as_ref().is_some_and(|o| o.pid == pid && o.account_id == account_id);
-            let Some(wv) = app.get_webview(LABEL).filter(|_| still) else { return };
-            let Ok(Some(now)) = wv.cookies().map(webview::pick_roblosecurity) else { continue };
+            let still = OPEN
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .as_ref()
+                .is_some_and(|o| o.pid == pid && o.account_id == account_id);
+            let Some(wv) = app.get_webview(LABEL).filter(|_| still) else {
+                return;
+            };
+            let Ok(Some(now)) = wv.cookies().map(webview::pick_roblosecurity) else {
+                continue;
+            };
             let s = app.state::<App>();
             let stored = crate::launcher::account_cookie(&s, account_id);
             if !stored.is_ok_and(|c| c.expose() == now.expose()) && !s.vault.is_locked() {
@@ -670,9 +816,17 @@ fn end(app: &AppHandle, o: Open, keep: bool) {
         let _ = wv.hide();
         if keep {
             match wv.cookies().map(webview::pick_roblosecurity) {
-                Ok(Some(c)) => crate::commands::keep_session_cookie(app, o.account_id, o.user_id, c),
-                Ok(None) => log::warn!("Browse closed signed out of Roblox; account {}'s cookie not changed", o.account_id),
-                Err(e) => log::warn!("could not read Browse's cookies for account {}: {e}", o.account_id),
+                Ok(Some(c)) => {
+                    crate::commands::keep_session_cookie(app, o.account_id, o.user_id, c)
+                }
+                Ok(None) => log::warn!(
+                    "Browse closed signed out of Roblox; account {}'s cookie not changed",
+                    o.account_id
+                ),
+                Err(e) => log::warn!(
+                    "could not read Browse's cookies for account {}: {e}",
+                    o.account_id
+                ),
             }
         }
         // Unmarked before the page goes: once it is closed a new one can open on this profile, and
@@ -696,68 +850,286 @@ mod tests {
         for (path, want) in [
             ("home", "https://www.roblox.com/home"),
             ("/charts", "https://www.roblox.com/charts"),
-            ("search/users?keyword=bob", "https://www.roblox.com/search/users?keyword=bob"),
+            (
+                "search/users?keyword=bob",
+                "https://www.roblox.com/search/users?keyword=bob",
+            ),
             ("games/123/x", "https://www.roblox.com/games/123/x"),
         ] {
             assert_eq!(page_url(path).unwrap().as_str(), want, "{path}");
         }
-        for bad in ["https://evil.com/", "develop", "create/x", "http://www.roblox.com/home", "javascript:alert(1)"] {
+        for bad in [
+            "https://evil.com/",
+            "develop",
+            "create/x",
+            "http://www.roblox.com/home",
+            "javascript:alert(1)",
+        ] {
             assert!(page_url(bad).is_err(), "{bad}");
         }
-        assert_eq!(page_url("//evil.com/x").unwrap().host_str(), Some("www.roblox.com"), "a scheme-relative path stays on Roblox");
+        assert_eq!(
+            page_url("//evil.com/x").unwrap().host_str(),
+            Some("www.roblox.com"),
+            "a scheme-relative path stays on Roblox"
+        );
     }
 
     #[test]
     fn the_purchase_lock_stops_spending_not_free_items() {
         const ME: i64 = 42;
-        let spend = |m: &str, url: &str, body: Option<&[u8]>| spend_of(m, &Url::parse(url).unwrap(), body, ME);
+        let spend = |m: &str, url: &str, body: Option<&[u8]>| {
+            spend_of(m, &Url::parse(url).unwrap(), body, ME)
+        };
         let buy = "https://economy.roblox.com/v1/purchases/products/123";
-        assert_eq!(spend("POST", buy, Some(br#"{"expectedCurrency":1,"expectedPrice":0,"expectedSellerId":1}"#)), Some(Spend::Free));
-        assert_eq!(spend("POST", buy, Some(br#"{"expectedCurrency":1,"expectedPrice":75}"#)), Some(Spend::Robux));
-        assert_eq!(spend("POST", buy, None), Some(Spend::Robux), "no body read: spending");
+        assert_eq!(
+            spend(
+                "POST",
+                buy,
+                Some(br#"{"expectedCurrency":1,"expectedPrice":0,"expectedSellerId":1}"#)
+            ),
+            Some(Spend::Free)
+        );
+        assert_eq!(
+            spend(
+                "POST",
+                buy,
+                Some(br#"{"expectedCurrency":1,"expectedPrice":75}"#)
+            ),
+            Some(Spend::Robux)
+        );
+        assert_eq!(
+            spend("POST", buy, None),
+            Some(Spend::Robux),
+            "no body read: spending"
+        );
         assert_eq!(spend("POST", buy, Some(b"not json")), Some(Spend::Robux));
         let item = "https://apis.roblox.com/marketplace-purchasing/v1/items/abc/purchase-item";
-        assert_eq!(spend("POST", item, Some(br#"{"expectedPrice":0}"#)), Some(Spend::Free));
-        assert_eq!(spend("POST", item, Some(br#"{"expectedPrice":20}"#)), Some(Spend::Robux));
-        assert_eq!(spend("POST", "https://economy.roblox.com/v2/user-products/9/purchase", Some(br#"{"expectedPrice":500}"#)), Some(Spend::Robux));
-        assert_eq!(spend("POST", "https://games.roblox.com/v1/games/vip-servers/42", Some(br#"{"name":"x","expectedPrice":100}"#)), Some(Spend::Robux));
+        assert_eq!(
+            spend("POST", item, Some(br#"{"expectedPrice":0}"#)),
+            Some(Spend::Free)
+        );
+        assert_eq!(
+            spend("POST", item, Some(br#"{"expectedPrice":20}"#)),
+            Some(Spend::Robux)
+        );
+        assert_eq!(
+            spend(
+                "POST",
+                "https://economy.roblox.com/v2/user-products/9/purchase",
+                Some(br#"{"expectedPrice":500}"#)
+            ),
+            Some(Spend::Robux)
+        );
+        assert_eq!(
+            spend(
+                "POST",
+                "https://games.roblox.com/v1/games/vip-servers/42",
+                Some(br#"{"name":"x","expectedPrice":100}"#)
+            ),
+            Some(Spend::Robux)
+        );
         let sub = "https://games.roblox.com/v1/vip-servers/7/subscription";
-        assert_eq!(spend("PATCH", sub, Some(br#"{"active":true,"price":100}"#)), Some(Spend::Robux));
-        assert_eq!(spend("PATCH", sub, Some(br#"{"active":false}"#)), Some(Spend::Free));
+        assert_eq!(
+            spend("PATCH", sub, Some(br#"{"active":true,"price":100}"#)),
+            Some(Spend::Robux)
+        );
+        assert_eq!(
+            spend("PATCH", sub, Some(br#"{"active":false}"#)),
+            Some(Spend::Free)
+        );
         // Robux spent without a buy call: a community, a new username, a payout, a trade.
-        assert_eq!(spend("POST", "https://groups.roblox.com/v1/groups/create", Some(b"--multipart--")), Some(Spend::Robux));
-        assert_eq!(spend("PATCH", "https://groups.roblox.com/v1/groups/9/name", Some(br#"{"name":"x"}"#)), Some(Spend::Robux), "a rename costs 100");
-        assert_eq!(spend("PATCH", "https://groups.roblox.com/v1/groups/9/description", Some(b"{}")), None);
-        assert_eq!(spend("POST", "https://groups.roblox.com/v1/groups/9/payouts", None), Some(Spend::Robux));
-        assert_eq!(spend("POST", "https://groups.roblox.com/v1/groups/9/payouts/recurring", None), Some(Spend::Robux));
-        assert_eq!(spend("POST", "https://auth.roblox.com/v2/username", Some(br#"{"username":"x","password":"y"}"#)), Some(Spend::Robux));
-        assert_eq!(spend("POST", "https://auth.roblox.com/v1/usernames/validate", Some(b"{}")), None);
-        assert_eq!(spend("POST", "https://trades.roblox.com/v1/trades/5/accept", None), Some(Spend::Robux), "what an accept gives isn't in the call");
-        let v1 = |mine: i64, theirs: i64| format!(r#"{{"offers":[{{"userId":7,"userAssetIds":[],"robux":{theirs}}},{{"userId":{ME},"userAssetIds":[1],"robux":{mine}}}]}}"#);
-        assert_eq!(spend("POST", "https://trades.roblox.com/v1/trades/send", Some(v1(50, 0).as_bytes())), Some(Spend::Robux));
-        assert_eq!(spend("POST", "https://trades.roblox.com/v1/trades/send", Some(v1(0, 50).as_bytes())), None, "only Robux this account gives");
-        assert_eq!(spend("POST", "https://trades.roblox.com/v1/trades/5/counter", Some(v1(10, 0).as_bytes())), Some(Spend::Robux));
-        assert_eq!(spend("POST", "https://trades.roblox.com/v2/trades/send", Some(br#"{"senderOffer":{"robux":0},"recipientOffer":{"robux":99}}"#)), None);
-        assert_eq!(spend("POST", "https://trades.roblox.com/v2/trades/send", Some(br#"{"senderOffer":{"robux":5}}"#)), Some(Spend::Robux));
-        assert_eq!(spend("POST", "https://trades.roblox.com/v1/trades/send", Some(b"?")), Some(Spend::Robux), "unreadable: spending");
-        for page in ["https://www.roblox.com/upgrades/robux", "https://www.roblox.com/premium/membership", "https://billing.roblox.com/v1/x", "https://apis.roblox.com/payments-gateway/v1/y"] {
+        assert_eq!(
+            spend(
+                "POST",
+                "https://groups.roblox.com/v1/groups/create",
+                Some(b"--multipart--")
+            ),
+            Some(Spend::Robux)
+        );
+        assert_eq!(
+            spend(
+                "PATCH",
+                "https://groups.roblox.com/v1/groups/9/name",
+                Some(br#"{"name":"x"}"#)
+            ),
+            Some(Spend::Robux),
+            "a rename costs 100"
+        );
+        assert_eq!(
+            spend(
+                "PATCH",
+                "https://groups.roblox.com/v1/groups/9/description",
+                Some(b"{}")
+            ),
+            None
+        );
+        assert_eq!(
+            spend(
+                "POST",
+                "https://groups.roblox.com/v1/groups/9/payouts",
+                None
+            ),
+            Some(Spend::Robux)
+        );
+        assert_eq!(
+            spend(
+                "POST",
+                "https://groups.roblox.com/v1/groups/9/payouts/recurring",
+                None
+            ),
+            Some(Spend::Robux)
+        );
+        assert_eq!(
+            spend(
+                "POST",
+                "https://auth.roblox.com/v2/username",
+                Some(br#"{"username":"x","password":"y"}"#)
+            ),
+            Some(Spend::Robux)
+        );
+        assert_eq!(
+            spend(
+                "POST",
+                "https://auth.roblox.com/v1/usernames/validate",
+                Some(b"{}")
+            ),
+            None
+        );
+        assert_eq!(
+            spend("POST", "https://trades.roblox.com/v1/trades/5/accept", None),
+            Some(Spend::Robux),
+            "what an accept gives isn't in the call"
+        );
+        let v1 = |mine: i64, theirs: i64| {
+            format!(
+                r#"{{"offers":[{{"userId":7,"userAssetIds":[],"robux":{theirs}}},{{"userId":{ME},"userAssetIds":[1],"robux":{mine}}}]}}"#
+            )
+        };
+        assert_eq!(
+            spend(
+                "POST",
+                "https://trades.roblox.com/v1/trades/send",
+                Some(v1(50, 0).as_bytes())
+            ),
+            Some(Spend::Robux)
+        );
+        assert_eq!(
+            spend(
+                "POST",
+                "https://trades.roblox.com/v1/trades/send",
+                Some(v1(0, 50).as_bytes())
+            ),
+            None,
+            "only Robux this account gives"
+        );
+        assert_eq!(
+            spend(
+                "POST",
+                "https://trades.roblox.com/v1/trades/5/counter",
+                Some(v1(10, 0).as_bytes())
+            ),
+            Some(Spend::Robux)
+        );
+        assert_eq!(
+            spend(
+                "POST",
+                "https://trades.roblox.com/v2/trades/send",
+                Some(br#"{"senderOffer":{"robux":0},"recipientOffer":{"robux":99}}"#)
+            ),
+            None
+        );
+        assert_eq!(
+            spend(
+                "POST",
+                "https://trades.roblox.com/v2/trades/send",
+                Some(br#"{"senderOffer":{"robux":5}}"#)
+            ),
+            Some(Spend::Robux)
+        );
+        assert_eq!(
+            spend(
+                "POST",
+                "https://trades.roblox.com/v1/trades/send",
+                Some(b"?")
+            ),
+            Some(Spend::Robux),
+            "unreadable: spending"
+        );
+        for page in [
+            "https://www.roblox.com/upgrades/robux",
+            "https://www.roblox.com/premium/membership",
+            "https://billing.roblox.com/v1/x",
+            "https://apis.roblox.com/payments-gateway/v1/y",
+        ] {
             assert_eq!(spend("GET", page, None), Some(Spend::Money), "{page}");
         }
-        assert_eq!(spend("POST", "https://billing.roblox.com/v1/gamecard/redeem", Some(br#"{"pinCode":"1"}"#)), None, "a gift card adds, spends nothing");
-        assert_eq!(spend("POST", "https://billing.roblox.com/v1/promocodes/redeem", Some(b"{}")), None);
-        assert_eq!(spend("POST", "https://billing.roblox.com/v1/credit/redeem-robux", Some(b"{}")), Some(Spend::Money), "credit into Robux spends it");
+        assert_eq!(
+            spend(
+                "POST",
+                "https://billing.roblox.com/v1/gamecard/redeem",
+                Some(br#"{"pinCode":"1"}"#)
+            ),
+            None,
+            "a gift card adds, spends nothing"
+        );
+        assert_eq!(
+            spend(
+                "POST",
+                "https://billing.roblox.com/v1/promocodes/redeem",
+                Some(b"{}")
+            ),
+            None
+        );
+        assert_eq!(
+            spend(
+                "POST",
+                "https://billing.roblox.com/v1/credit/redeem-robux",
+                Some(b"{}")
+            ),
+            Some(Spend::Money),
+            "credit into Robux spends it"
+        );
         assert_eq!(spend("GET", buy, None), None, "only buying spends");
-        assert_eq!(spend("POST", "https://friends.roblox.com/v1/users/1/request-friendship", None), None);
-        assert_eq!(spend("POST", "https://apis.roblox.com/universes/v1/x", Some(b"{}")), None);
+        assert_eq!(
+            spend(
+                "POST",
+                "https://friends.roblox.com/v1/users/1/request-friendship",
+                None
+            ),
+            None
+        );
+        assert_eq!(
+            spend(
+                "POST",
+                "https://apis.roblox.com/universes/v1/x",
+                Some(b"{}")
+            ),
+            None
+        );
         let u = |s: &str| Url::parse(s).unwrap();
-        assert!(!money_page(&u("https://www.roblox.com/premiumfeatures")) && !money_page(&u("https://www.roblox.com/catalog")));
-        assert!(signs_out("POST", &u("https://auth.roblox.com/v2/logout")) && signs_out("post", &u("https://auth.roblox.com/v1/logout")));
-        assert!(!signs_out("GET", &u("https://auth.roblox.com/v2/logout")) && !signs_out("POST", &u("https://auth.roblox.com/v2/login")));
+        assert!(
+            !money_page(&u("https://www.roblox.com/premiumfeatures"))
+                && !money_page(&u("https://www.roblox.com/catalog"))
+        );
+        assert!(
+            signs_out("POST", &u("https://auth.roblox.com/v2/logout"))
+                && signs_out("post", &u("https://auth.roblox.com/v1/logout"))
+        );
+        assert!(
+            !signs_out("GET", &u("https://auth.roblox.com/v2/logout"))
+                && !signs_out("POST", &u("https://auth.roblox.com/v2/login"))
+        );
     }
 
     #[test]
     fn path_of_keeps_the_query() {
-        assert_eq!(path_of(&Url::parse("https://www.roblox.com/discover?Keyword=obby").unwrap()), "discover?Keyword=obby");
-        assert_eq!(path_of(&Url::parse("https://www.roblox.com/home").unwrap()), "home");
+        assert_eq!(
+            path_of(&Url::parse("https://www.roblox.com/discover?Keyword=obby").unwrap()),
+            "discover?Keyword=obby"
+        );
+        assert_eq!(
+            path_of(&Url::parse("https://www.roblox.com/home").unwrap()),
+            "home"
+        );
     }
 }

@@ -12,7 +12,12 @@ use serde_json::Value;
 use ts_rs::TS;
 
 /// WEAO's domains, main first.
-const HOSTS: [&str; 4] = ["weao.xyz", "whatexpsare.online", "weao.gg", "whatexploitsaretra.sh"];
+const HOSTS: [&str; 4] = [
+    "weao.xyz",
+    "whatexpsare.online",
+    "weao.gg",
+    "whatexploitsaretra.sh",
+];
 const USER_AGENT: &str = "WEAO-3PService";
 const CACHE: Duration = Duration::from_secs(60);
 
@@ -92,7 +97,11 @@ static EXECUTORS: Mutex<Option<(Instant, Vec<Executor>)>> = Mutex::new(None);
 const EXECUTORS_FOR: Duration = Duration::from_secs(5 * 60);
 
 fn text(v: &Value, key: &str) -> Option<String> {
-    v[key].as_str().map(str::trim).filter(|s| !s.is_empty()).map(str::to_owned)
+    v[key]
+        .as_str()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_owned)
 }
 
 /// The listed, Windows executors from WEAO's answer (pure), in WEAO's order.
@@ -110,7 +119,9 @@ fn parse_executors(v: &Value) -> Vec<Executor> {
                 updated: e["updateStatus"].as_bool().unwrap_or(false),
                 detected: e["detected"].as_bool().unwrap_or(false),
                 free: e["free"].as_bool().unwrap_or(false),
-                kind: text(e, "extype").or_else(|| text(e, "type")).unwrap_or_default(),
+                kind: text(e, "extype")
+                    .or_else(|| text(e, "type"))
+                    .unwrap_or_default(),
                 platform: text(e, "platform").unwrap_or_default(),
                 sunc: e["suncPercentage"].as_f64(),
                 unc: e["uncPercentage"].as_f64(),
@@ -139,13 +150,20 @@ fn client() -> Result<reqwest::Client, String> {
 
 /// WEAO's executors (cached 5 min unless `refresh`); Err with why when none could be read.
 pub async fn executors(refresh: bool) -> Result<Vec<Executor>, String> {
-    if !refresh && let Some((at, list)) = EXECUTORS.lock().unwrap_or_else(|e| e.into_inner()).clone() && at.elapsed() < EXECUTORS_FOR {
+    if !refresh
+        && let Some((at, list)) = EXECUTORS.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        && at.elapsed() < EXECUTORS_FOR
+    {
         return Ok(list);
     }
     let http = client()?;
     let mut last = String::from("WEAO didn't answer");
     for host in HOSTS {
-        match http.get(format!("https://{host}/api/status/exploits")).send().await {
+        match http
+            .get(format!("https://{host}/api/status/exploits"))
+            .send()
+            .await
+        {
             Ok(r) if r.status().as_u16() == 429 => last = format!("WEAO is rate limiting ({host})"),
             Ok(r) if r.status().is_success() => match r.json::<Value>().await {
                 Ok(v) => {
@@ -154,10 +172,13 @@ pub async fn executors(refresh: bool) -> Result<Vec<Executor>, String> {
                         last = format!("WEAO listed no executors ({host})");
                         continue;
                     }
-                    *EXECUTORS.lock().unwrap_or_else(|e| e.into_inner()) = Some((Instant::now(), list.clone()));
+                    *EXECUTORS.lock().unwrap_or_else(|e| e.into_inner()) =
+                        Some((Instant::now(), list.clone()));
                     return Ok(list);
                 }
-                Err(e) => last = format!("WEAO's answer was unreadable ({host}): {}", e.without_url()),
+                Err(e) => {
+                    last = format!("WEAO's answer was unreadable ({host}): {}", e.without_url())
+                }
             },
             Ok(r) => last = format!("WEAO answered HTTP {} ({host})", r.status().as_u16()),
             Err(e) => last = format!("WEAO unreachable ({host}): {}", e.without_url()),
@@ -173,24 +194,44 @@ pub async fn executors(refresh: bool) -> Result<Vec<Executor>, String> {
 
 /// The Roblox build `name` (WEAO's title, any case) supports, when WEAO lists it with one.
 pub async fn executor_rbx_version(name: &str) -> Option<String> {
-    let list = executors(false).await.inspect_err(|e| log::info!("executor {name}: {e}")).ok()?;
-    list.into_iter().find(|e| e.title.eq_ignore_ascii_case(name)).and_then(|e| e.rbx_version)
+    let list = executors(false)
+        .await
+        .inspect_err(|e| log::info!("executor {name}: {e}"))
+        .ok()?;
+    list.into_iter()
+        .find(|e| e.title.eq_ignore_ascii_case(name))
+        .and_then(|e| e.rbx_version)
 }
 
 #[tauri::command]
 pub async fn executors_list(refresh: bool) -> crate::error::Result<Vec<Executor>> {
-    executors(refresh).await.map_err(crate::error::AppError::Network)
+    executors(refresh)
+        .await
+        .map_err(crate::error::AppError::Network)
 }
 
 fn platform(v: &Value, key: &str) -> Option<PlatformVersion> {
-    let version = v[key].as_str().map(str::trim).filter(|s| !s.is_empty())?.to_owned();
-    let date = v[format!("{key}Date")].as_str().map(str::trim).filter(|s| !s.is_empty()).map(str::to_owned);
+    let version = v[key]
+        .as_str()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())?
+        .to_owned();
+    let date = v[format!("{key}Date")]
+        .as_str()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_owned);
     Some(PlatformVersion { version, date })
 }
 
 /// One list from WEAO's answer (pure).
 fn parse(v: &Value) -> Option<VersionSet> {
-    let set = VersionSet { windows: platform(v, "Windows"), mac: platform(v, "Mac"), android: platform(v, "Android"), ios: platform(v, "iOS") };
+    let set = VersionSet {
+        windows: platform(v, "Windows"),
+        mac: platform(v, "Mac"),
+        android: platform(v, "Android"),
+        ios: platform(v, "iOS"),
+    };
     (set != VersionSet::default()).then_some(set)
 }
 
@@ -202,7 +243,9 @@ async fn fetch(http: &reqwest::Client, route: &str) -> Result<VersionSet, String
             Ok(r) if r.status().as_u16() == 429 => last = format!("WEAO is rate limiting ({host})"),
             Ok(r) if r.status().is_success() => match r.json::<Value>().await {
                 Ok(v) => return parse(&v).ok_or_else(|| format!("WEAO's {route} list was empty")),
-                Err(e) => last = format!("WEAO's answer was unreadable ({host}): {}", e.without_url()),
+                Err(e) => {
+                    last = format!("WEAO's answer was unreadable ({host}): {}", e.without_url())
+                }
             },
             Ok(r) => last = format!("WEAO answered HTTP {} ({host})", r.status().as_u16()),
             Err(e) => last = format!("WEAO unreachable ({host}): {}", e.without_url()),
@@ -213,11 +256,21 @@ async fn fetch(http: &reqwest::Client, route: &str) -> Result<VersionSet, String
 
 /// The three lists (cached a minute unless `refresh`), with the build installed here.
 pub async fn versions(refresh: bool) -> RobloxVersions {
-    if !refresh && let Some((at, v)) = CACHED.lock().unwrap_or_else(|e| e.into_inner()).clone() && at.elapsed() < CACHE {
+    if !refresh
+        && let Some((at, v)) = CACHED.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        && at.elapsed() < CACHE
+    {
         return v;
     }
-    let installed = tauri::async_runtime::spawn_blocking(installed).await.ok().flatten();
-    let mut out = RobloxVersions { installed, checked_at: crate::commands::now_ms(), ..Default::default() };
+    let installed = tauri::async_runtime::spawn_blocking(installed)
+        .await
+        .ok()
+        .flatten();
+    let mut out = RobloxVersions {
+        installed,
+        checked_at: crate::commands::now_ms(),
+        ..Default::default()
+    };
     let http = match client() {
         Ok(h) => h,
         Err(e) => {
@@ -225,9 +278,17 @@ pub async fn versions(refresh: bool) -> RobloxVersions {
             return out;
         }
     };
-    let (current, future, past) = tokio::join!(fetch(&http, "current"), fetch(&http, "future"), fetch(&http, "past"));
+    let (current, future, past) = tokio::join!(
+        fetch(&http, "current"),
+        fetch(&http, "future"),
+        fetch(&http, "past")
+    );
     let mut errors = Vec::new();
-    for (slot, got) in [(&mut out.current, current), (&mut out.future, future), (&mut out.past, past)] {
+    for (slot, got) in [
+        (&mut out.current, current),
+        (&mut out.future, future),
+        (&mut out.past, past),
+    ] {
         match got {
             Ok(set) => *slot = Some(set),
             Err(e) => errors.push(e),
@@ -236,7 +297,10 @@ pub async fn versions(refresh: bool) -> RobloxVersions {
     errors.dedup();
     out.error = (!errors.is_empty()).then(|| errors.join("; "));
     if out.error.is_some() {
-        log::info!("roblox versions: {}", out.error.as_deref().unwrap_or_default());
+        log::info!(
+            "roblox versions: {}",
+            out.error.as_deref().unwrap_or_default()
+        );
     }
     *CACHED.lock().unwrap_or_else(|e| e.into_inner()) = Some((Instant::now(), out.clone()));
     out
@@ -271,9 +335,18 @@ mod tests {
             "iOS": "2.690.721", "iOSDate": "9/12/2025, 4:59:14 PM UTC"
         });
         let set = parse(&current).unwrap();
-        assert_eq!(set.windows, Some(PlatformVersion { version: "version-31fc142272764f02".into(), date: Some("9/17/2025, 8:57:32 PM UTC".into()) }));
+        assert_eq!(
+            set.windows,
+            Some(PlatformVersion {
+                version: "version-31fc142272764f02".into(),
+                date: Some("9/17/2025, 8:57:32 PM UTC".into())
+            })
+        );
         assert_eq!(set.ios.unwrap().version, "2.690.721");
-        let future = parse(&json!({ "Windows": "version-2a06298afe3947ab", "Mac": "version-774691dc93a947ef" })).unwrap();
+        let future = parse(
+            &json!({ "Windows": "version-2a06298afe3947ab", "Mac": "version-774691dc93a947ef" }),
+        )
+        .unwrap();
         assert_eq!((future.android, future.windows.unwrap().date), (None, None));
         assert_eq!(parse(&json!({ "error": "rate limited" })), None);
     }
@@ -289,9 +362,23 @@ mod tests {
             { "title": "Xeno", "free": true, "rbxversion": "", "platform": "Windows", "extype": "wexecutor", "keysystem": true }
         ]);
         let got = parse_executors(&list);
-        assert_eq!(got.iter().map(|e| e.title.as_str()).collect::<Vec<_>>(), ["Potassium", "Xeno"], "Windows only, hidden ones left out");
-        assert_eq!(got[0].rbx_version.as_deref(), Some("version-2a06298afe3947ab"));
-        assert_eq!((got[0].sunc, got[0].multi_inject, got[0].updated), (Some(100.0), Some(true), true));
-        assert_eq!((got[1].rbx_version.as_deref(), got[1].keysystem), (None, Some(true)), "no Roblox version without one");
+        assert_eq!(
+            got.iter().map(|e| e.title.as_str()).collect::<Vec<_>>(),
+            ["Potassium", "Xeno"],
+            "Windows only, hidden ones left out"
+        );
+        assert_eq!(
+            got[0].rbx_version.as_deref(),
+            Some("version-2a06298afe3947ab")
+        );
+        assert_eq!(
+            (got[0].sunc, got[0].multi_inject, got[0].updated),
+            (Some(100.0), Some(true), true)
+        );
+        assert_eq!(
+            (got[1].rbx_version.as_deref(), got[1].keysystem),
+            (None, Some(true)),
+            "no Roblox version without one"
+        );
     }
 }

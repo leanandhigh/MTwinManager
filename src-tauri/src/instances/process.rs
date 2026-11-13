@@ -7,17 +7,20 @@
 use std::thread::sleep;
 use std::time::{Duration, Instant};
 
-use windows::Win32::Foundation::{E_ACCESSDENIED, FILETIME, HANDLE, HWND, LPARAM, WAIT_OBJECT_0, WAIT_TIMEOUT, WPARAM};
+use windows::Win32::Foundation::{
+    E_ACCESSDENIED, FILETIME, HANDLE, HWND, LPARAM, WAIT_OBJECT_0, WAIT_TIMEOUT, WPARAM,
+};
 use windows::Win32::System::Diagnostics::ToolHelp::{
     CreateToolhelp32Snapshot, PROCESSENTRY32W, Process32FirstW, Process32NextW, TH32CS_SNAPPROCESS,
 };
 use windows::Win32::System::Threading::{
-    GetProcessTimes, OpenProcess, PROCESS_ACCESS_RIGHTS, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION,
-    PROCESS_SYNCHRONIZE, PROCESS_TERMINATE, QueryFullProcessImageNameW, TerminateProcess, WaitForSingleObject,
+    GetProcessTimes, OpenProcess, PROCESS_ACCESS_RIGHTS, PROCESS_NAME_WIN32,
+    PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_SYNCHRONIZE, PROCESS_TERMINATE,
+    QueryFullProcessImageNameW, TerminateProcess, WaitForSingleObject,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    EnumWindows, GW_OWNER, GetForegroundWindow, GetWindow, GetWindowThreadProcessId, IsHungAppWindow, IsIconic, IsWindowVisible,
-    PostMessageW, WM_CLOSE,
+    EnumWindows, GW_OWNER, GetForegroundWindow, GetWindow, GetWindowThreadProcessId,
+    IsHungAppWindow, IsIconic, IsWindowVisible, PostMessageW, WM_CLOSE,
 };
 use windows::core::{BOOL, Owned};
 
@@ -44,14 +47,32 @@ pub fn command_line(pid: u32) -> Option<String> {
     let h = open(pid, PROCESS_QUERY_LIMITED_INFORMATION)?;
     let mut len = 0u32;
     // SAFETY: a size query (no buffer); `len` is a local.
-    let _ = unsafe { NtQueryInformationProcess(*h, PROCESS_COMMAND_LINE_INFORMATION, std::ptr::null_mut(), 0, &mut len) };
+    let _ = unsafe {
+        NtQueryInformationProcess(
+            *h,
+            PROCESS_COMMAND_LINE_INFORMATION,
+            std::ptr::null_mut(),
+            0,
+            &mut len,
+        )
+    };
     if len < size_of::<UNICODE_STRING>() as u32 || len > 1 << 20 {
         return None;
     }
     // u64s: aligned for the UNICODE_STRING at its start.
     let mut buf = vec![0u64; (len as usize).div_ceil(8)];
     // SAFETY: `buf` holds `len` bytes; the call writes a UNICODE_STRING whose text lies in `buf`.
-    unsafe { NtQueryInformationProcess(*h, PROCESS_COMMAND_LINE_INFORMATION, buf.as_mut_ptr().cast(), len, &mut len) }.ok().ok()?;
+    unsafe {
+        NtQueryInformationProcess(
+            *h,
+            PROCESS_COMMAND_LINE_INFORMATION,
+            buf.as_mut_ptr().cast(),
+            len,
+            &mut len,
+        )
+    }
+    .ok()
+    .ok()?;
     // SAFETY: as above; Length is in bytes, and the text is inside `buf`, which lives past this read.
     let text = unsafe {
         let us = &*(buf.as_ptr() as *const UNICODE_STRING);
@@ -66,7 +87,9 @@ pub fn command_line(pid: u32) -> Option<String> {
 /// Whether a client's command line is the launch with this browser tracker id (`uri::player_uri`).
 pub fn is_launch(command_line: &str, btid: i64) -> bool {
     let key = format!("browsertrackerid:{btid}");
-    command_line.match_indices(&key).any(|(i, _)| !command_line[i + key.len()..].starts_with(|c: char| c.is_ascii_digit()))
+    command_line
+        .match_indices(&key)
+        .any(|(i, _)| !command_line[i + key.len()..].starts_with(|c: char| c.is_ascii_digit()))
 }
 
 /// Running `RobloxPlayerBeta.exe` processes.
@@ -96,13 +119,22 @@ fn named(exe: &str) -> Vec<ProcInfo> {
             }
         };
         let snap = Owned::new(snap);
-        let mut e = PROCESSENTRY32W { dwSize: size_of::<PROCESSENTRY32W>() as u32, ..Default::default() };
+        let mut e = PROCESSENTRY32W {
+            dwSize: size_of::<PROCESSENTRY32W>() as u32,
+            ..Default::default()
+        };
         let mut more = Process32FirstW(*snap, &mut e).is_ok();
         while more {
             if is_named(&e.szExeFile, exe) {
                 match start_time(e.th32ProcessID) {
-                    Some(start_time) => out.push(ProcInfo { pid: e.th32ProcessID, start_time }),
-                    None => log::debug!("{exe} process {} can't be opened; left out", e.th32ProcessID),
+                    Some(start_time) => out.push(ProcInfo {
+                        pid: e.th32ProcessID,
+                        start_time,
+                    }),
+                    None => log::debug!(
+                        "{exe} process {} can't be opened; left out",
+                        e.th32ProcessID
+                    ),
                 }
             }
             more = Process32NextW(*snap, &mut e).is_ok();
@@ -113,7 +145,10 @@ fn named(exe: &str) -> Vec<ProcInfo> {
 
 /// Start time of a running process, `None` if it is gone or can't be read (`unreadable_client`).
 pub fn start_time(pid: u32) -> Option<u64> {
-    started(*open(pid, PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_SYNCHRONIZE)?)
+    started(*open(
+        pid,
+        PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_SYNCHRONIZE,
+    )?)
 }
 
 /// The executable a running process was started from; None if it is gone or can't be read.
@@ -122,7 +157,15 @@ pub fn exe_path(pid: u32) -> Option<std::path::PathBuf> {
     let mut buf = [0u16; 1024];
     let mut len = buf.len() as u32;
     // SAFETY: `h` is a live handle with PROCESS_QUERY_LIMITED_INFORMATION; `buf` holds `len` u16s.
-    unsafe { QueryFullProcessImageNameW(*h, PROCESS_NAME_WIN32, windows::core::PWSTR(buf.as_mut_ptr()), &mut len) }.ok()?;
+    unsafe {
+        QueryFullProcessImageNameW(
+            *h,
+            PROCESS_NAME_WIN32,
+            windows::core::PWSTR(buf.as_mut_ptr()),
+            &mut len,
+        )
+    }
+    .ok()?;
     Some(String::from_utf16_lossy(&buf[..len as usize]).into())
 }
 
@@ -130,7 +173,9 @@ pub fn exe_path(pid: u32) -> Option<std::path::PathBuf> {
 /// it (no handle needed) and it isn't signalled. Anything else with its pid doesn't count.
 pub fn unreadable_client(pid: u32) -> bool {
     // SAFETY: `h` is a live handle with PROCESS_SYNCHRONIZE.
-    if open(pid, PROCESS_SYNCHRONIZE).is_some_and(|h| unsafe { WaitForSingleObject(*h, 0) } == WAIT_OBJECT_0) {
+    if open(pid, PROCESS_SYNCHRONIZE)
+        .is_some_and(|h| unsafe { WaitForSingleObject(*h, 0) } == WAIT_OBJECT_0)
+    {
         return false;
     }
     exe_name(pid).is_some_and(|n| n.eq_ignore_ascii_case(CLIENT_EXE))
@@ -141,11 +186,18 @@ pub fn exe_name(pid: u32) -> Option<String> {
     // SAFETY: as in `named`.
     unsafe {
         let snap = Owned::new(CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0).ok()?);
-        let mut e = PROCESSENTRY32W { dwSize: size_of::<PROCESSENTRY32W>() as u32, ..Default::default() };
+        let mut e = PROCESSENTRY32W {
+            dwSize: size_of::<PROCESSENTRY32W>() as u32,
+            ..Default::default()
+        };
         let mut more = Process32FirstW(*snap, &mut e).is_ok();
         while more {
             if e.th32ProcessID == pid {
-                let len = e.szExeFile.iter().position(|&c| c == 0).unwrap_or(e.szExeFile.len());
+                let len = e
+                    .szExeFile
+                    .iter()
+                    .position(|&c| c == 0)
+                    .unwrap_or(e.szExeFile.len());
                 return Some(String::from_utf16_lossy(&e.szExeFile[..len]));
             }
             more = Process32NextW(*snap, &mut e).is_ok();
@@ -163,10 +215,16 @@ pub fn close(pid: u32, expected: Option<u64>, force: bool, grace: Duration) -> R
     let seen = start_time(pid);
     if seen.is_none() && unreadable_client(pid) {
         post_close(pid);
-        return Err(AppError::Internal(tr!("Could not close Roblox (process {pid}): {why}", pid = pid, why = tr!("access denied"))));
+        return Err(AppError::Internal(tr!(
+            "Could not close Roblox (process {pid}): {why}",
+            pid = pid,
+            why = tr!("access denied")
+        )));
     }
     // Pid + start time, so a pid already reused, or reused while we wait, is never touched.
-    let Some(t0) = seen.filter(|t| expected.is_none_or(|e| e == *t)) else { return Ok(()) };
+    let Some(t0) = seen.filter(|t| expected.is_none_or(|e| e == *t)) else {
+        return Ok(());
+    };
     let alive = || start_time(pid) == Some(t0);
     if !force {
         let deadline = Instant::now() + grace;
@@ -186,9 +244,22 @@ pub fn close(pid: u32, expected: Option<u64>, force: bool, grace: Duration) -> R
 }
 
 fn terminate(pid: u32, t0: u64) -> Result<()> {
-    let failed = |e: String| AppError::Internal(tr!("Could not close Roblox (process {pid}): {why}", pid = pid, why = e));
-    let Some(h) = open(pid, PROCESS_TERMINATE | PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_SYNCHRONIZE) else {
-        return if start_time(pid) == Some(t0) { Err(failed(tr!("access denied"))) } else { Ok(()) };
+    let failed = |e: String| {
+        AppError::Internal(tr!(
+            "Could not close Roblox (process {pid}): {why}",
+            pid = pid,
+            why = e
+        ))
+    };
+    let Some(h) = open(
+        pid,
+        PROCESS_TERMINATE | PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_SYNCHRONIZE,
+    ) else {
+        return if start_time(pid) == Some(t0) {
+            Err(failed(tr!("access denied")))
+        } else {
+            Ok(())
+        };
     };
     if started(*h) != Some(t0) {
         return Ok(());
@@ -307,7 +378,9 @@ pub(super) fn open(pid: u32, rights: PROCESS_ACCESS_RIGHTS) -> Option<Owned<HAND
             // client) is said once.
             if e.code() == E_ACCESSDENIED {
                 static ONCE: std::sync::Once = std::sync::Once::new();
-                ONCE.call_once(|| log::warn!("process {pid}: access denied (is Roblox running as administrator?)"));
+                ONCE.call_once(|| {
+                    log::warn!("process {pid}: access denied (is Roblox running as administrator?)")
+                });
             }
             log::debug!("could not open process {pid}: {e}");
             None
@@ -317,8 +390,12 @@ pub(super) fn open(pid: u32, rights: PROCESS_ACCESS_RIGHTS) -> Option<Owned<HAND
 
 /// Start of the process behind `h` in Unix seconds, `None` once it has exited (signalled).
 pub(super) fn started(h: HANDLE) -> Option<u64> {
-    let (mut created, mut exited, mut kernel, mut user) =
-        (FILETIME::default(), FILETIME::default(), FILETIME::default(), FILETIME::default());
+    let (mut created, mut exited, mut kernel, mut user) = (
+        FILETIME::default(),
+        FILETIME::default(),
+        FILETIME::default(),
+        FILETIME::default(),
+    );
     // SAFETY: `h` is a live handle with PROCESS_QUERY_LIMITED_INFORMATION | SYNCHRONIZE; the out
     // pointers are locals.
     unsafe {
@@ -358,14 +435,19 @@ mod tests {
         assert!(is_launch(line, 123));
         assert!(!is_launch(line, 12), "a prefix of another id");
         assert!(!is_launch(line, 1234));
-        assert!(is_launch("roblox-player:1+browsertrackerid:77", 77), "at the end");
+        assert!(
+            is_launch("roblox-player:1+browsertrackerid:77", 77),
+            "at the end"
+        );
     }
 
     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
     /// A windowless child from System32 (never Roblox).
     fn spawn(exe: &str, args: &[&str]) -> Child {
-        let root = std::env::var_os("SystemRoot").map(PathBuf::from).unwrap_or_else(|| r"C:\Windows".into());
+        let root = std::env::var_os("SystemRoot")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| r"C:\Windows".into());
         Command::new(root.join("System32").join(exe))
             .args(args)
             .stdin(Stdio::null())
@@ -382,7 +464,10 @@ mod tests {
 
     #[test]
     fn start_time_of_live_and_dead_processes() {
-        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
         let own = start_time(std::process::id()).unwrap();
         assert!(own <= now && own > now - 3600, "{own} vs {now}");
         assert_eq!(start_time(u32::MAX), None);
@@ -409,7 +494,10 @@ mod tests {
         let pid = child.id();
         let other = start_time(pid).map(|t| t - 10);
         close(pid, other, true, Duration::from_secs(5)).unwrap();
-        assert!(child.try_wait().unwrap().is_none(), "a reused pid must not be closed");
+        assert!(
+            child.try_wait().unwrap().is_none(),
+            "a reused pid must not be closed"
+        );
         close(pid, None, true, Duration::from_secs(5)).unwrap();
         child.wait().unwrap();
     }
@@ -441,7 +529,10 @@ mod tests {
         let utf16 = |s: &str| s.encode_utf16().collect::<Vec<_>>();
         assert!(is_named(&utf16("robloxplayerbeta.EXE\0junk"), CLIENT_EXE));
         assert!(!is_named(&utf16("RobloxPlayerBeta.exe.bak"), CLIENT_EXE));
-        assert!(is_named(&utf16("RobloxPlayerInstaller.exe\0"), INSTALLER_EXE));
+        assert!(is_named(
+            &utf16("RobloxPlayerInstaller.exe\0"),
+            INSTALLER_EXE
+        ));
         let _ = installer_running();
     }
 }

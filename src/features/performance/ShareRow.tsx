@@ -1,3 +1,4 @@
+import { LEGACY } from "../../legacy";
 import { useRef, useState, type FormEvent } from "react";
 import { open as openFile, save as saveFile } from "@tauri-apps/plugin-dialog";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
@@ -16,8 +17,6 @@ import { SettingSection } from "../settings/kit/SettingSection";
 const profileFilter = () => [{ name: t("performance.profileFilter"), extensions: ["json"] }];
 /** A share code: this prefix, then the profile's JSON as base64url. */
 const CODE = "MTWIN-PERF:";
-/** The prefix codes had before the app was renamed: still read. */
-const OLD_CODE = "RoALT-PERF:";
 
 function toCode(json: string) {
   const bytes = new TextEncoder().encode(json);
@@ -27,7 +26,7 @@ function toCode(json: string) {
 /** The profile's JSON in a share code; null when it isn't one. */
 function fromCode(code: string): string | null {
   const body = code.trim();
-  const prefix = [CODE, OLD_CODE].find((p) => body.startsWith(p));
+  const prefix = [CODE, LEGACY.perfCode].find((p) => body.startsWith(p));
   if (!prefix) return null;
   try {
     const b64 = body.slice(prefix.length).replace(/\s+/g, "").replace(/-/g, "+").replace(/_/g, "/");

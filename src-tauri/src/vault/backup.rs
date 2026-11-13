@@ -1,6 +1,7 @@
-//! Password-protected `.mtwin` backup files (portable: no DPAPI); `.roalt` ones from before the rename open too.
+//! Password-protected `.mtwin` backup files (portable: no DPAPI); ones from before the rename
+//! (`legacy::BACKUP_MAGIC`) open too.
 //!
-//! Layout: `b"ROALTBK1" | m_kib u32le | t u32le | p u32le | salt[16] | seal(key, header, json)`
+//! Layout: `b"MTWINBK1" | m_kib u32le | t u32le | p u32le | salt[16] | seal(key, header, json)`
 //! where `header` is every byte before the sealed part and `key = Argon2id(password, salt)`.
 
 use std::fs;
@@ -13,7 +14,7 @@ use zeroize::Zeroizing;
 use super::{Kdf, master};
 use crate::error::{AppError, Result};
 
-pub const MAGIC: &[u8; 8] = b"ROALTBK1";
+pub const MAGIC: &[u8; 8] = b"MTWINBK1";
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -91,12 +92,10 @@ pub fn write(path: &Path, password: &str, payload: &BackupPayload) -> Result<()>
         out.extend_from_slice(&v.to_le_bytes());
     }
     out.extend_from_slice(&kdf.salt);
-    let json = Zeroizing::new(
-        serde_json::to_vec(payload).map_err(|e| {
-            log::warn!("could not encode the backup ({:?})", e.classify());
-            AppError::Internal(tr!("Could not encode the backup."))
-        })?,
-    );
+    let json = Zeroizing::new(serde_json::to_vec(payload).map_err(|e| {
+        log::warn!("could not encode the backup ({:?})", e.classify());
+        AppError::Internal(tr!("Could not encode the backup."))
+    })?);
     let key = master::derive_key(password, &kdf)?;
     let sealed = master::seal(&key, &out, &json)?;
     out.extend_from_slice(&sealed);
@@ -112,15 +111,31 @@ pub fn read(path: &Path, password: &str) -> Result<BackupPayload> {
         return Err(not_backup());
     }
     let bytes = fs::read(path)?;
-    if bytes.len() < HEADER_LEN + SEAL_OVERHEAD || !bytes.starts_with(MAGIC) {
-        log::debug!("not a backup: bad magic or truncated ({} bytes)", bytes.len());
+    if bytes.len() < HEADER_LEN + SEAL_OVERHEAD
+        || !(bytes.starts_with(MAGIC) || bytes.starts_with(crate::legacy::BACKUP_MAGIC))
+    {
+        log::debug!(
+            "not a backup: bad magic or truncated ({} bytes)",
+            bytes.len()
+        );
         return Err(not_backup());
     }
     let (header, sealed) = bytes.split_at(HEADER_LEN);
-    let word = |i: usize| u32::from_le_bytes([header[i], header[i + 1], header[i + 2], header[i + 3]]);
-    let kdf = Kdf { m_kib: word(8), t: word(12), p: word(16), salt: header[20..].to_vec() };
+    let word =
+        |i: usize| u32::from_le_bytes([header[i], header[i + 1], header[i + 2], header[i + 3]]);
+    let kdf = Kdf {
+        m_kib: word(8),
+        t: word(12),
+        p: word(16),
+        salt: header[20..].to_vec(),
+    };
     if kdf.m_kib > MAX_M_KIB || kdf.t > MAX_T || kdf.p > MAX_P {
-        log::debug!("not a backup: absurd KDF cost (m {} KiB, t {}, p {})", kdf.m_kib, kdf.t, kdf.p);
+        log::debug!(
+            "not a backup: absurd KDF cost (m {} KiB, t {}, p {})",
+            kdf.m_kib,
+            kdf.t,
+            kdf.p
+        );
         return Err(not_backup());
     }
     let key = master::derive_key(password, &kdf).map_err(|e| {
@@ -130,7 +145,12 @@ pub fn read(path: &Path, password: &str) -> Result<BackupPayload> {
     let json = master::open(&key, header, sealed).map_err(|_| AppError::WrongPassword)?;
     // The serde error could quote a cookie: only where it broke is logged.
     serde_json::from_slice(&json).map_err(|e| {
-        log::warn!("backup payload unreadable ({:?} at {}:{})", e.classify(), e.line(), e.column());
+        log::warn!(
+            "backup payload unreadable ({:?} at {}:{})",
+            e.classify(),
+            e.line(),
+            e.column()
+        );
         not_backup()
     })
 }
@@ -158,7 +178,7 @@ mod tests {
     const PASSWORD: &str = "backup pass";
 
     fn tmp_path() -> PathBuf {
-        std::env::temp_dir().join(format!("mtwin-test-{}.roalt", uuid::Uuid::new_v4()))
+        std::env::temp_dir().join(format!("mtwin-test-{}.mtwin", uuid::Uuid::new_v4()))
     }
 
     fn sample() -> BackupPayload {
@@ -185,7 +205,11 @@ mod tests {
                 main: true,
                 custom_flags: Some([("FFlagDebugSkyGray".into(), "True".into())].into()),
             }],
-            groups: vec![BackupGroup { name: "Mains".into(), color: None, sort_order: 0 }],
+            groups: vec![BackupGroup {
+                name: "Mains".into(),
+                color: None,
+                sort_order: 0,
+            }],
         }
     }
 
@@ -194,7 +218,10 @@ mod tests {
         let mut v = serde_json::to_value(&sample().accounts[0]).unwrap();
         v.as_object_mut().unwrap().remove("customFlags");
         let a: BackupAccount = serde_json::from_value(v).unwrap();
-        assert!(a.custom_flags.is_none(), "None keeps the account's own flags on import");
+        assert!(
+            a.custom_flags.is_none(),
+            "None keeps the account's own flags on import"
+        );
     }
 
     #[test]
@@ -211,7 +238,10 @@ mod tests {
         assert_eq!((back.version, back.exported_at), (1, 1_700_000_000));
         assert_eq!(back.accounts[0].cookie.as_str(), "fake-cookie");
         assert_eq!(back.accounts[0].groups, ["Mains"]);
-        assert_eq!(back.accounts[0].custom_flags.as_ref().unwrap()["FFlagDebugSkyGray"], "True");
+        assert_eq!(
+            back.accounts[0].custom_flags.as_ref().unwrap()["FFlagDebugSkyGray"],
+            "True"
+        );
         assert_eq!(back.groups[0].name, "Mains");
         assert!(matches!(wrong, Err(AppError::WrongPassword)));
     }
@@ -235,12 +265,19 @@ mod tests {
         bad_magic[0] = b'X';
         let mut absurd_cost = good.clone();
         absurd_cost[8..12].copy_from_slice(&u32::MAX.to_le_bytes());
-        let rejected = [check(&bad_magic), check(&good[..30]), check(&absurd_cost), check(b"")];
+        let rejected = [
+            check(&bad_magic),
+            check(&good[..30]),
+            check(&absurd_cost),
+            check(b""),
+        ];
         let cut_body = check(&good[..good.len() - 1]);
         let _ = fs::remove_file(&path);
 
         for r in rejected {
-            assert!(matches!(r, Err(AppError::Invalid(m)) if m == "This isn't a MTwin Manager backup."));
+            assert!(
+                matches!(r, Err(AppError::Invalid(m)) if m == "This isn't a MTwin Manager backup.")
+            );
         }
         assert!(matches!(cut_body, Err(AppError::WrongPassword)));
     }

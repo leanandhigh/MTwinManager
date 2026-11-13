@@ -17,12 +17,14 @@
 use std::path::Path;
 
 use windows::Win32::Foundation::{HWND, INVALID_HANDLE_VALUE};
-use windows::Win32::Security::Cryptography::{CERT_CONTEXT, CERT_NAME_SIMPLE_DISPLAY_TYPE, CertGetNameStringW};
+use windows::Win32::Security::Cryptography::{
+    CERT_CONTEXT, CERT_NAME_SIMPLE_DISPLAY_TYPE, CertGetNameStringW,
+};
 use windows::Win32::Security::WinTrust::{
-    WINTRUST_ACTION_GENERIC_VERIFY_V2, WINTRUST_DATA, WINTRUST_DATA_0, WINTRUST_FILE_INFO, WTD_CHOICE_FILE,
-    WTD_REVOCATION_CHECK_CHAIN_EXCLUDE_ROOT, WTD_REVOKE_WHOLECHAIN, WTD_STATEACTION_CLOSE, WTD_STATEACTION_VERIFY,
-    WTD_UI_NONE, WTHelperGetProvCertFromChain, WTHelperGetProvSignerFromChain, WTHelperProvDataFromStateData,
-    WinVerifyTrust,
+    WINTRUST_ACTION_GENERIC_VERIFY_V2, WINTRUST_DATA, WINTRUST_DATA_0, WINTRUST_FILE_INFO,
+    WTD_CHOICE_FILE, WTD_REVOCATION_CHECK_CHAIN_EXCLUDE_ROOT, WTD_REVOKE_WHOLECHAIN,
+    WTD_STATEACTION_CLOSE, WTD_STATEACTION_VERIFY, WTD_UI_NONE, WTHelperGetProvCertFromChain,
+    WTHelperGetProvSignerFromChain, WTHelperProvDataFromStateData, WinVerifyTrust,
 };
 use windows::core::{HSTRING, PCWSTR};
 
@@ -34,14 +36,26 @@ pub const ROBLOX: &str = "Roblox Corporation";
 /// Ok only when `path` has a valid, trusted embedded Authenticode signature whose signer is
 /// exactly `signer` (see the module notes).
 pub fn verify(path: &Path, signer: &str) -> Result<()> {
-    let refused = |why: String| AppError::Invalid(tr!("The downloaded installer was not run: {why}.", why = why));
+    let refused = |why: String| {
+        AppError::Invalid(tr!(
+            "The downloaded installer was not run: {why}.",
+            why = why
+        ))
+    };
     let (status, name) = trust(path);
     if status != 0 {
-        return Err(refused(tr!("its signature didn't check out ({status})", status = format!("0x{:08X}", status as u32))));
+        return Err(refused(tr!(
+            "its signature didn't check out ({status})",
+            status = format!("0x{:08X}", status as u32)
+        )));
     }
     match name {
         Some(name) if name == signer => Ok(()),
-        Some(name) => Err(refused(tr!("it is signed by \"{name}\", not {signer}", name = name, signer = signer))),
+        Some(name) => Err(refused(tr!(
+            "it is signed by \"{name}\", not {signer}",
+            name = name,
+            signer = signer
+        ))),
         None => Err(refused(tr!("its signer couldn't be read"))),
     }
 }
@@ -114,7 +128,13 @@ unsafe fn name_of(cert: *const CERT_CONTEXT) -> Option<String> {
     let name = unsafe {
         let n = CertGetNameStringW(cert, CERT_NAME_SIMPLE_DISPLAY_TYPE, 0, None, None);
         let mut name = vec![0u16; n.max(1) as usize];
-        let written = CertGetNameStringW(cert, CERT_NAME_SIMPLE_DISPLAY_TYPE, 0, None, Some(&mut name));
+        let written = CertGetNameStringW(
+            cert,
+            CERT_NAME_SIMPLE_DISPLAY_TYPE,
+            0,
+            None,
+            Some(&mut name),
+        );
         name.truncate(written.saturating_sub(1) as usize);
         name
     };
@@ -151,27 +171,41 @@ mod tests {
     /// explorer.exe: a trusted signature, but Microsoft's, so not run.
     #[test]
     fn system_exe_is_refused() {
-        let explorer = PathBuf::from(std::env::var("SystemRoot").unwrap_or_else(|_| r"C:\Windows".into())).join("explorer.exe");
+        let explorer =
+            PathBuf::from(std::env::var("SystemRoot").unwrap_or_else(|_| r"C:\Windows".into()))
+                .join("explorer.exe");
         assert!(explorer.is_file());
         assert_eq!(trust(&explorer), (0, Some("Microsoft Windows".into())));
         let e = verify(&explorer, ROBLOX).unwrap_err().to_string();
-        assert!(e.contains("\"Microsoft Windows\", not Roblox Corporation"), "{e}");
+        assert!(
+            e.contains("\"Microsoft Windows\", not Roblox Corporation"),
+            "{e}"
+        );
     }
 
     /// An embedded-signed Microsoft program (the WebView2 runtime MTwin Manager needs anyway) is
     /// trusted, but isn't Roblox's.
     #[test]
     fn signed_by_someone_else_is_refused() {
-        let pf = std::env::var("ProgramFiles(x86)").unwrap_or_else(|_| r"C:\Program Files (x86)".into());
-        let mut candidates = vec![PathBuf::from(&pf).join(r"Microsoft\Edge\Application\msedge.exe")];
-        if let Ok(dirs) = std::fs::read_dir(PathBuf::from(&pf).join(r"Microsoft\EdgeWebView\Application")) {
+        let pf =
+            std::env::var("ProgramFiles(x86)").unwrap_or_else(|_| r"C:\Program Files (x86)".into());
+        let mut candidates =
+            vec![PathBuf::from(&pf).join(r"Microsoft\Edge\Application\msedge.exe")];
+        if let Ok(dirs) =
+            std::fs::read_dir(PathBuf::from(&pf).join(r"Microsoft\EdgeWebView\Application"))
+        {
             candidates.extend(dirs.flatten().map(|d| d.path().join("msedgewebview2.exe")));
         }
         let Some(exe) = existing(&candidates) else {
             eprintln!("no embedded-signed Microsoft program found; skipped");
             return;
         };
-        assert_eq!(trust(&exe), (0, Some("Microsoft Corporation".into())), "{}", exe.display());
+        assert_eq!(
+            trust(&exe),
+            (0, Some("Microsoft Corporation".into())),
+            "{}",
+            exe.display()
+        );
         let e = verify(&exe, ROBLOX).unwrap_err().to_string();
         assert!(e.contains("Microsoft Corporation"), "{e}");
     }

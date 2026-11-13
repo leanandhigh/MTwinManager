@@ -1,5 +1,5 @@
 {
-  "note": "expected parse results for RoALT link parser unit tests; see findings for rules",
+  "note": "expected parse results for MTwin Manager's link parser unit tests; see findings for rules",
   "cases": [
     {
       "input": "https://www.roblox.com/games/920587237/Adopt-Me",

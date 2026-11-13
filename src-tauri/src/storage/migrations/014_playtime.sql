@@ -1,4 +1,4 @@
--- Time each account spent in each place, from the clients RoALT follows (in a game, not
+-- Time each account spent in each place, from the clients MTwin Manager follows (in a game, not
 -- teleporting); grouped by game in the UI.
 CREATE TABLE playtime (
   account_id INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,

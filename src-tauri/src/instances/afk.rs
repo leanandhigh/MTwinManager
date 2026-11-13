@@ -23,10 +23,13 @@ use windows::Win32::Foundation::HWND;
 use windows::Win32::System::SystemInformation::GetTickCount;
 use windows::Win32::System::Threading::{AttachThreadInput, GetCurrentThreadId};
 use windows::Win32::UI::Input::KeyboardAndMouse::{
-    GetLastInputInfo, INPUT, INPUT_0, INPUT_KEYBOARD, INPUT_MOUSE, KEYBD_EVENT_FLAGS, KEYBDINPUT, KEYEVENTF_KEYUP,
-    KEYEVENTF_SCANCODE, LASTINPUTINFO, MOUSEEVENTF_MOVE, MOUSEINPUT, SendInput, VIRTUAL_KEY,
+    GetLastInputInfo, INPUT, INPUT_0, INPUT_KEYBOARD, INPUT_MOUSE, KEYBD_EVENT_FLAGS, KEYBDINPUT,
+    KEYEVENTF_KEYUP, KEYEVENTF_SCANCODE, LASTINPUTINFO, MOUSEEVENTF_MOVE, MOUSEINPUT, SendInput,
+    VIRTUAL_KEY,
 };
-use windows::Win32::UI::WindowsAndMessaging::{BringWindowToTop, GetForegroundWindow, GetWindowThreadProcessId, SetForegroundWindow};
+use windows::Win32::UI::WindowsAndMessaging::{
+    BringWindowToTop, GetForegroundWindow, GetWindowThreadProcessId, SetForegroundWindow,
+};
 
 use super::{process, window};
 use crate::App;
@@ -67,7 +70,11 @@ pub enum Plan {
 /// idle for 5 s (pure).
 pub fn plan(clients: &[AfkClient], now: i64, interval_min: u32, idle_ms: u32) -> Plan {
     let every = i64::from(interval_min) * 60_000;
-    let due: Vec<String> = clients.iter().filter(|c| now - c.since >= every).map(|c| c.id.clone()).collect();
+    let due: Vec<String> = clients
+        .iter()
+        .filter(|c| now - c.since >= every)
+        .map(|c| c.id.clone())
+        .collect();
     if due.is_empty() {
         Plan::Wait
     } else if idle_ms < IDLE_MS {
@@ -79,11 +86,13 @@ pub fn plan(clients: &[AfkClient], now: i64, interval_min: u32, idle_ms: u32) ->
 
 /// Runs for the app's lifetime on its own thread (focus changes and `SendInput` block briefly).
 pub fn spawn(app: AppHandle) {
-    let started = std::thread::Builder::new().name("anti-afk".into()).spawn(move || {
-        loop {
-            sleep(tick(&app));
-        }
-    });
+    let started = std::thread::Builder::new()
+        .name("anti-afk".into())
+        .spawn(move || {
+            loop {
+                sleep(tick(&app));
+            }
+        });
     if let Err(e) = started {
         log::warn!("anti-AFK not running: {e}");
     }
@@ -103,7 +112,12 @@ fn tick(app: &AppHandle) -> Duration {
         return TICK;
     }
     // A hung client would block this one thread, and the others would get kicked for idling.
-    let clients: Vec<_> = s.tracker.afk_clients().into_iter().filter(|c| !process::hung(c.pid)).collect();
+    let clients: Vec<_> = s
+        .tracker
+        .afk_clients()
+        .into_iter()
+        .filter(|c| !process::hung(c.pid))
+        .collect();
     let ids = match plan(&clients, now_ms(), v.anti_afk.interval_min, idle_ms()) {
         Plan::Wait => return TICK,
         Plan::Retry => return RETRY,
@@ -133,12 +147,18 @@ fn tick(app: &AppHandle) -> Duration {
         ours = last_input();
         match r {
             Pressed::Yes => {
-                log::info!("anti-AFK: pressed F13 in instance {} (minimized: {minimized})", c.id);
+                log::info!(
+                    "anti-AFK: pressed F13 in instance {} (minimized: {minimized})",
+                    c.id
+                );
                 s.tracker.mark_afk(&c.id, now_ms());
             }
             Pressed::No => {
                 failed = true;
-                log::info!("anti-AFK: instance {} couldn't be brought to the front", c.id);
+                log::info!(
+                    "anti-AFK: instance {} couldn't be brought to the front",
+                    c.id
+                );
             }
             Pressed::Interrupted => {
                 failed = true;
@@ -154,15 +174,23 @@ fn tick(app: &AppHandle) -> Duration {
 /// Tick count of the last keyboard or mouse input anywhere in the session (ours included);
 /// None if it can't be read.
 fn last_input() -> Option<u32> {
-    let mut li = LASTINPUTINFO { cbSize: size_of::<LASTINPUTINFO>() as u32, dwTime: 0 };
+    let mut li = LASTINPUTINFO {
+        cbSize: size_of::<LASTINPUTINFO>() as u32,
+        dwTime: 0,
+    };
     // SAFETY: `li` is a local with cbSize set, as GetLastInputInfo requires.
-    unsafe { GetLastInputInfo(&mut li) }.as_bool().then_some(li.dwTime)
+    unsafe { GetLastInputInfo(&mut li) }
+        .as_bool()
+        .then_some(li.dwTime)
 }
 
 /// How long since the last keyboard or mouse input anywhere in the session.
 fn idle_ms() -> u32 {
     let Some(t) = last_input() else {
-        log::warn!("anti-AFK: GetLastInputInfo failed: {}", std::io::Error::last_os_error());
+        log::warn!(
+            "anti-AFK: GetLastInputInfo failed: {}",
+            std::io::Error::last_os_error()
+        );
         return 0;
     };
     // SAFETY: no arguments; the tick count wraps the same way dwTime does.
@@ -198,7 +226,9 @@ fn press(hwnd: HWND) -> Pressed {
         sleep(Duration::from_millis(40));
     }
     if !prev.is_invalid() && prev != hwnd && !to_front(prev) {
-        log::warn!("anti-AFK: couldn't give the focus back to the previous window; stopping this round");
+        log::warn!(
+            "anti-AFK: couldn't give the focus back to the previous window; stopping this round"
+        );
         return Pressed::Interrupted;
     }
     match (sent, user) {
@@ -235,11 +265,21 @@ pub(super) fn to_front(hwnd: HWND) -> bool {
     }
     let nudge = INPUT {
         r#type: INPUT_MOUSE,
-        Anonymous: INPUT_0 { mi: MOUSEINPUT { dx: 0, dy: 0, dwFlags: MOUSEEVENTF_MOVE, ..Default::default() } },
+        Anonymous: INPUT_0 {
+            mi: MOUSEINPUT {
+                dx: 0,
+                dy: 0,
+                dwFlags: MOUSEEVENTF_MOVE,
+                ..Default::default()
+            },
+        },
     };
     // SAFETY: one fully initialised mouse INPUT and its size, as SendInput requires.
     if unsafe { SendInput(&[nudge], size_of::<INPUT>() as i32) } == 0 {
-        log::debug!("anti-AFK: mouse nudge not sent: {}", std::io::Error::last_os_error());
+        log::debug!(
+            "anti-AFK: mouse nudge not sent: {}",
+            std::io::Error::last_os_error()
+        );
     }
     // SAFETY: as the first SetForegroundWindow.
     let _ = unsafe { SetForegroundWindow(hwnd) };
@@ -250,11 +290,22 @@ pub(super) fn to_front(hwnd: HWND) -> bool {
 fn key(vk: VIRTUAL_KEY, scan: u16, flags: KEYBD_EVENT_FLAGS) {
     let input = INPUT {
         r#type: INPUT_KEYBOARD,
-        Anonymous: INPUT_0 { ki: KEYBDINPUT { wVk: vk, wScan: scan, dwFlags: flags, time: 0, dwExtraInfo: 0 } },
+        Anonymous: INPUT_0 {
+            ki: KEYBDINPUT {
+                wVk: vk,
+                wScan: scan,
+                dwFlags: flags,
+                time: 0,
+                dwExtraInfo: 0,
+            },
+        },
     };
     // SAFETY: one fully initialised keyboard INPUT and its size, as SendInput requires.
     if unsafe { SendInput(&[input], size_of::<INPUT>() as i32) } == 0 {
-        log::warn!("anti-AFK: SendInput sent no key: {}", std::io::Error::last_os_error());
+        log::warn!(
+            "anti-AFK: SendInput sent no key: {}",
+            std::io::Error::last_os_error()
+        );
     }
 }
 
@@ -263,13 +314,21 @@ mod tests {
     use super::*;
 
     fn client(id: &str, since: i64) -> AfkClient {
-        AfkClient { id: id.into(), pid: 1, since }
+        AfkClient {
+            id: id.into(),
+            pid: 1,
+            since,
+        }
     }
 
     #[test]
     fn presses_only_due_clients_while_the_user_is_away() {
         let min = 60_000;
-        let clients = [client("a", 0), client("b", 10 * min), client("c", 15 * min + 1)];
+        let clients = [
+            client("a", 0),
+            client("b", 10 * min),
+            client("c", 15 * min + 1),
+        ];
         let ids = |v: &[&str]| Plan::Press(v.iter().map(|s| s.to_string()).collect());
         // Nobody due yet.
         assert_eq!(plan(&clients, 15 * min - 1, 15, 60_000), Plan::Wait);

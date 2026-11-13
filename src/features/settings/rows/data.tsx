@@ -1,3 +1,4 @@
+import { LEGACY } from "../../../legacy";
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { open as openFile, save as saveFile } from "@tauri-apps/plugin-dialog";
@@ -17,7 +18,7 @@ import { ActionButton } from "../kit/ActionButton";
 import { useRow } from "../kit/rowError";
 import { SettingRow } from "../kit/SettingRow";
 
-const backupFilter = () => [{ name: t("settings.backupFilter"), extensions: ["mtwin", "roalt"] }];
+const backupFilter = () => [{ name: t("settings.backupFilter"), extensions: ["mtwin", LEGACY.backupExt] }];
 
 /** Open the folder or MTwin Manager's own logs; move it elsewhere (confirmed: MTwin Manager restarts to use it).
  * There is no Move while MTWIN_DATA_DIR decides the folder. */

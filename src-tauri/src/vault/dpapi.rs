@@ -9,7 +9,7 @@ use zeroize::{Zeroize, Zeroizing};
 
 use crate::error::{AppError, Result};
 
-pub const ENTROPY: &[u8] = b"RoALT/vault/v1";
+pub const ENTROPY: &[u8] = b"MTwin/vault/v1";
 
 pub fn protect(data: &[u8]) -> Result<Vec<u8>> {
     protect_with(data, ENTROPY)
@@ -21,7 +21,15 @@ pub fn protect_with(data: &[u8], entropy: &[u8]) -> Result<Vec<u8>> {
     let mut out = CRYPT_INTEGER_BLOB::default();
     // SAFETY: the input blobs point at live slices DPAPI only reads; DPAPI fills `out`.
     unsafe {
-        CryptProtectData(&input, PCWSTR::null(), Some(&entropy), None, None, CRYPTPROTECT_UI_FORBIDDEN, &mut out)
+        CryptProtectData(
+            &input,
+            PCWSTR::null(),
+            Some(&entropy),
+            None,
+            None,
+            CRYPTPROTECT_UI_FORBIDDEN,
+            &mut out,
+        )
     }
     .map_err(|e| {
         log::error!("DPAPI protect failed: {e}");
@@ -30,26 +38,59 @@ pub fn protect_with(data: &[u8], entropy: &[u8]) -> Result<Vec<u8>> {
     Ok(take(out).to_vec())
 }
 
+/// Also opens a blob protected before the rename (`legacy::VAULT_ENTROPY`).
 pub fn unprotect(blob_in: &[u8]) -> Result<Zeroizing<Vec<u8>>> {
-    unprotect_with(blob_in, ENTROPY)
+    unprotect_any(blob_in, &[ENTROPY, crate::legacy::VAULT_ENTROPY])
 }
 
 /// `unprotect` with another app's entropy (an import from it).
 pub fn unprotect_with(blob_in: &[u8], entropy: &[u8]) -> Result<Zeroizing<Vec<u8>>> {
-    let (input, entropy) = (blob(blob_in)?, blob(entropy)?);
+    quiet_unprotect(blob_in, entropy).map_err(|e| {
+        log::error!("DPAPI unprotect failed: {e}");
+        AppError::Crypto
+    })
+}
+
+/// `unprotect_with` for `entropies` in turn: the first that opens it (the failures before it
+/// aren't logged, only the last one).
+pub fn unprotect_any(blob_in: &[u8], entropies: &[&[u8]]) -> Result<Zeroizing<Vec<u8>>> {
+    let (last, rest) = entropies.split_last().ok_or(AppError::Crypto)?;
+    rest.iter()
+        .find_map(|e| quiet_unprotect(blob_in, e).ok())
+        .map_or_else(|| unprotect_with(blob_in, last), Ok)
+}
+
+fn quiet_unprotect(
+    blob_in: &[u8],
+    entropy: &[u8],
+) -> std::result::Result<Zeroizing<Vec<u8>>, String> {
+    let (input, entropy) = (
+        blob(blob_in).map_err(|e| e.to_string())?,
+        blob(entropy).map_err(|e| e.to_string())?,
+    );
     let mut out = CRYPT_INTEGER_BLOB::default();
     // SAFETY: as in `protect`.
-    unsafe { CryptUnprotectData(&input, None, Some(&entropy), None, None, CRYPTPROTECT_UI_FORBIDDEN, &mut out) }
-        .map_err(|e| {
-            log::error!("DPAPI unprotect failed: {e}");
-            AppError::Crypto
-        })?;
+    unsafe {
+        CryptUnprotectData(
+            &input,
+            None,
+            Some(&entropy),
+            None,
+            None,
+            CRYPTPROTECT_UI_FORBIDDEN,
+            &mut out,
+        )
+    }
+    .map_err(|e| e.to_string())?;
     Ok(take(out))
 }
 
 fn blob(data: &[u8]) -> Result<CRYPT_INTEGER_BLOB> {
     let len = u32::try_from(data.len()).map_err(|_| AppError::Crypto)?;
-    Ok(CRYPT_INTEGER_BLOB { cbData: len, pbData: data.as_ptr().cast_mut() })
+    Ok(CRYPT_INTEGER_BLOB {
+        cbData: len,
+        pbData: data.as_ptr().cast_mut(),
+    })
 }
 
 /// Copies DPAPI's output, wipes the original and frees it.
@@ -76,6 +117,9 @@ mod tests {
         let wrapped = protect(b"data key").unwrap();
         assert_ne!(wrapped.as_slice(), b"data key");
         assert_eq!(unprotect(&wrapped).unwrap().as_slice(), b"data key");
-        assert!(matches!(unprotect(b"not a dpapi blob"), Err(AppError::Crypto)));
+        assert!(matches!(
+            unprotect(b"not a dpapi blob"),
+            Err(AppError::Crypto)
+        ));
     }
 }

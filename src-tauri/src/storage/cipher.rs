@@ -21,9 +21,9 @@ use zeroize::Zeroizing;
 use crate::discord::hex;
 use crate::error::{AppError, Result};
 use crate::vault::master::random_bytes;
-use crate::vault::{protect_with, unprotect_with};
+use crate::vault::{protect_with, unprotect_any};
 
-const ENTROPY: &[u8] = b"RoALT/db/v1";
+const ENTROPY: &[u8] = b"MTwin/db/v1";
 
 /// `<db>` plus a suffix: `mtwin.db` → `mtwin.db.key`.
 pub fn beside(db: &Path, suffix: &str) -> PathBuf {
@@ -52,7 +52,7 @@ pub fn unlock(conn: &Connection, key: &[u8]) -> Result<()> {
 /// The raw key from `<db>.key`.
 pub fn read_key(db: &Path) -> Result<Zeroizing<Vec<u8>>> {
     let blob = std::fs::read(beside(db, ".key"))?;
-    let key = unprotect_with(&blob, ENTROPY)?;
+    let key = unprotect_any(&blob, &[ENTROPY, crate::legacy::DB_ENTROPY])?;
     if key.len() != 32 {
         log::error!("database key file holds {} bytes, not 32", key.len());
         return Err(AppError::Crypto);
@@ -75,10 +75,18 @@ pub fn write_key(path: &Path, key: &[u8]) -> Result<()> {
 
 /// Exports the database open on `conn` into the new file `to`, encrypted with `key`.
 pub fn export(conn: &Connection, to: &Path, key: &[u8]) -> Result<()> {
-    let to = to.to_str().ok_or_else(|| AppError::Invalid(tr!("That folder's name can't be used.")))?;
+    let to = to
+        .to_str()
+        .ok_or_else(|| AppError::Invalid(tr!("That folder's name can't be used.")))?;
     // The SQL holds the key: a rusqlite error may quote it, so it never leaves here.
-    conn.execute(&format!("ATTACH DATABASE ?1 AS enc KEY {}", key_literal(key).as_str()), [to])
-        .map_err(|_| AppError::Storage("attaching the encrypted copy failed".into()))?;
+    conn.execute(
+        &format!(
+            "ATTACH DATABASE ?1 AS enc KEY {}",
+            key_literal(key).as_str()
+        ),
+        [to],
+    )
+    .map_err(|_| AppError::Storage("attaching the encrypted copy failed".into()))?;
     let done = (|| {
         conn.query_row("SELECT sqlcipher_export('enc')", [], |_| Ok(()))?;
         // Not copied by sqlcipher_export; the migrations go by it.
@@ -102,9 +110,16 @@ fn fingerprint(conn: &Connection) -> Result<Vec<(String, i64)>> {
         .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")?
         .query_map([], |r| r.get(0))?
         .collect::<rusqlite::Result<_>>()?;
-    let mut out = vec![("user_version".to_owned(), conn.query_row("PRAGMA user_version", [], |r| r.get(0))?)];
+    let mut out = vec![(
+        "user_version".to_owned(),
+        conn.query_row("PRAGMA user_version", [], |r| r.get(0))?,
+    )];
     for t in tables.drain(..) {
-        let n = conn.query_row(&format!("SELECT count(*) FROM \"{}\"", t.replace('"', "\"\"")), [], |r| r.get(0))?;
+        let n = conn.query_row(
+            &format!("SELECT count(*) FROM \"{}\"", t.replace('"', "\"\"")),
+            [],
+            |r| r.get(0),
+        )?;
         out.push((t, n));
     }
     Ok(out)
@@ -126,7 +141,11 @@ fn remove_journal(db: &Path) -> Result<()> {
 /// Finishes a commit (step 3) a crash cut off; nothing to do otherwise. A step 1 or 2 that
 /// didn't finish leaves files the next `migrate` replaces.
 pub fn resume(db: &Path) -> Result<()> {
-    let (enc, key_new, plain) = (beside(db, ".enc"), beside(db, ".key.new"), beside(db, ".plain"));
+    let (enc, key_new, plain) = (
+        beside(db, ".enc"),
+        beside(db, ".key.new"),
+        beside(db, ".plain"),
+    );
     // The commit starts by renaming `db` to `.plain` and ends by deleting `.plain`.
     if !plain.exists() {
         return Ok(());
@@ -157,7 +176,11 @@ pub fn resume(db: &Path) -> Result<()> {
 
 /// Encrypts the plain database `db` in place (see the module docs); its key.
 pub fn migrate(db: &Path) -> Result<Zeroizing<Vec<u8>>> {
-    let (enc, key_new, plain) = (beside(db, ".enc"), beside(db, ".key.new"), beside(db, ".plain"));
+    let (enc, key_new, plain) = (
+        beside(db, ".enc"),
+        beside(db, ".key.new"),
+        beside(db, ".plain"),
+    );
     remove(&enc)?;
     remove(&key_new)?;
     let conn = Connection::open(db)?;
@@ -171,10 +194,14 @@ pub fn migrate(db: &Path) -> Result<Zeroizing<Vec<u8>>> {
         unlock(&copy, &key)?;
         let after = fingerprint(&copy)?;
         if after != before {
-            log::error!("encrypted database copy doesn't match: before {before:?}, after {after:?}");
+            log::error!(
+                "encrypted database copy doesn't match: before {before:?}, after {after:?}"
+            );
             drop(copy);
             remove(&enc)?;
-            return Err(AppError::Storage("the encrypted copy of the database didn't match it".into()));
+            return Err(AppError::Storage(
+                "the encrypted copy of the database didn't match it".into(),
+            ));
         }
     }
     write_key(&key_new, &key)?;
@@ -233,11 +260,21 @@ mod tests {
         let path = dir.join("mtwin.db");
         // A plain database as an older MTwin Manager left it: migrated schema, one account, WAL.
         std::fs::create_dir_all(&dir).unwrap();
-        Db::open_in_memory().unwrap().copy_to(&path, || Ok(())).unwrap();
+        Db::open_in_memory()
+            .unwrap()
+            .copy_to(&path, || Ok(()))
+            .unwrap();
         put(&path, 42);
         assert_eq!(plain_has_rows(&path).unwrap(), 1);
         let db = Db::open(&path).unwrap();
-        assert_eq!(db.accounts().unwrap().iter().map(|a| a.user_id).collect::<Vec<_>>(), [42]);
+        assert_eq!(
+            db.accounts()
+                .unwrap()
+                .iter()
+                .map(|a| a.user_id)
+                .collect::<Vec<_>>(),
+            [42]
+        );
         drop(db);
         assert!(plain_has_rows(&path).is_err());
         for left in [".enc", ".key.new", ".plain"] {
@@ -253,11 +290,19 @@ mod tests {
         let dir = tmp();
         let path = dir.join("mtwin.db");
         std::fs::create_dir_all(&dir).unwrap();
-        Db::open_in_memory().unwrap().copy_to(&path, || Ok(())).unwrap();
+        Db::open_in_memory()
+            .unwrap()
+            .copy_to(&path, || Ok(()))
+            .unwrap();
         put(&path, 7);
         // Steps 1 and 2 by hand, then the crash right after renaming the plain file.
         let key = Zeroizing::new(random_bytes::<32>().to_vec());
-        export(&Connection::open(&path).unwrap(), &beside(&path, ".enc"), &key).unwrap();
+        export(
+            &Connection::open(&path).unwrap(),
+            &beside(&path, ".enc"),
+            &key,
+        )
+        .unwrap();
         write_key(&beside(&path, ".key.new"), &key).unwrap();
         std::fs::rename(&path, beside(&path, ".plain")).unwrap();
         let db = Db::open(&path).unwrap();

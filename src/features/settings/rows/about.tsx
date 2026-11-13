@@ -13,7 +13,7 @@ import { useRow } from "../kit/rowError";
 import { SettingRow } from "../kit/SettingRow";
 import { unhideUpdate, useUpdateInstall } from "../UpdateBanner";
 
-const RELEASES = "https://github.com/leanandhigh/RoALT/releases";
+const RELEASES = "https://github.com/leanandhigh/MTwinManager/releases";
 
 /** MTwin Manager's version and its updates in one card: what runs, whether a newer one is out, one
  * button that checks or (once one is found) installs it, and the switch for the background checks. */

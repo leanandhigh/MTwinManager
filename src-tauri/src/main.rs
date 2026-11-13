@@ -10,12 +10,13 @@ mod discord;
 mod error;
 mod instances;
 mod launcher;
+mod legacy;
 mod model;
 mod network;
+mod news;
 mod performance;
 mod progress;
 mod roblox_api;
-mod news;
 mod rolimons;
 mod self_update;
 mod splash;
@@ -71,13 +72,19 @@ impl App {
     /// Roblox handed out a new `.ROBLOSECURITY` for a stored account: keep it.
     pub fn store_rotated(&self, account_id: i64, cookie: Secret) {
         if self.vault.is_locked() {
-            self.rotated_later.lock().unwrap_or_else(|e| e.into_inner()).push((account_id, cookie));
+            self.rotated_later
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .push((account_id, cookie));
             return;
         }
         let stored = self
             .db
             .account_cookie(account_id)
-            .and_then(|(user_id, _)| self.vault.encrypt(&cookie_aad(user_id), cookie.expose().as_bytes()))
+            .and_then(|(user_id, _)| {
+                self.vault
+                    .encrypt(&cookie_aad(user_id), cookie.expose().as_bytes())
+            })
             .and_then(|blob| self.db.set_cookie(account_id, &blob));
         match stored {
             Ok(()) => log::info!("stored rotated cookie for account {account_id}"),
@@ -90,10 +97,6 @@ pub const DB_FILE: &str = "mtwin.db";
 /// The database, its journal and its key (`storage::key_path`): all a data folder move ever
 /// deletes, from the old folder.
 pub const DB_FILES: [&str; 4] = [DB_FILE, "mtwin.db-wal", "mtwin.db-shm", "mtwin.db.key"];
-/// The names the database files had before the rename, in `DB_FILES`' order (`migrate_names`).
-const OLD_DB_FILES: [&str; 4] = ["roalt.db", "roalt.db-wal", "roalt.db-shm", "roalt.db.key"];
-/// The data folder's name before the rename (`migrate_folder`).
-const OLD_DIR: &str = "RoALT";
 const LOCATION: &str = "location.json";
 
 /// `%LOCALAPPDATA%\MTwin Manager\location.json`: where the data folder was moved to (and from, until
@@ -108,7 +111,10 @@ pub struct Location {
 
 /// `%LOCALAPPDATA%\MTwin Manager`: the data folder unless moved, and where location.json lives.
 pub fn default_dir() -> PathBuf {
-    std::env::var_os("LOCALAPPDATA").map(PathBuf::from).unwrap_or_else(std::env::temp_dir).join("MTwin Manager")
+    std::env::var_os("LOCALAPPDATA")
+        .map(PathBuf::from)
+        .unwrap_or_else(std::env::temp_dir)
+        .join("MTwin Manager")
 }
 
 /// A test run (`MTWIN_DATA_DIR`): its data folder can't be moved.
@@ -131,7 +137,10 @@ fn data_dir() -> std::result::Result<(PathBuf, Option<PathBuf>), String> {
     migrate_names(&default);
     let json = std::fs::read_to_string(default.join(LOCATION)).ok();
     // A moved folder (and the one it left) still holds the old names until this start.
-    if let Some(l) = json.as_deref().and_then(|j| serde_json::from_str::<Location>(j).ok()) {
+    if let Some(l) = json
+        .as_deref()
+        .and_then(|j| serde_json::from_str::<Location>(j).ok())
+    {
         migrate_names(&l.data_dir);
         if let Some(from) = &l.moved_from {
             migrate_names(from);
@@ -140,29 +149,44 @@ fn data_dir() -> std::result::Result<(PathBuf, Option<PathBuf>), String> {
     chosen_dir(default, json.as_deref())
 }
 
-/// Before the rename the data folder was `%LOCALAPPDATA%\RoALT`: moved to `default` once, when
+/// Before the rename the data folder was `legacy::DIR`: moved to `default` once, when
 /// `default` doesn't exist yet. A failed move leaves both as they are (logged); the next start
 /// tries again.
 fn migrate_folder(default: &Path) {
-    let Some(old) = default.parent().map(|p| p.join(OLD_DIR)) else { return };
+    let Some(old) = default.parent().map(|p| p.join(legacy::DIR)) else {
+        return;
+    };
     if default.exists() || !old.is_dir() {
         return;
     }
     match std::fs::rename(&old, default) {
-        Ok(()) => eprintln!("data folder moved from {} to {}", old.display(), default.display()),
-        Err(e) => eprintln!("could not move the data folder {} to {}: {e}", old.display(), default.display()),
+        Ok(()) => eprintln!(
+            "data folder moved from {} to {}",
+            old.display(),
+            default.display()
+        ),
+        Err(e) => eprintln!(
+            "could not move the data folder {} to {}: {e}",
+            old.display(),
+            default.display()
+        ),
     }
 }
 
-/// The database files' old names (roalt.db…) to the new ones (mtwin.db…), in `dir`, each only
+/// The database files' old names (`legacy::DB_FILES`) to the new ones (`DB_FILES`), in `dir`, each only
 /// when the new one isn't there. Run before the database opens, so nothing holds them.
 fn migrate_names(dir: &Path) {
-    for (old, new) in OLD_DB_FILES.iter().zip(DB_FILES) {
+    for (old, new) in legacy::DB_FILES.iter().zip(DB_FILES) {
         let (from, to) = (dir.join(old), dir.join(new));
-        if from.is_file() && !to.exists()
+        if from.is_file()
+            && !to.exists()
             && let Err(e) = std::fs::rename(&from, &to)
         {
-            eprintln!("could not rename {} to {}: {e}", from.display(), to.display());
+            eprintln!(
+                "could not rename {} to {}: {e}",
+                from.display(),
+                to.display()
+            );
         }
     }
 }
@@ -170,7 +194,10 @@ fn migrate_names(dir: &Path) {
 /// The folder location.json points at, with `movedFrom`: its `dataDir` when that is a full
 /// path; else `default`. Missing or malformed JSON counts as no move. A moved folder without
 /// a mtwin.db (a drive not connected) is an error, not a fresh empty vault in `default`.
-fn chosen_dir(default: PathBuf, json: Option<&str>) -> std::result::Result<(PathBuf, Option<PathBuf>), String> {
+fn chosen_dir(
+    default: PathBuf,
+    json: Option<&str>,
+) -> std::result::Result<(PathBuf, Option<PathBuf>), String> {
     match json.and_then(|j| serde_json::from_str::<Location>(j).ok()) {
         Some(l) if l.data_dir.is_absolute() => {
             if l.data_dir.join(DB_FILE).is_file() {
@@ -208,7 +235,9 @@ pub fn write_location(l: &Location) -> std::io::Result<()> {
 /// A path as Windows compares it: absolute, `..` resolved, by component, ignoring case.
 fn path_key(p: &Path) -> Vec<String> {
     let p = std::path::absolute(p).unwrap_or_else(|_| p.to_owned());
-    p.components().map(|c| c.as_os_str().to_string_lossy().to_lowercase()).collect()
+    p.components()
+        .map(|c| c.as_os_str().to_string_lossy().to_lowercase())
+        .collect()
 }
 
 /// The same folder: judged on disk when both exist (junctions, short names), else by path.
@@ -235,7 +264,9 @@ pub fn move_target(current: &Path, path: &str) -> Result<PathBuf> {
         return refuse(tr!("Pick a folder outside the current data folder."));
     }
     if DB_FILES.iter().any(|f| target.join(f).exists()) {
-        return refuse(tr!("That folder already has a MTwin Manager database. Pick another one."));
+        return refuse(tr!(
+            "That folder already has a MTwin Manager database. Pick another one."
+        ));
     }
     Ok(target)
 }
@@ -246,7 +277,10 @@ fn finish_move(data_dir: &Path, old: &Path) {
     if !remove_old_db(data_dir, old) {
         return;
     }
-    if let Err(e) = write_location(&Location { data_dir: data_dir.to_owned(), moved_from: None }) {
+    if let Err(e) = write_location(&Location {
+        data_dir: data_dir.to_owned(),
+        moved_from: None,
+    }) {
         log::warn!("could not update {LOCATION}: {e}");
     }
 }
@@ -263,7 +297,10 @@ fn remove_old_db(data_dir: &Path, old: &Path) -> bool {
             Ok(()) => log::info!("deleted {f} from the old data folder {}", old.display()),
             Err(e) if e.kind() == ErrorKind::NotFound => {}
             Err(e) => {
-                log::warn!("could not delete {f} from the old data folder {}: {e}", old.display());
+                log::warn!(
+                    "could not delete {f} from the old data folder {}: {e}",
+                    old.display()
+                );
                 gone = false;
             }
         }
@@ -303,17 +340,25 @@ fn main_window(app: &TauriApp, data_dir: &Path, skip_splash: bool) -> tauri::Res
 pub(crate) fn cdp_args() -> Option<String> {
     #[cfg(debug_assertions)]
     if let Ok(port) = std::env::var("MTWIN_CDP_PORT") {
-        return Some(format!("--remote-debugging-port={port} --disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection"));
+        return Some(format!(
+            "--remote-debugging-port={port} --disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection"
+        ));
     }
     None
 }
 
 /// Only the MTwin Manager window: pages in Roblox windows are never to reach a command, whatever origin
 /// they manage to appear as.
-fn main_only(handler: impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static) -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static {
+fn main_only(
+    handler: impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static,
+) -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static {
     move |invoke| {
         if invoke.message.webview_ref().label() != "main" {
-            log::warn!("refused command {} from window {}", invoke.message.command(), invoke.message.webview_ref().label());
+            log::warn!(
+                "refused command {} from window {}",
+                invoke.message.command(),
+                invoke.message.webview_ref().label()
+            );
             invoke.resolver.reject("not allowed");
             return true;
         }
@@ -334,16 +379,27 @@ fn in_app(url: &url::Url) -> bool {
 /// includes the UI's WebView2 profile. A drive without permissions (exFAT) can't, and is left so.
 pub fn restrict_to_user(dir: &Path) {
     use std::os::windows::process::CommandExt;
-    let root = std::env::var_os("SystemRoot").map(PathBuf::from).unwrap_or_else(|| r"C:\Windows".into());
+    let root = std::env::var_os("SystemRoot")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| r"C:\Windows".into());
     let user = std::env::var("USERNAME").unwrap_or_default();
     let done = std::process::Command::new(root.join(r"System32\icacls.exe"))
         .arg(dir)
-        .args(["/inheritance:r", "/grant:r", &format!("{user}:(OI)(CI)F"), "*S-1-5-18:(OI)(CI)F", "*S-1-5-32-544:(OI)(CI)F"])
+        .args([
+            "/inheritance:r",
+            "/grant:r",
+            &format!("{user}:(OI)(CI)F"),
+            "*S-1-5-18:(OI)(CI)F",
+            "*S-1-5-32-544:(OI)(CI)F",
+        ])
         .creation_flags(0x0800_0000)
         .output();
     match done {
         Ok(o) if o.status.success() => {}
-        Ok(o) => log::warn!("could not restrict the data folder: icacls exit {:?}", o.status.code()),
+        Ok(o) => log::warn!(
+            "could not restrict the data folder: icacls exit {:?}",
+            o.status.code()
+        ),
         Err(e) => log::warn!("could not restrict the data folder: {e}"),
     }
 }
@@ -371,10 +427,13 @@ fn spawn_auto_lock(handle: AppHandle) {
                 s.vault.touch();
                 continue;
             }
-            let minutes = s.db.settings().map(|v| v.auto_lock_minutes).unwrap_or_else(|e| {
-                log::debug!("auto-lock: could not read settings, using 15 min: {e}");
-                15
-            });
+            let minutes =
+                s.db.settings()
+                    .map(|v| v.auto_lock_minutes)
+                    .unwrap_or_else(|e| {
+                        log::debug!("auto-lock: could not read settings, using 15 min: {e}");
+                        15
+                    });
             if minutes > 0 && s.vault.idle() >= Duration::from_secs(minutes as u64 * 60) {
                 commands::lock_vault(&handle);
             }
@@ -392,12 +451,22 @@ fn fatal(message: &str) -> ! {
     log::error!("{message}");
     // Before the log plugin exists `log::error!` goes nowhere, so append the line directly.
     if let Some(dir) = LOG_DIR.get()
-        && let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(dir.join("mtwin.log"))
+        && let Ok(mut f) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(dir.join("mtwin.log"))
     {
         let _ = writeln!(f, "[fatal] {message}");
     }
     // SAFETY: a plain modal message box with no owner window.
-    unsafe { MessageBoxW(None, &windows::core::HSTRING::from(message), windows::core::w!("MTwin Manager"), MB_ICONERROR | MB_OK) };
+    unsafe {
+        MessageBoxW(
+            None,
+            &windows::core::HSTRING::from(message),
+            windows::core::w!("MTwin Manager"),
+            MB_ICONERROR | MB_OK,
+        )
+    };
     std::process::exit(1)
 }
 
@@ -412,7 +481,10 @@ fn panic_hook() {
             .or_else(|| info.payload().downcast_ref::<String>().cloned())
             .unwrap_or_else(|| "(no message)".into());
         let at = info.location().map(|l| l.to_string()).unwrap_or_default();
-        let thread = std::thread::current().name().unwrap_or("unnamed").to_string();
+        let thread = std::thread::current()
+            .name()
+            .unwrap_or("unnamed")
+            .to_string();
         log::error!("panic in thread {thread} at {at}: {what}");
         log::logger().flush();
         previous(info);
@@ -424,7 +496,9 @@ fn panic_hook() {
 /// start fresh; true once they are moved. Kept, not deleted: they open again if Windows recovers.
 fn set_aside_unreadable(data_dir: &Path) -> bool {
     use windows::Win32::UI::WindowsAndMessaging::{IDYES, MB_ICONWARNING, MB_YESNO, MessageBoxW};
-    let secs = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs());
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs());
     let aside = data_dir.join(format!("unreadable-{secs}"));
     let text = tr!(
         "Windows can't unlock MTwin Manager's database on this account. This happens after a Windows password \
@@ -433,21 +507,38 @@ fn set_aside_unreadable(data_dir: &Path) -> bool {
         path = aside.display()
     );
     // SAFETY: a plain modal message box with no owner window.
-    let answer = unsafe { MessageBoxW(None, &windows::core::HSTRING::from(text), windows::core::w!("MTwin Manager"), MB_ICONWARNING | MB_YESNO) };
+    let answer = unsafe {
+        MessageBoxW(
+            None,
+            &windows::core::HSTRING::from(text),
+            windows::core::w!("MTwin Manager"),
+            MB_ICONWARNING | MB_YESNO,
+        )
+    };
     if answer != IDYES {
         return false;
     }
     let moved = std::fs::create_dir_all(&aside).and_then(|()| {
-        DB_FILES.iter().filter(|f| data_dir.join(f).exists()).try_for_each(|f| std::fs::rename(data_dir.join(f), aside.join(f)))
+        DB_FILES
+            .iter()
+            .filter(|f| data_dir.join(f).exists())
+            .try_for_each(|f| std::fs::rename(data_dir.join(f), aside.join(f)))
     });
     match &moved {
         Ok(()) => log::warn!("unreadable database moved to {}", aside.display()),
-        Err(e) => log::error!("could not move the unreadable database to {}: {e}", aside.display()),
+        Err(e) => log::error!(
+            "could not move the unreadable database to {}: {e}",
+            aside.display()
+        ),
     }
     moved.is_ok()
 }
 
-fn init(app: &TauriApp, data_dir: &Path, moved_from: Option<&Path>) -> std::result::Result<(), String> {
+fn init(
+    app: &TauriApp,
+    data_dir: &Path,
+    moved_from: Option<&Path>,
+) -> std::result::Result<(), String> {
     webview::sweep_temp_profiles(data_dir);
     webview::sweep_dirty_profiles(data_dir);
     cookie_export::sweep(data_dir);
@@ -456,10 +547,19 @@ fn init(app: &TauriApp, data_dir: &Path, moved_from: Option<&Path>) -> std::resu
         Err(AppError::Crypto) if set_aside_unreadable(data_dir) => storage::Db::open(&db_path),
         r => r,
     }
-    .map_err(|e| tr!("MTwin Manager can't open its database {path}: {why}", path = db_path.display(), why = e.message()))?;
+    .map_err(|e| {
+        tr!(
+            "MTwin Manager can't open its database {path}: {why}",
+            path = db_path.display(),
+            why = e.message()
+        )
+    })?;
     // Not on a read error: every profile would look orphaned.
     if let Ok(accounts) = db.accounts() {
-        webview::sweep_orphan_profiles(data_dir, &accounts.iter().map(|a| a.id).collect::<Vec<_>>());
+        webview::sweep_orphan_profiles(
+            data_dir,
+            &accounts.iter().map(|a| a.id).collect::<Vec<_>>(),
+        );
     }
     let record = db.vault_record().map_err(|e| e.message())?;
     // Only a database with a vault is the copy that replaces the old one.
@@ -483,7 +583,9 @@ fn init(app: &TauriApp, data_dir: &Path, moved_from: Option<&Path>) -> std::resu
         finish_move(data_dir, old);
     }
     let handle = app.handle().clone();
-    let api = roblox_api::Client::new(Arc::new(move |id, cookie| handle.state::<App>().store_rotated(id, cookie)));
+    let api = roblox_api::Client::new(Arc::new(move |id, cookie| {
+        handle.state::<App>().store_rotated(id, cookie)
+    }));
     let settings = db.settings().map_err(|e| e.message())?;
     i18n::set(&settings.language);
     launcher::client::set_custom(&settings.client_path);
@@ -524,7 +626,14 @@ fn init(app: &TauriApp, data_dir: &Path, moved_from: Option<&Path>) -> std::resu
         // Said once the window is up.
         tauri::async_runtime::spawn(async move {
             tokio::time::sleep(Duration::from_secs(5)).await;
-            commands::notice(&handle, true, tr!("{why} The panic hotkey is off; change it in Settings, Automation.", why = e.message()));
+            commands::notice(
+                &handle,
+                true,
+                tr!(
+                    "{why} The panic hotkey is off; change it in Settings, Automation.",
+                    why = e.message()
+                ),
+            );
         });
     }
     // AutoHotkey's work folder from the removed Macros feature; a crash could leave scripts in it.
@@ -567,7 +676,9 @@ fn remind_bandwidth(handle: AppHandle) {
             commands::notice(
                 &handle,
                 true,
-                tr!("The Roblox bandwidth limit is off: Windows clears it when it restarts. Apply it again in Performance > More settings."),
+                tr!(
+                    "The Roblox bandwidth limit is off: Windows clears it when it restarts. Apply it again in Performance > More settings."
+                ),
             );
         }
     });
@@ -589,7 +700,10 @@ pub(crate) fn set_main_shown(app: &AppHandle, shown: bool) {
     }
     if let Some(wv) = app.get_webview("main") {
         if let Err(e) = if shown { wv.show() } else { wv.hide() } {
-            log::warn!("could not tell the page it is {}: {e}", if shown { "shown" } else { "hidden" });
+            log::warn!(
+                "could not tell the page it is {}: {e}",
+                if shown { "shown" } else { "hidden" }
+            );
         }
         webview::memory_target(&wv, !shown);
     }
@@ -615,7 +729,9 @@ fn on_window_event(window: &tauri::Window, event: &WindowEvent) {
         && window.label() == "main"
     {
         let to_tray = window.try_state::<App>().is_some_and(|s| {
-            s.db.settings().inspect_err(|e| log::debug!("close: could not read settings, exiting: {e}")).is_ok_and(|v| v.close_to_tray)
+            s.db.settings()
+                .inspect_err(|e| log::debug!("close: could not read settings, exiting: {e}"))
+                .is_ok_and(|v| v.close_to_tray)
         });
         if to_tray {
             api.prevent_close();
@@ -644,7 +760,11 @@ fn main() {
     i18n::set("");
     let (data_dir, moved_from) = data_dir().unwrap_or_else(|e| fatal(&e));
     if let Err(e) = std::fs::create_dir_all(&data_dir) {
-        fatal(&tr!("MTwin Manager can't create its data folder {path}: {why}", path = data_dir.display(), why = e));
+        fatal(&tr!(
+            "MTwin Manager can't create its data folder {path}: {why}",
+            path = data_dir.display(),
+            why = e
+        ));
     }
     let log_dir = data_dir.join("logs");
     let _ = std::fs::create_dir_all(&log_dir);
@@ -652,11 +772,16 @@ fn main() {
 
     tauri::Builder::default()
         // Must be first: a second launch shows the running window instead.
-        .plugin(tauri_plugin_single_instance::init(|app, _, _| tray::show_main(app)))
+        .plugin(tauri_plugin_single_instance::init(|app, _, _| {
+            tray::show_main(app)
+        }))
         .plugin(
             tauri_plugin_log::Builder::new()
                 .clear_targets()
-                .target(Target::new(TargetKind::Folder { path: log_dir, file_name: Some("mtwin".into()) }))
+                .target(Target::new(TargetKind::Folder {
+                    path: log_dir,
+                    file_name: Some("mtwin".into()),
+                }))
                 // The Debug tab (`log://log` events); its history comes from `commands::debug_tail`.
                 .target(Target::new(TargetKind::Webview))
                 .level(log::LevelFilter::Info)
@@ -678,7 +803,12 @@ fn main() {
                 .build(),
         )
         // "main" is restored by `splash::start`, which shows it small first.
-        .plugin(tauri_plugin_window_state::Builder::new().with_filter(|label| label == "main").skip_initial_state("main").build())
+        .plugin(
+            tauri_plugin_window_state::Builder::new()
+                .with_filter(|label| label == "main")
+                .skip_initial_state("main")
+                .build(),
+        )
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
@@ -886,7 +1016,11 @@ mod tests {
     }
 
     fn json(data_dir: &Path, moved_from: Option<&Path>) -> String {
-        serde_json::to_string(&Location { data_dir: data_dir.into(), moved_from: moved_from.map(Into::into) }).unwrap()
+        serde_json::to_string(&Location {
+            data_dir: data_dir.into(),
+            moved_from: moved_from.map(Into::into),
+        })
+        .unwrap()
     }
 
     #[test]
@@ -898,21 +1032,43 @@ mod tests {
         let pick = |j: Option<&str>| chosen_dir(default.clone(), j).unwrap();
 
         assert_eq!(pick(None), (default.clone(), None));
-        for bad in ["", "{", "[]", "null", r#"{"dataDir": 5}"#, r#"{"movedFrom": "C:\\x"}"#] {
+        for bad in [
+            "",
+            "{",
+            "[]",
+            "null",
+            r#"{"dataDir": 5}"#,
+            r#"{"movedFrom": "C:\\x"}"#,
+        ] {
             assert_eq!(pick(Some(bad)), (default.clone(), None), "{bad}");
         }
-        assert_eq!(pick(Some(r#"{"dataDir": "relative\\moved"}"#)), (default.clone(), None));
+        assert_eq!(
+            pick(Some(r#"{"dataDir": "relative\\moved"}"#)),
+            (default.clone(), None)
+        );
         // Moved back to the default folder, which then lost its database: a fresh start there.
-        assert_eq!(pick(Some(&json(&default, Some(&moved)))), (default.clone(), None));
+        assert_eq!(
+            pick(Some(&json(&default, Some(&moved)))),
+            (default.clone(), None)
+        );
         // A moved folder without a database (a drive not connected) is no fresh start.
         for gone in [empty.clone(), tmp.join("gone")] {
             let err = chosen_dir(default.clone(), Some(&json(&gone, Some(&default)))).unwrap_err();
-            assert!(err.contains(&gone.display().to_string()) && err.contains(LOCATION), "{err}");
+            assert!(
+                err.contains(&gone.display().to_string()) && err.contains(LOCATION),
+                "{err}"
+            );
         }
 
         assert_eq!(pick(Some(&json(&moved, None))), (moved.clone(), None));
-        assert_eq!(pick(Some(&json(&moved, Some(&default)))), (moved.clone(), Some(default.clone())));
-        let extra = format!(r#"{{"dataDir": {}, "later": true}}"#, serde_json::to_string(&moved).unwrap());
+        assert_eq!(
+            pick(Some(&json(&moved, Some(&default)))),
+            (moved.clone(), Some(default.clone()))
+        );
+        let extra = format!(
+            r#"{{"dataDir": {}, "later": true}}"#,
+            serde_json::to_string(&moved).unwrap()
+        );
         assert_eq!(pick(Some(&extra)), (moved.clone(), None));
         std::fs::remove_dir_all(&tmp).unwrap();
     }
@@ -922,10 +1078,21 @@ mod tests {
         let tmp = temp_dir();
         let current = tmp.join("Current");
         touch(&current.join("mtwin.db"));
-        let refused = |p: &Path| matches!(move_target(&current, &p.display().to_string()), Err(AppError::Invalid(_)));
+        let refused = |p: &Path| {
+            matches!(
+                move_target(&current, &p.display().to_string()),
+                Err(AppError::Invalid(_))
+            )
+        };
 
-        assert!(matches!(move_target(&current, r"relative\folder"), Err(AppError::Invalid(_))));
-        assert!(matches!(move_target(&current, ""), Err(AppError::Invalid(_))));
+        assert!(matches!(
+            move_target(&current, r"relative\folder"),
+            Err(AppError::Invalid(_))
+        ));
+        assert!(matches!(
+            move_target(&current, ""),
+            Err(AppError::Invalid(_))
+        ));
         assert!(refused(&current));
         assert!(refused(&tmp.join("current")));
         assert!(refused(&tmp.join(r"current\.\")));
@@ -939,10 +1106,16 @@ mod tests {
 
         // A new folder, or an existing one without a database (other files are fine).
         let new = tmp.join(r"a\..\new");
-        assert_eq!(move_target(&current, &format!("  {}  ", new.display())).unwrap(), tmp.join("new"));
+        assert_eq!(
+            move_target(&current, &format!("  {}  ", new.display())).unwrap(),
+            tmp.join("new")
+        );
         let existing = tmp.join("existing");
         touch(&existing.join("notes.txt"));
-        assert_eq!(move_target(&current, &existing.display().to_string()).unwrap(), existing);
+        assert_eq!(
+            move_target(&current, &existing.display().to_string()).unwrap(),
+            existing
+        );
         // Beside the current folder, or above it.
         assert!(move_target(&current, &tmp.join("Current2").display().to_string()).is_ok());
         std::fs::remove_dir_all(&tmp).unwrap();
@@ -952,7 +1125,10 @@ mod tests {
     fn a_finished_move_deletes_only_the_old_database() {
         let tmp = temp_dir();
         let (old, new) = (tmp.join("old"), tmp.join("new"));
-        for f in DB_FILES.iter().chain(&["notes.txt", r"logs\mtwin.log", r"webview\x"]) {
+        for f in DB_FILES
+            .iter()
+            .chain(&["notes.txt", r"logs\mtwin.log", r"webview\x"])
+        {
             touch(&old.join(f));
             touch(&new.join(f));
         }
@@ -964,7 +1140,11 @@ mod tests {
 
         // Still open elsewhere (no delete sharing, like SQLite's): reported, so it is retried.
         use std::os::windows::fs::OpenOptionsExt;
-        let held = std::fs::File::options().read(true).share_mode(1).open(old.join(DB_FILE)).unwrap();
+        let held = std::fs::File::options()
+            .read(true)
+            .share_mode(1)
+            .open(old.join(DB_FILE))
+            .unwrap();
         assert!(!remove_old_db(&new, &old));
         assert_eq!(left(&old), 1);
         drop(held);
@@ -972,7 +1152,11 @@ mod tests {
         assert!(remove_old_db(&new, &old));
         assert_eq!(left(&old), 0);
         assert_eq!(left(&new), DB_FILES.len());
-        assert!(old.join("notes.txt").exists() && old.join(r"logs\mtwin.log").exists() && old.join(r"webview\x").exists());
+        assert!(
+            old.join("notes.txt").exists()
+                && old.join(r"logs\mtwin.log").exists()
+                && old.join(r"webview\x").exists()
+        );
         // Already gone: nothing to do.
         assert!(remove_old_db(&new, &old));
         std::fs::remove_dir_all(&tmp).unwrap();

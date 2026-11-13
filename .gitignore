@@ -20,5 +20,5 @@ installers/
 /docs/memory-test.md
 /docs/research/*
 !/docs/research/fixtures/
-/RoALT.exe
+/MTwin Manager.exe
 /update-key-PRIVATE.pem

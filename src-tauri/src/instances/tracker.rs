@@ -11,7 +11,9 @@ use tauri::{AppHandle, Manager};
 use super::logwatch::{self, LogFacts};
 use super::metrics::{MEM_STRIKES, mem_strikes, mem_throttled};
 use super::process::{self, ProcInfo};
-use crate::model::{CrashKind, Instance, InstanceState, LaunchInfo, LaunchTarget, Limits, WindowLayout};
+use crate::model::{
+    CrashKind, Instance, InstanceState, LaunchInfo, LaunchTarget, Limits, WindowLayout,
+};
 
 /// A client that vanishes this soon after launch without reaching a game may come back under
 /// a new PID (Roblox's updater relaunches it, research M8/M9), or, behind a bootstrapper, may
@@ -95,7 +97,12 @@ pub fn frame_size(pids: impl IntoIterator<Item = u32>) -> (i32, i32) {
     *last.get_or_insert_with(super::window::default_frame)
 }
 
-fn plan_layout(app: &AppHandle, s: &crate::App, v: &crate::model::Settings, arrived: Option<(&str, u32, i64)>) -> (Vec<Place>, usize) {
+fn plan_layout(
+    app: &AppHandle,
+    s: &crate::App,
+    v: &crate::model::Settings,
+    arrived: Option<(&str, u32, i64)>,
+) -> (Vec<Place>, usize) {
     let layout = v.window_layout;
     // Anything else placed windows since: the next Fit arrival lays the whole grid out again.
     if layout != WindowLayout::Fit {
@@ -103,7 +110,11 @@ fn plan_layout(app: &AppHandle, s: &crate::App, v: &crate::model::Settings, arri
     }
     let round = s.tracker.layout_gen.load(Ordering::Relaxed);
     let Some(area) = (layout != WindowLayout::Off)
-        .then(|| app.get_webview_window("main").and_then(|w| w.hwnd().ok()).and_then(super::window::work_area))
+        .then(|| {
+            app.get_webview_window("main")
+                .and_then(|w| w.hwnd().ok())
+                .and_then(super::window::work_area)
+        })
         .flatten()
     else {
         return (Vec::new(), round);
@@ -133,7 +144,13 @@ fn plan_layout(app: &AppHandle, s: &crate::App, v: &crate::model::Settings, arri
     }
     let frame = frame_size(list.iter().map(|c| c.1));
     let micro = (v.micro_width, v.micro_height);
-    let places = list.into_iter().filter_map(|(id, pid, slot)| super::window::slot_rect(layout, slot, n, area, frame, micro).map(|(r, small)| (id, pid, r, small))).collect();
+    let places = list
+        .into_iter()
+        .filter_map(|(id, pid, slot)| {
+            super::window::slot_rect(layout, slot, n, area, frame, micro)
+                .map(|(r, small)| (id, pid, r, small))
+        })
+        .collect();
     (places, round)
 }
 
@@ -231,7 +248,11 @@ pub struct Claim<'a> {
 
 impl Drop for Claim<'_> {
     fn drop(&mut self) {
-        self.tracker.claimed.lock().unwrap_or_else(|e| e.into_inner()).retain(|&a| a != self.account_id);
+        self.tracker
+            .claimed
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .retain(|&a| a != self.account_id);
     }
 }
 
@@ -323,7 +344,10 @@ impl Played {
         let mut out = None;
         if self.place != place {
             out = self.place.filter(|_| self.ms > 0).map(|p| (p, self.ms));
-            *self = Played { place, ..Played::default() };
+            *self = Played {
+                place,
+                ..Played::default()
+            };
         }
         if place.is_some() {
             if let Some(t) = self.tick {
@@ -381,7 +405,11 @@ impl Entry {
     /// Loading (for as long as a first load or a teleport may take: one stuck there is limited
     /// again) or not responding: limits would only slow that down (`limits::plan`).
     fn runs_free(&self, now: i64) -> bool {
-        let may_take = if self.in_game_at.is_none() { REBIND_MS } else { TELEPORT_MS };
+        let may_take = if self.in_game_at.is_none() {
+            REBIND_MS
+        } else {
+            TELEPORT_MS
+        };
         self.hung_polls >= HANG_FREE_POLLS || self.loading_since.is_some_and(|t| now - t < may_take)
     }
 
@@ -400,7 +428,10 @@ impl Entry {
 
     fn cause(&self) -> Option<CrashKind> {
         wants_rejoin(&self.inst, &self.facts, self.hung()).or_else(|| {
-            (self.mem_high() && self.inst.state != InstanceState::Exited && self.inst.note.is_none()).then_some(CrashKind::Mem)
+            (self.mem_high()
+                && self.inst.state != InstanceState::Exited
+                && self.inst.note.is_none())
+            .then_some(CrashKind::Mem)
         })
     }
 }
@@ -453,10 +484,18 @@ impl Tracker {
         };
         let mut entries = self.entries();
         // The account has a new client: nothing is waiting to bring back an older one any more.
-        for e in entries.iter_mut().filter(|e| e.inst.account_id == info.account_id) {
+        for e in entries
+            .iter_mut()
+            .filter(|e| e.inst.account_id == info.account_id)
+        {
             e.inst.relaunch_problem = None;
         }
-        entries.push(Entry::new(inst.clone(), info.browser_tracker_id, info.pid_start, !info.via_bootstrapper));
+        entries.push(Entry::new(
+            inst.clone(),
+            info.browser_tracker_id,
+            info.pid_start,
+            !info.via_bootstrapper,
+        ));
         inst
     }
 
@@ -469,7 +508,15 @@ impl Tracker {
             .filter_map(|e| {
                 let (_, start_time) = client_of(e)?;
                 let (log, facts) = (e.log.clone(), e.facts.clone());
-                Some(Saved { inst: e.inst.clone(), btid: e.btid, start_time, log, offset: e.offset, facts, in_game_at: e.in_game_at })
+                Some(Saved {
+                    inst: e.inst.clone(),
+                    btid: e.btid,
+                    start_time,
+                    log,
+                    offset: e.offset,
+                    facts,
+                    in_game_at: e.in_game_at,
+                })
             })
             .collect()
     }
@@ -480,20 +527,25 @@ impl Tracker {
     pub fn persist(&self, db: &crate::storage::Db, due: bool) {
         let now = self.saved();
         let mut last = self.persisted.lock().unwrap_or_else(|e| e.into_inner());
-        let moved = now.len() != last.len() || now.iter().zip(last.iter()).any(|(a, b)| a.inst != b.inst);
+        let moved =
+            now.len() != last.len() || now.iter().zip(last.iter()).any(|(a, b)| a.inst != b.inst);
         if *last == now || !(moved || due) {
             return;
         }
-        let rows: Vec<(String, String)> =
-            now.iter()
-                .filter_map(|c| match serde_json::to_string(c) {
-                    Ok(j) => Some((c.inst.id.clone(), j)),
-                    Err(e) => {
-                        log::warn!("tracked instance {} not saved: {:?} error", c.inst.id, e.classify());
-                        None
-                    }
-                })
-                .collect();
+        let rows: Vec<(String, String)> = now
+            .iter()
+            .filter_map(|c| match serde_json::to_string(c) {
+                Ok(j) => Some((c.inst.id.clone(), j)),
+                Err(e) => {
+                    log::warn!(
+                        "tracked instance {} not saved: {:?} error",
+                        c.inst.id,
+                        e.classify()
+                    );
+                    None
+                }
+            })
+            .collect();
         match db.save_tracked(&rows) {
             Ok(()) => *last = now,
             Err(e) => log::warn!("could not save the tracked clients: {e}"),
@@ -504,7 +556,12 @@ impl Tracker {
     /// `readoptable` among the running Roblox clients `roblox`, its log read on from where it
     /// was. Returns the (pid, start time) of each one followed again.
     /// `played`: accounts the window layout leaves alone (full quality), given no slot.
-    pub fn readopt(&self, saved: Vec<Saved>, roblox: &[ProcInfo], played: &[i64]) -> Vec<(u32, u64)> {
+    pub fn readopt(
+        &self,
+        saved: Vec<Saved>,
+        roblox: &[ProcInfo],
+        played: &[i64],
+    ) -> Vec<(u32, u64)> {
         let mut entries = self.entries();
         let mut out = Vec::new();
         for s in saved {
@@ -521,7 +578,9 @@ impl Tracker {
         // Layout slots in launch order, so new clients go after them, not over them.
         let mut back: Vec<(i64, i64)> = entries
             .iter()
-            .filter(|e| e.inst.state != InstanceState::Exited && !played.contains(&e.inst.account_id))
+            .filter(|e| {
+                e.inst.state != InstanceState::Exited && !played.contains(&e.inst.account_id)
+            })
             .map(|e| (e.inst.started_at, e.inst.account_id))
             .collect();
         drop(entries);
@@ -542,7 +601,10 @@ impl Tracker {
     }
 
     pub fn get(&self, id: &str) -> Option<Instance> {
-        self.entries().iter().find(|e| e.inst.id == id).map(|e| e.inst.clone())
+        self.entries()
+            .iter()
+            .find(|e| e.inst.id == id)
+            .map(|e| e.inst.clone())
     }
 
     /// The client that took `id`'s place: the newest one of `account_id` that has not ended and
@@ -550,10 +612,18 @@ impl Tracker {
     /// or restart launches the account again as a new instance, with a new id.
     pub fn successor(&self, id: &str, account_id: i64) -> Option<Instance> {
         let entries = self.entries();
-        let after = entries.iter().find(|e| e.inst.id == id).map_or(i64::MIN, |e| e.inst.started_at);
+        let after = entries
+            .iter()
+            .find(|e| e.inst.id == id)
+            .map_or(i64::MIN, |e| e.inst.started_at);
         entries
             .iter()
-            .filter(|e| e.inst.id != id && e.inst.account_id == account_id && e.inst.state != InstanceState::Exited && e.inst.started_at >= after)
+            .filter(|e| {
+                e.inst.id != id
+                    && e.inst.account_id == account_id
+                    && e.inst.state != InstanceState::Exited
+                    && e.inst.started_at >= after
+            })
             .max_by_key(|e| e.inst.started_at)
             .map(|e| e.inst.clone())
     }
@@ -569,7 +639,9 @@ impl Tracker {
     /// `mark_closing` for an auto-rejoin or restart of `cause`; a `Mem` one ends as `Mem`.
     pub fn mark_restart(&self, id: &str, cause: Option<CrashKind>) -> Option<(u32, Option<u64>)> {
         let mut entries = self.entries();
-        let e = entries.iter_mut().find(|e| e.inst.id == id && e.inst.state != InstanceState::Exited)?;
+        let e = entries
+            .iter_mut()
+            .find(|e| e.inst.id == id && e.inst.state != InstanceState::Exited)?;
         e.closing = true;
         e.mem_restart = cause == Some(CrashKind::Mem);
         e.alive.then_some((e.inst.pid, e.start_time))
@@ -577,7 +649,11 @@ impl Tracker {
 
     /// Launches still in a bootstrapper's hands, whose client hasn't appeared: for the panic button.
     pub fn bootstrappers(&self) -> Vec<(u32, Option<u64>)> {
-        self.entries().iter().filter(|e| !e.adopted && e.alive && e.inst.state != InstanceState::Exited).map(|e| (e.inst.pid, e.start_time)).collect()
+        self.entries()
+            .iter()
+            .filter(|e| !e.adopted && e.alive && e.inst.state != InstanceState::Exited)
+            .map(|e| (e.inst.pid, e.start_time))
+            .collect()
     }
 
     /// Kill selected: marks each of `ids` closed by the user (no rejoin, no restart) and gives what
@@ -590,7 +666,11 @@ impl Tracker {
             .map(|e| {
                 e.stop_relaunch();
                 e.closing = true;
-                KillTarget { process: e.alive.then_some((e.inst.pid, e.start_time)), adopted: e.adopted, btid: e.btid }
+                KillTarget {
+                    process: e.alive.then_some((e.inst.pid, e.start_time)),
+                    adopted: e.adopted,
+                    btid: e.btid,
+                }
             })
             .collect()
     }
@@ -617,13 +697,29 @@ impl Tracker {
     /// counts as a new one; a client followed again after a restart is sorted out by `add_server`.
     pub fn take_servers(&self) -> Vec<(i64, crate::model::ServerVisit)> {
         let mut out = Vec::new();
-        for e in self.entries().iter_mut().filter(|e| e.facts.in_game && !e.facts.teleporting) {
+        for e in self
+            .entries()
+            .iter_mut()
+            .filter(|e| e.facts.in_game && !e.facts.teleporting)
+        {
             if let (Some(job), Some(place)) = (&e.facts.job_id, e.facts.place_id)
                 && e.server_seen.as_ref() != Some(job)
             {
                 // Where a teleport leads may need a code too, and its log doesn't say.
-                let private = e.server_seen.is_some() || matches!(e.inst.target, LaunchTarget::PrivateLink { .. } | LaunchTarget::PrivateAccess { .. });
-                out.push((e.inst.account_id, crate::model::ServerVisit { place_id: place, job_id: job.clone(), private, joined_at: crate::commands::now_ms() }));
+                let private = e.server_seen.is_some()
+                    || matches!(
+                        e.inst.target,
+                        LaunchTarget::PrivateLink { .. } | LaunchTarget::PrivateAccess { .. }
+                    );
+                out.push((
+                    e.inst.account_id,
+                    crate::model::ServerVisit {
+                        place_id: place,
+                        job_id: job.clone(),
+                        private,
+                        joined_at: crate::commands::now_ms(),
+                    },
+                ));
                 e.server_seen = Some(job.clone());
             }
         }
@@ -634,9 +730,12 @@ impl Tracker {
     /// counted at each poll (`Played::step`), handed out when a client leaves a game or its place
     /// or ends, and all of it when `flush` (once a minute, and at exit). Only MTwin Manager's own clients.
     pub fn take_playtime(&self, now: i64, flush: bool) -> Vec<(i64, i64, i64)> {
-        let mut out = std::mem::take(&mut *self.unsaved_play.lock().unwrap_or_else(|e| e.into_inner()));
+        let mut out =
+            std::mem::take(&mut *self.unsaved_play.lock().unwrap_or_else(|e| e.into_inner()));
         for e in self.entries().iter_mut() {
-            let place = (e.inst.state == InstanceState::InGame).then_some(e.inst.place_id).flatten();
+            let place = (e.inst.state == InstanceState::InGame)
+                .then_some(e.inst.place_id)
+                .flatten();
             if let Some((p, ms)) = e.played.step(place, now, flush) {
                 out.push((e.inst.account_id, p, ms));
             }
@@ -661,7 +760,10 @@ impl Tracker {
     pub fn has_live_client(&self, account_id: i64) -> bool {
         self.entries().iter().any(|e| {
             e.inst.account_id == account_id
-                && matches!(e.inst.state, InstanceState::Starting | InstanceState::Joining | InstanceState::InGame)
+                && matches!(
+                    e.inst.state,
+                    InstanceState::Starting | InstanceState::Joining | InstanceState::InGame
+                )
         })
     }
 
@@ -673,17 +775,26 @@ impl Tracker {
             return None;
         }
         claimed.push(account_id);
-        Some(Claim { tracker: self, account_id })
+        Some(Claim {
+            tracker: self,
+            account_id,
+        })
     }
 
     /// The logs of clients that haven't ended (`logwatch::clean` leaves them).
     pub fn live_logs(&self) -> Vec<PathBuf> {
-        self.entries().iter().filter(|e| e.inst.state != InstanceState::Exited).filter_map(|e| e.log.clone()).collect()
+        self.entries()
+            .iter()
+            .filter(|e| e.inst.state != InstanceState::Exited)
+            .filter_map(|e| e.log.clone())
+            .collect()
     }
 
     /// True while a client MTwin Manager started hasn't ended.
     pub fn any_running(&self) -> bool {
-        self.entries().iter().any(|e| e.inst.state != InstanceState::Exited)
+        self.entries()
+            .iter()
+            .any(|e| e.inst.state != InstanceState::Exited)
     }
 
     /// How many auto-rejoins in a row led to the client `id` (shown in the UI).
@@ -698,7 +809,9 @@ impl Tracker {
     /// None when there is no such running client.
     pub fn set_limits(&self, id: &str, limits: Limits) -> Option<(Limits, Option<(u32, u64)>)> {
         let mut entries = self.entries();
-        let e = entries.iter_mut().find(|e| e.inst.id == id && e.inst.state != InstanceState::Exited)?;
+        let e = entries
+            .iter_mut()
+            .find(|e| e.inst.id == id && e.inst.state != InstanceState::Exited)?;
         let prev = std::mem::replace(&mut e.inst.limits, limits);
         Some((prev, client_of(e)))
     }
@@ -706,7 +819,12 @@ impl Tracker {
     /// Opts a running client in or out of anti-AFK; false when there is no such client.
     pub fn set_anti_afk(&self, id: &str, on: bool) -> bool {
         let mut entries = self.entries();
-        let Some(e) = entries.iter_mut().find(|e| e.inst.id == id && e.inst.state != InstanceState::Exited) else { return false };
+        let Some(e) = entries
+            .iter_mut()
+            .find(|e| e.inst.id == id && e.inst.state != InstanceState::Exited)
+        else {
+            return false;
+        };
         e.inst.anti_afk = on;
         true
     }
@@ -719,7 +837,11 @@ impl Tracker {
             .filter(|e| e.inst.state == InstanceState::InGame && e.inst.anti_afk && !e.closing)
             .filter_map(|e| {
                 let (pid, _) = client_of(e)?;
-                Some(super::afk::AfkClient { id: e.inst.id.clone(), pid, since: e.inst.afk_at.or(e.in_game_at)? })
+                Some(super::afk::AfkClient {
+                    id: e.inst.id.clone(),
+                    pid,
+                    since: e.inst.afk_at.or(e.in_game_at)?,
+                })
             })
             .collect()
     }
@@ -767,19 +889,26 @@ impl Tracker {
 
     /// A running batch's accounts, whose slots are kept while they start.
     pub fn pending_slots(&self) -> Vec<i64> {
-        self.slots_pending.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.slots_pending
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// The batch is over: its accounts that didn't start give their slots up (trimmed at the end).
     pub fn end_batch_slots(&self) {
-        self.slots_pending.lock().unwrap_or_else(|e| e.into_inner()).clear();
+        self.slots_pending
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
         self.reserve_slots(&[], false);
     }
 
     /// The slots in this order from now on (the Dashboard's Tile laid them out so). `fit`: as the
     /// Fit grid; else the next Fit arrival lays every window out again.
     pub fn set_slots(&self, accounts: Vec<i64>, fit: bool) {
-        self.fit_n.store(if fit { accounts.len() } else { 0 }, Ordering::Relaxed);
+        self.fit_n
+            .store(if fit { accounts.len() } else { 0 }, Ordering::Relaxed);
         *self.slots() = accounts;
     }
 
@@ -789,7 +918,10 @@ impl Tracker {
             self.reserve_slots(&[account], false);
         }
         let s = self.slots();
-        (s.iter().position(|&a| a == account).unwrap_or(s.len()), s.len())
+        (
+            s.iter().position(|&a| a == account).unwrap_or(s.len()),
+            s.len(),
+        )
     }
 
     /// Running clients already in a game (or disconnected from one: they keep their slot), past their
@@ -799,8 +931,20 @@ impl Tracker {
         let slots = self.slots().clone();
         self.entries()
             .iter()
-            .filter(|e| matches!(e.inst.state, InstanceState::InGame | InstanceState::Disconnected) && e.window_seen)
-            .filter_map(|e| Some((e.inst.id.clone(), client_of(e)?.0, slots.iter().position(|&a| a == e.inst.account_id)?, e.inst.account_id)))
+            .filter(|e| {
+                matches!(
+                    e.inst.state,
+                    InstanceState::InGame | InstanceState::Disconnected
+                ) && e.window_seen
+            })
+            .filter_map(|e| {
+                Some((
+                    e.inst.id.clone(),
+                    client_of(e)?.0,
+                    slots.iter().position(|&a| a == e.inst.account_id)?,
+                    e.inst.account_id,
+                ))
+            })
             .collect()
     }
 
@@ -808,7 +952,12 @@ impl Tracker {
     /// None); false when there is no such client. The tiny sweep keeps it at that size.
     pub fn set_micro(&self, id: &str, small: Option<(u32, u32)>) -> bool {
         let mut entries = self.entries();
-        let Some(e) = entries.iter_mut().find(|e| e.inst.id == id && e.inst.state != InstanceState::Exited) else { return false };
+        let Some(e) = entries
+            .iter_mut()
+            .find(|e| e.inst.id == id && e.inst.state != InstanceState::Exited)
+        else {
+            return false;
+        };
         (e.inst.micro, e.inst.micro_size) = (small.is_some(), small);
         true
     }
@@ -824,11 +973,19 @@ impl Tracker {
             .filter(|e| !e.window_seen && e.inst.state == InstanceState::InGame)
             .filter_map(|e| client_of(e).map(|(pid, _)| (e.inst.id.clone(), pid)))
             .collect();
-        let seen: Vec<(String, u32)> = waiting.into_iter().filter(|&(_, pid)| has_window(pid)).collect();
+        let seen: Vec<(String, u32)> = waiting
+            .into_iter()
+            .filter(|&(_, pid)| has_window(pid))
+            .collect();
         let mut entries = self.entries();
         seen.into_iter()
             .filter(|(id, pid)| {
-                let Some(e) = entries.iter_mut().find(|e| e.inst.id == *id && e.inst.pid == *pid && !e.window_seen) else { return false };
+                let Some(e) = entries
+                    .iter_mut()
+                    .find(|e| e.inst.id == *id && e.inst.pid == *pid && !e.window_seen)
+                else {
+                    return false;
+                };
                 e.window_seen = true;
                 true
             })
@@ -848,7 +1005,9 @@ impl Tracker {
         self.entries()
             .iter()
             .filter(|e| e.inst.state != InstanceState::Exited)
-            .filter_map(|e| client_of(e).map(|(pid, t0)| (e.inst.id.clone(), pid, t0, e.inst.limits)))
+            .filter_map(|e| {
+                client_of(e).map(|(pid, t0)| (e.inst.id.clone(), pid, t0, e.inst.limits))
+            })
             .collect()
     }
 
@@ -857,7 +1016,10 @@ impl Tracker {
     pub fn free(&self, full_quality: &[i64], now: i64) -> Vec<String> {
         self.entries()
             .iter()
-            .filter(|e| e.inst.state != InstanceState::Exited && (e.runs_free(now) || full_quality.contains(&e.inst.account_id)))
+            .filter(|e| {
+                e.inst.state != InstanceState::Exited
+                    && (e.runs_free(now) || full_quality.contains(&e.inst.account_id))
+            })
             .map(|e| e.inst.id.clone())
             .collect()
     }
@@ -865,7 +1027,9 @@ impl Tracker {
     /// Still a rejoin case (`wants_rejoin`), checked again after the launch delay: false once
     /// the user closed it, it reconnected, responds again or was cleared.
     pub fn still_wants_rejoin(&self, id: &str) -> bool {
-        self.entries().iter().any(|e| e.inst.id == id && !e.closing && e.cause().is_some())
+        self.entries()
+            .iter()
+            .any(|e| e.inst.id == id && !e.closing && e.cause().is_some())
     }
 
     /// Still to be relaunched, after a check that took a while: `still_wants_rejoin` (`closed`: MTwin Manager
@@ -873,30 +1037,49 @@ impl Tracker {
     /// the account was launched since it began.
     pub fn relaunch_wanted(&self, id: &str, closed: bool) -> bool {
         let entries = self.entries();
-        let Some(me) = entries.iter().find(|e| e.inst.id == id) else { return false };
-        let Some(began) = me.relaunching else { return false };
+        let Some(me) = entries.iter().find(|e| e.inst.id == id) else {
+            return false;
+        };
+        let Some(began) = me.relaunching else {
+            return false;
+        };
         (closed || (!me.closing && me.cause().is_some()))
-            && !entries.iter().any(|e| e.inst.id != id && e.inst.account_id == me.inst.account_id && e.inst.started_at > began)
+            && !entries.iter().any(|e| {
+                e.inst.id != id
+                    && e.inst.account_id == me.inst.account_id
+                    && e.inst.started_at > began
+            })
     }
 
     /// A relaunch of this client starts (`now`: Unix ms); false if one is at work already.
     pub fn begin_relaunch(&self, id: &str, now: i64) -> bool {
-        self.entries().iter_mut().find(|e| e.inst.id == id).is_some_and(|e| {
-            e.inst.relaunching = true;
-            e.relaunching.replace(e.relaunching.unwrap_or(now)).is_none()
-        })
+        self.entries()
+            .iter_mut()
+            .find(|e| e.inst.id == id)
+            .is_some_and(|e| {
+                e.inst.relaunching = true;
+                e.relaunching
+                    .replace(e.relaunching.unwrap_or(now))
+                    .is_none()
+            })
     }
 
     /// Why this client's relaunch has to wait (None: it no longer does); the UI shows it.
     pub fn set_relaunch_problem(&self, id: &str, why: Option<String>) {
-        if let Some(e) = self.entries().iter_mut().find(|e| e.inst.id == id && e.relaunching.is_some()) {
+        if let Some(e) = self
+            .entries()
+            .iter_mut()
+            .find(|e| e.inst.id == id && e.relaunching.is_some())
+        {
             e.inst.relaunch_problem = why;
         }
     }
 
     /// Not stopped by Close all or a clear (it is over when its task ends).
     pub fn is_relaunching(&self, id: &str) -> bool {
-        self.entries().iter().any(|e| e.inst.id == id && e.relaunching.is_some())
+        self.entries()
+            .iter()
+            .any(|e| e.inst.id == id && e.relaunching.is_some())
     }
 
     pub fn end_relaunch(&self, id: &str) {
@@ -907,7 +1090,10 @@ impl Tracker {
 
     /// What is wrong with the client now, if it is still a rejoin case.
     pub fn cause_of(&self, id: &str) -> Option<CrashKind> {
-        self.entries().iter().find(|e| e.inst.id == id).and_then(Entry::cause)
+        self.entries()
+            .iter()
+            .find(|e| e.inst.id == id)
+            .and_then(Entry::cause)
     }
 
     /// Close all: no relaunch still waiting goes ahead, and an ended client handed out but not yet
@@ -921,7 +1107,15 @@ impl Tracker {
 
     /// Clients still open that are only waiting to be closed and relaunched.
     pub fn relaunches_open(&self) -> usize {
-        self.entries().iter().filter(|e| e.relaunching.is_some() && !e.closing && e.inst.state != InstanceState::Exited && e.cause().is_some()).count()
+        self.entries()
+            .iter()
+            .filter(|e| {
+                e.relaunching.is_some()
+                    && !e.closing
+                    && e.inst.state != InstanceState::Exited
+                    && e.cause().is_some()
+            })
+            .count()
     }
 
     /// Clients that got disconnected, crashed or hung since the last call and may be relaunched
@@ -931,7 +1125,12 @@ impl Tracker {
     pub fn take_rejoins(&self) -> Vec<Rejoin> {
         let mut out = Vec::new();
         for e in self.entries().iter_mut() {
-            let trouble = e.hung() || e.mem_high() || matches!(e.inst.state, InstanceState::Disconnected | InstanceState::Exited);
+            let trouble = e.hung()
+                || e.mem_high()
+                || matches!(
+                    e.inst.state,
+                    InstanceState::Disconnected | InstanceState::Exited
+                );
             if !trouble {
                 // Reconnected, teleported or responding again: later trouble counts again, and
                 // an earlier "Gave up" no longer says anything about it.
@@ -943,9 +1142,20 @@ impl Tracker {
                 if let Some(cause) = e.cause() {
                     let i = &e.inst;
                     // Kicked for idling: says whether anti-AFK's presses counted in this game.
-                    if e.facts.reason.as_deref().is_some_and(|r| r.ends_with(" 278")) {
-                        let last = i.afk_at.map_or_else(|| "never".into(), |t| format!("{} min ago", (crate::commands::now_ms() - t) / 60_000));
-                        log::warn!("instance {} kicked for idling (278); anti-AFK on for it: {}, its last press: {last}", i.id, i.anti_afk);
+                    if e.facts
+                        .reason
+                        .as_deref()
+                        .is_some_and(|r| r.ends_with(" 278"))
+                    {
+                        let last = i.afk_at.map_or_else(
+                            || "never".into(),
+                            |t| format!("{} min ago", (crate::commands::now_ms() - t) / 60_000),
+                        );
+                        log::warn!(
+                            "instance {} kicked for idling (278); anti-AFK on for it: {}, its last press: {last}",
+                            i.id,
+                            i.anti_afk
+                        );
                     }
                     out.push(Rejoin {
                         from: i.id.clone(),
@@ -964,7 +1174,10 @@ impl Tracker {
     pub fn set_in_force(&self, in_force: &[(String, Limits)]) -> bool {
         let mut changed = false;
         for e in self.entries().iter_mut() {
-            let now = in_force.iter().find(|(id, _)| *id == e.inst.id).map_or_else(Limits::default, |(_, l)| *l);
+            let now = in_force
+                .iter()
+                .find(|(id, _)| *id == e.inst.id)
+                .map_or_else(Limits::default, |(_, l)| *l);
             changed |= now != e.inst.applied_limits;
             e.inst.applied_limits = now;
         }
@@ -975,7 +1188,12 @@ impl Tracker {
     /// `limit_mb` (`metrics::mem_strikes`; 0: off) unless `count` is off: then it is only remembered,
     /// for the throttle, and the strikes stay. A client over it for `MEM_STRIKES` samples in a row
     /// is handed out by `take_rejoins` as `Mem`.
-    pub fn check_memory(&self, limit_mb: u32, count: bool, private_mb: &dyn Fn(u32, u64) -> Option<u64>) {
+    pub fn check_memory(
+        &self,
+        limit_mb: u32,
+        count: bool,
+        private_mb: &dyn Fn(u32, u64) -> Option<u64>,
+    ) {
         let read: Vec<(String, u32, u64)> = self
             .clients()
             .into_iter()
@@ -983,7 +1201,10 @@ impl Tracker {
             .collect();
         // One being closed keeps its count (and the memory it is recorded with).
         for e in self.entries().iter_mut().filter(|e| !e.closing) {
-            match read.iter().find(|(id, pid, _)| *id == e.inst.id && *pid == e.inst.pid) {
+            match read
+                .iter()
+                .find(|(id, pid, _)| *id == e.inst.id && *pid == e.inst.pid)
+            {
                 Some(&(_, _, mb)) => {
                     if count {
                         e.mem_strikes = mem_strikes(e.mem_strikes, mb, limit_mb);
@@ -1000,7 +1221,11 @@ impl Tracker {
     /// (`metrics::mem_throttled`; 0: off). The ids held, and whether any changed.
     pub fn throttle(&self, limit_mb: u32) -> (Vec<String>, bool) {
         let (mut held, mut changed) = (Vec::new(), false);
-        for e in self.entries().iter_mut().filter(|e| e.inst.state != InstanceState::Exited) {
+        for e in self
+            .entries()
+            .iter_mut()
+            .filter(|e| e.inst.state != InstanceState::Exited)
+        {
             let t = mem_throttled(e.inst.throttled, e.mem_mb, limit_mb);
             changed |= t != e.inst.throttled;
             e.inst.throttled = t;
@@ -1018,9 +1243,7 @@ impl Tracker {
         let mut unsaved = self.unsaved_play.lock().unwrap_or_else(|e| e.into_inner());
         entries.retain(|e| {
             let keep = e.inst.state != InstanceState::Exited;
-            if !keep
-                && let Some(place) = e.played.place.filter(|_| e.played.ms > 0)
-            {
+            if !keep && let Some(place) = e.played.place.filter(|_| e.played.ms > 0) {
                 unsaved.push((e.inst.account_id, place, e.played.ms));
             }
             keep
@@ -1216,15 +1439,30 @@ impl Tracker {
                     let (b, a) = (&t.before, &t.after);
                     if b.state != a.state || b.note != a.note {
                         // Ordinary progress (and the user's own close) at info; problems at warn.
-                        let problem = a.state == InstanceState::Disconnected || a.note.as_ref().is_some_and(|n| *n != closed());
-                        let level = if problem { log::Level::Warn } else { log::Level::Info };
+                        let problem = a.state == InstanceState::Disconnected
+                            || a.note.as_ref().is_some_and(|n| *n != closed());
+                        let level = if problem {
+                            log::Level::Warn
+                        } else {
+                            log::Level::Info
+                        };
                         let note = a.note.as_deref().unwrap_or("");
-                        log::log!(level, "instance {} of account {}: {:?} -> {:?} {note}", a.id, a.account_id, b.state, a.state);
+                        log::log!(
+                            level,
+                            "instance {} of account {}: {:?} -> {:?} {note}",
+                            a.id,
+                            a.account_id,
+                            b.state,
+                            a.state
+                        );
                         // Launches from any path slow down for this, until one gets through.
                         let bulk = &app.state::<crate::App>().bulk;
-                        if a.note != b.note && a.note.as_ref().is_some_and(|n| *n == auth_failed()) {
+                        if a.note != b.note && a.note.as_ref().is_some_and(|n| *n == auth_failed())
+                        {
                             bulk.refused();
-                        } else if a.state == InstanceState::InGame && b.state != InstanceState::InGame {
+                        } else if a.state == InstanceState::InGame
+                            && b.state != InstanceState::InGame
+                        {
                             bulk.got_through();
                         }
                     }
@@ -1240,12 +1478,27 @@ impl Tracker {
 
     /// One round over the running entries; what the UI sees of each one that changed (none:
     /// nothing changed). The files and processes are looked at on copies, outside the lock.
-    fn poll(&self, dir: Option<&Path>, procs: &dyn Procs, user_of: &dyn Fn(i64) -> Option<i64>, now: i64) -> Vec<Transition> {
-        let mut work: Vec<Entry> = self.entries().iter().filter(|e| e.inst.state != InstanceState::Exited).cloned().collect();
+    fn poll(
+        &self,
+        dir: Option<&Path>,
+        procs: &dyn Procs,
+        user_of: &dyn Fn(i64) -> Option<i64>,
+        now: i64,
+    ) -> Vec<Transition> {
+        let mut work: Vec<Entry> = self
+            .entries()
+            .iter()
+            .filter(|e| e.inst.state != InstanceState::Exited)
+            .cloned()
+            .collect();
         if work.is_empty() {
             return Vec::new();
         }
-        let mut taken: Vec<u32> = work.iter().filter(|e| e.adopted).map(|e| e.inst.pid).collect();
+        let mut taken: Vec<u32> = work
+            .iter()
+            .filter(|e| e.adopted)
+            .map(|e| e.inst.pid)
+            .collect();
         let mut roblox = None;
         for e in &mut work {
             if !e.user_checked {
@@ -1258,7 +1511,9 @@ impl Tracker {
         let mut moved = Vec::new();
         for w in work {
             // Only this loop ends entries, so a running one is still there.
-            let Some(e) = entries.iter_mut().find(|e| e.inst.id == w.inst.id) else { continue };
+            let Some(e) = entries.iter_mut().find(|e| e.inst.id == w.inst.id) else {
+                continue;
+            };
             // A close that reached only the bootstrapper doesn't cover the client it started.
             let closing = e.closing && (e.adopted || !w.adopted);
             let old = std::mem::replace(e, w);
@@ -1268,18 +1523,37 @@ impl Tracker {
             e.inst.rejoins = old.inst.rejoins;
             (e.inst.limits, e.inst.applied_limits) = (old.inst.limits, old.inst.applied_limits);
             (e.inst.anti_afk, e.inst.afk_at) = (old.inst.anti_afk, old.inst.afk_at);
-            (e.inst.throttled, e.inst.micro, e.inst.micro_size, e.window_seen) = (old.inst.throttled, old.inst.micro, old.inst.micro_size, old.window_seen);
+            (
+                e.inst.throttled,
+                e.inst.micro,
+                e.inst.micro_size,
+                e.window_seen,
+            ) = (
+                old.inst.throttled,
+                old.inst.micro,
+                old.inst.micro_size,
+                old.window_seen,
+            );
             (e.gave_up, e.relaunching) = (old.gave_up, old.relaunching);
-            (e.inst.relaunching, e.inst.relaunch_problem) = (old.inst.relaunching, old.inst.relaunch_problem.clone());
+            (e.inst.relaunching, e.inst.relaunch_problem) =
+                (old.inst.relaunching, old.inst.relaunch_problem.clone());
             let had_game = old.in_game_at.is_some();
-            (e.mem_strikes, e.mem_mb, e.mem_restart) = (old.mem_strikes, old.mem_mb, old.mem_restart);
+            (e.mem_strikes, e.mem_mb, e.mem_restart) =
+                (old.mem_strikes, old.mem_mb, old.mem_restart);
             // take_playtime may have handed its time out since (the exit flush): not counted twice.
             e.played = old.played.clone();
             if let Some(kind) = settle(e, now) {
-                self.crashes.lock().unwrap_or_else(|e| e.into_inner()).push(ended(e, kind, now));
+                self.crashes
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .push(ended(e, kind, now));
             }
             if e.inst != old.inst {
-                moved.push(Transition { before: old.inst, after: e.inst.clone(), first_game: !had_game && e.in_game_at.is_some() });
+                moved.push(Transition {
+                    before: old.inst,
+                    after: e.inst.clone(),
+                    first_game: !had_game && e.in_game_at.is_some(),
+                });
             }
         }
         prune(&mut entries);
@@ -1297,7 +1571,12 @@ fn restore(app: &AppHandle) {
             .filter_map(|j| {
                 serde_json::from_str(j)
                     .inspect_err(|e| {
-                        log::warn!("a saved tracked client was dropped: {:?} error at {}:{}", e.classify(), e.line(), e.column())
+                        log::warn!(
+                            "a saved tracked client was dropped: {:?} error at {}:{}",
+                            e.classify(),
+                            e.line(),
+                            e.column()
+                        )
                     })
                     .ok()
             })
@@ -1308,17 +1587,34 @@ fn restore(app: &AppHandle) {
         return;
     }
     // What the database holds, so `persist` drops the ones not followed again.
-    *s.tracker.persisted.lock().unwrap_or_else(|e| e.into_inner()) = saved.clone();
+    *s.tracker
+        .persisted
+        .lock()
+        .unwrap_or_else(|e| e.into_inner()) = saved.clone();
     let total = saved.len();
-    let roblox = with_unreadable(&saved, process::roblox_processes(), process::unreadable_client);
-    let found = s.tracker.readopt(saved, &roblox, &s.db.full_quality_accounts().unwrap_or_default());
+    let roblox = with_unreadable(
+        &saved,
+        process::roblox_processes(),
+        process::unreadable_client,
+    );
+    let found = s.tracker.readopt(
+        saved,
+        &roblox,
+        &s.db.full_quality_accounts().unwrap_or_default(),
+    );
     for &(pid, t0) in &found {
         super::limits::reset_followed(pid, t0);
     }
     s.multi.adopt(&found);
-    log::info!("following {} client(s) from before MTwin Manager restarted", found.len());
+    log::info!(
+        "following {} client(s) from before MTwin Manager restarted",
+        found.len()
+    );
     if total > found.len() {
-        log::debug!("{} saved client(s) no longer running, dropped", total - found.len());
+        log::debug!(
+            "{} saved client(s) no longer running, dropped",
+            total - found.len()
+        );
     }
     s.tracker.persist(&s.db, true);
 }
@@ -1326,11 +1622,22 @@ fn restore(app: &AppHandle) {
 /// `roblox`, plus the saved clients Windows won't let be read but that run on (`is_unreadable`,
 /// `process::unreadable_client`), taken at their saved start time. Reading is the only way to check
 /// that, so another Roblox client that took the pid can't be told apart.
-fn with_unreadable(saved: &[Saved], mut roblox: Vec<ProcInfo>, is_unreadable: impl Fn(u32) -> bool) -> Vec<ProcInfo> {
+fn with_unreadable(
+    saved: &[Saved],
+    mut roblox: Vec<ProcInfo>,
+    is_unreadable: impl Fn(u32) -> bool,
+) -> Vec<ProcInfo> {
     for s in saved {
         if !roblox.iter().any(|p| p.pid == s.inst.pid) && is_unreadable(s.inst.pid) {
-            log::warn!("instance {}: process {} can't be read but is still running: following it again", s.inst.id, s.inst.pid);
-            roblox.push(ProcInfo { pid: s.inst.pid, start_time: s.start_time });
+            log::warn!(
+                "instance {}: process {} can't be read but is still running: following it again",
+                s.inst.id,
+                s.inst.pid
+            );
+            roblox.push(ProcInfo {
+                pid: s.inst.pid,
+                start_time: s.start_time,
+            });
         }
     }
     roblox
@@ -1339,8 +1646,13 @@ fn with_unreadable(saved: &[Saved], mut roblox: Vec<ProcInfo>, is_unreadable: im
 /// A saved client to follow again (pure): its pid still runs as a Roblox client started at the
 /// same time, and no entry follows that instance or that process already.
 fn readoptable(s: &Saved, roblox: &[ProcInfo], entries: &[Entry]) -> bool {
-    roblox.iter().any(|p| p.pid == s.inst.pid && p.start_time == s.start_time)
-        && !entries.iter().any(|e| e.inst.id == s.inst.id || (e.inst.pid == s.inst.pid && e.inst.state != InstanceState::Exited))
+    roblox
+        .iter()
+        .any(|p| p.pid == s.inst.pid && p.start_time == s.start_time)
+        && !entries.iter().any(|e| {
+            e.inst.id == s.inst.id
+                || (e.inst.pid == s.inst.pid && e.inst.state != InstanceState::Exited)
+        })
 }
 
 /// One client's change in a poll: what the UI saw before and sees now.
@@ -1353,7 +1665,9 @@ pub struct Transition {
 }
 
 fn client_of(e: &Entry) -> Option<(u32, u64)> {
-    (e.adopted && e.alive).then_some((e.inst.pid, e.start_time?)).filter(|&(_, t0)| t0 != 0)
+    (e.adopted && e.alive)
+        .then_some((e.inst.pid, e.start_time?))
+        .filter(|&(_, t0)| t0 != 0)
 }
 
 /// A client to launch again: same account, same target.
@@ -1384,10 +1698,18 @@ pub fn wants_rejoin(inst: &Instance, facts: &LogFacts, hung: bool) -> Option<Cra
     }
     match inst.state {
         InstanceState::Exited if inst.note.as_deref() == Some(&*unexpected()) => {
-            Some(if facts.disconnected { CrashKind::Disconnect } else { CrashKind::Crash })
+            Some(if facts.disconnected {
+                CrashKind::Disconnect
+            } else {
+                CrashKind::Crash
+            })
         }
         InstanceState::Exited => None,
-        _ if hung => inst.note.as_deref().is_none_or(|n| n == self::hung()).then_some(CrashKind::Hang),
+        _ if hung => inst
+            .note
+            .as_deref()
+            .is_none_or(|n| n == self::hung())
+            .then_some(CrashKind::Hang),
         InstanceState::Disconnected if inst.note.is_none() => Some(CrashKind::Disconnect),
         _ => None,
     }
@@ -1488,7 +1810,14 @@ impl Procs for Live {
 
 /// The blocking part of a poll for one entry: liveness, rebinding, log binding and reading.
 /// `roblox` lists the Roblox processes at most once per poll; `taken` holds the PIDs entries follow.
-fn observe(e: &mut Entry, dir: Option<&Path>, procs: &dyn Procs, roblox: &mut Option<Vec<ProcInfo>>, taken: &mut Vec<u32>, now: i64) {
+fn observe(
+    e: &mut Entry,
+    dir: Option<&Path>,
+    procs: &dyn Procs,
+    roblox: &mut Option<Vec<ProcInfo>>,
+    taken: &mut Vec<u32>,
+    now: i64,
+) {
     let seen = procs.start_time(e.inst.pid);
     // 0: unread so far. The first good read is its identity, else a client read late never matches.
     if e.start_time == Some(0) {
@@ -1501,7 +1830,11 @@ fn observe(e: &mut Entry, dir: Option<&Path>, procs: &dyn Procs, roblox: &mut Op
     e.alive = seen == Some(first) || unreadable;
     if unreadable && !e.unreadable_said {
         e.unreadable_said = true;
-        log::warn!("instance {}: process {} can't be read but is still running: following it", e.inst.id, e.inst.pid);
+        log::warn!(
+            "instance {}: process {} can't be read but is still running: following it",
+            e.inst.id,
+            e.inst.pid
+        );
     }
     if e.alive {
         e.died_at = None;
@@ -1514,11 +1847,17 @@ fn observe(e: &mut Entry, dir: Option<&Path>, procs: &dyn Procs, roblox: &mut Op
     // ponytail: one window enumeration per client per poll; batch them if clients number hundreds.
     // Kept once it is gone, so a hung client MTwin Manager then closed still ends as hung.
     if e.alive && e.adopted {
-        e.hung_polls = if procs.hung(e.inst.pid) { e.hung_polls.saturating_add(1) } else { 0 };
+        e.hung_polls = if procs.hung(e.inst.pid) {
+            e.hung_polls.saturating_add(1)
+        } else {
+            0
+        };
     }
     let Some(dir) = dir else { return };
     // Read back from the database: a value too large must not panic.
-    let launched = UNIX_EPOCH.checked_add(Duration::from_millis(e.inst.started_at.max(0) as u64)).unwrap_or(UNIX_EPOCH);
+    let launched = UNIX_EPOCH
+        .checked_add(Duration::from_millis(e.inst.started_at.max(0) as u64))
+        .unwrap_or(UNIX_EPOCH);
     // A client starts after the launch (whole seconds: one of slack) and after the process it
     // replaces or that started it.
     let after = first.max(u64::try_from(e.inst.started_at / 1000 - 1).unwrap_or(0));
@@ -1532,9 +1871,19 @@ fn observe(e: &mut Entry, dir: Option<&Path>, procs: &dyn Procs, roblox: &mut Op
         && may_appear(e, now)
         && let Some(path) = logwatch::find_log(dir, e.btid, launched)
         && let Some(created) = created_secs(&path).filter(|&c| c > after + LOG_SKEW_SECS)
-        && let Some(p) = pick_client(roblox.get_or_insert_with(|| procs.roblox()), Some(created), after, taken)
+        && let Some(p) = pick_client(
+            roblox.get_or_insert_with(|| procs.roblox()),
+            Some(created),
+            after,
+            taken,
+        )
     {
-        log::info!("instance {}: rebound from process {} to {} (updater relaunch)", e.inst.id, e.inst.pid, p.pid);
+        log::info!(
+            "instance {}: rebound from process {} to {} (updater relaunch)",
+            e.inst.id,
+            e.inst.pid,
+            p.pid
+        );
         adopt(e, p, taken);
         if e.log.as_ref() != Some(&path) {
             e.log = Some(path);
@@ -1551,24 +1900,49 @@ fn observe(e: &mut Entry, dir: Option<&Path>, procs: &dyn Procs, roblox: &mut Op
         && let Some(p) = roblox
             .get_or_insert_with(|| procs.roblox())
             .iter()
-            .find(|p| p.start_time + 1 >= after && !taken.contains(&p.pid) && procs.command_line(p.pid).is_some_and(|l| process::is_launch(&l, e.btid)))
+            .find(|p| {
+                p.start_time + 1 >= after
+                    && !taken.contains(&p.pid)
+                    && procs
+                        .command_line(p.pid)
+                        .is_some_and(|l| process::is_launch(&l, e.btid))
+            })
             .cloned()
     {
-        log::info!("instance {}: adopted client process {} behind bootstrapper {} (its launch)", e.inst.id, p.pid, e.inst.pid);
+        log::info!(
+            "instance {}: adopted client process {} behind bootstrapper {} (its launch)",
+            e.inst.id,
+            p.pid,
+            e.inst.pid
+        );
         adopt(e, p, taken);
     }
     // Behind a bootstrapper: the client is the one that wrote the log.
     if !e.adopted
         && let Some(path) = &e.log
-        && let Some(p) = pick_client(roblox.get_or_insert_with(|| procs.roblox()), created_secs(path), after, taken)
+        && let Some(p) = pick_client(
+            roblox.get_or_insert_with(|| procs.roblox()),
+            created_secs(path),
+            after,
+            taken,
+        )
     {
-        log::debug!("instance {}: adopted client process {} behind bootstrapper {}", e.inst.id, p.pid, e.inst.pid);
+        log::debug!(
+            "instance {}: adopted client process {} behind bootstrapper {}",
+            e.inst.id,
+            p.pid,
+            e.inst.pid
+        );
         adopt(e, p, taken);
     }
     if let Some(path) = &e.log {
         let (account, id) = (e.inst.account_id, &e.inst.id);
         let on_problem = |p: &str, n: usize| {
-            let times = if n > 1 { format!(" (x{n})") } else { String::new() };
+            let times = if n > 1 {
+                format!(" (x{n})")
+            } else {
+                String::new()
+            };
             // Read every second and the client repeats its problems: info, not warn.
             log::info!(target: "roblox", "account {account} instance {id}: {p}{times}");
         };
@@ -1576,13 +1950,19 @@ fn observe(e: &mut Entry, dir: Option<&Path>, procs: &dyn Procs, roblox: &mut Op
             Ok(offset) => {
                 if offset > e.offset && e.died_at.is_some_and(|d| now - d >= WRITER_AFTER_MS) {
                     if e.writer_at.is_none() {
-                        log::warn!("instance {}: process {} is gone but its log still grows: a client is running", e.inst.id, e.inst.pid);
+                        log::warn!(
+                            "instance {}: process {} is gone but its log still grows: a client is running",
+                            e.inst.id,
+                            e.inst.pid
+                        );
                     }
                     e.writer_at = Some(now);
                 }
                 e.offset = offset;
             }
-            Err(err) if e.log_warned => log::debug!("instance {}: client log not readable: {err}", e.inst.id),
+            Err(err) if e.log_warned => {
+                log::debug!("instance {}: client log not readable: {err}", e.inst.id)
+            }
             Err(err) => {
                 e.log_warned = true;
                 log::warn!("instance {}: client log not readable: {err}", e.inst.id);
@@ -1591,9 +1971,19 @@ fn observe(e: &mut Entry, dir: Option<&Path>, procs: &dyn Procs, roblox: &mut Op
     }
     // Who writes that log, if it can be told.
     if e.writer_at.is_some()
-        && let Some(p) = pick_client(roblox.get_or_insert_with(|| procs.roblox()), e.log.as_deref().and_then(created_secs), after, taken)
+        && let Some(p) = pick_client(
+            roblox.get_or_insert_with(|| procs.roblox()),
+            e.log.as_deref().and_then(created_secs),
+            after,
+            taken,
+        )
     {
-        log::info!("instance {}: rebound from process {} to {} (it writes its log)", e.inst.id, e.inst.pid, p.pid);
+        log::info!(
+            "instance {}: rebound from process {} to {} (it writes its log)",
+            e.inst.id,
+            e.inst.pid,
+            p.pid
+        );
         adopt(e, p, taken);
     }
 }
@@ -1613,9 +2003,22 @@ fn adopt(e: &mut Entry, p: ProcInfo, taken: &mut Vec<u32>) {
 /// The client that wrote a log: started within a few seconds of the log's creation and since
 /// `after`. PIDs already followed are skipped. Nothing else counts: a client the user started
 /// themselves must never be taken for MTwin Manager's.
-fn pick_client(procs: &[ProcInfo], log_created: Option<u64>, after: u64, taken: &[u32]) -> Option<ProcInfo> {
+fn pick_client(
+    procs: &[ProcInfo],
+    log_created: Option<u64>,
+    after: u64,
+    taken: &[u32],
+) -> Option<ProcInfo> {
     let c = log_created?;
-    procs.iter().filter(|p| p.start_time >= after && !taken.contains(&p.pid) && p.start_time.abs_diff(c) <= LOG_SKEW_SECS).min_by_key(|p| p.start_time.abs_diff(c)).cloned()
+    procs
+        .iter()
+        .filter(|p| {
+            p.start_time >= after
+                && !taken.contains(&p.pid)
+                && p.start_time.abs_diff(c) <= LOG_SKEW_SECS
+        })
+        .min_by_key(|p| p.start_time.abs_diff(c))
+        .cloned()
 }
 
 fn created_secs(path: &Path) -> Option<u64> {
@@ -1630,7 +2033,8 @@ fn created_secs(path: &Path) -> Option<u64> {
 /// launched under 120 s ago, and wasn't closed (a close that reached only a bootstrapper gets
 /// 5 s for the client it may already have started to show up).
 fn may_appear(e: &Entry, now: i64) -> bool {
-    let closed = e.closing && (e.adopted || e.gone_at.is_some_and(|g| now - g >= BOOTSTRAPPER_GRACE_MS));
+    let closed =
+        e.closing && (e.adopted || e.gone_at.is_some_and(|g| now - g >= BOOTSTRAPPER_GRACE_MS));
     e.in_game_at.is_none() && !closed && !e.facts.replaced && now - e.inst.started_at < REBIND_MS
 }
 
@@ -1645,7 +2049,11 @@ fn settle(e: &mut Entry, now: i64) -> Option<CrashKind> {
     if !e.facts.teleporting {
         e.teleport_at = None;
     } else if now - *e.teleport_at.get_or_insert(now) >= TELEPORT_MS {
-        log::info!("instance {}: its teleport didn't reach a game in {} s", e.inst.id, TELEPORT_MS / 1000);
+        log::info!(
+            "instance {}: its teleport didn't reach a game in {} s",
+            e.inst.id,
+            TELEPORT_MS / 1000
+        );
         e.facts.teleporting = false;
         e.teleport_at = None;
     }
@@ -1658,7 +2066,9 @@ fn settle(e: &mut Entry, now: i64) -> Option<CrashKind> {
         true => crash_kind(&e.facts, e.hung(), note.as_deref()),
         false => None,
     };
-    e.inst.sign_in_problem = note.as_ref().is_some_and(|n| *n == wrong_account() || *n == challenged() || *n == auth_failed());
+    e.inst.sign_in_problem = note
+        .as_ref()
+        .is_some_and(|n| *n == wrong_account() || *n == challenged() || *n == auth_failed());
     if !ended && e.hung() && note.is_none() {
         note = Some(hung());
     }
@@ -1686,7 +2096,13 @@ fn settle(e: &mut Entry, now: i64) -> Option<CrashKind> {
 
 /// State and note from what the log said, whether the log is bound, whether the client is
 /// gone for good, whether the user closed it, and the account's user id (pure).
-fn state_of(facts: &LogFacts, bound: bool, ended: bool, closing: bool, expected_user: Option<i64>) -> (InstanceState, Option<String>) {
+fn state_of(
+    facts: &LogFacts,
+    bound: bool,
+    ended: bool,
+    closing: bool,
+    expected_user: Option<i64>,
+) -> (InstanceState, Option<String>) {
     let problem = if facts.replaced {
         Some(tr!("Replaced by another Roblox client"))
     } else if matches!((facts.user_id, expected_user), (Some(got), Some(want)) if got != want) {
@@ -1699,7 +2115,11 @@ fn state_of(facts: &LogFacts, bound: bool, ended: bool, closing: bool, expected_
         None
     };
     if ended {
-        let note = if closing { closed() } else { problem.unwrap_or_else(unexpected) };
+        let note = if closing {
+            closed()
+        } else {
+            problem.unwrap_or_else(unexpected)
+        };
         return (InstanceState::Exited, Some(note));
     }
     let state = if facts.teleporting {
@@ -1720,11 +2140,17 @@ fn state_of(facts: &LogFacts, bound: bool, ended: bool, closing: bool, expected_
 fn prune(entries: &mut Vec<Entry>) {
     loop {
         // Not before its playtime is handed out (`take_playtime`, later this tick).
-        let ended = entries.iter().enumerate().filter(|(_, e)| e.inst.state == InstanceState::Exited && e.relaunching.is_none() && e.played.place.is_none());
+        let ended = entries.iter().enumerate().filter(|(_, e)| {
+            e.inst.state == InstanceState::Exited
+                && e.relaunching.is_none()
+                && e.played.place.is_none()
+        });
         if ended.clone().count() <= MAX_ENDED {
             return;
         }
-        let Some((i, _)) = ended.min_by_key(|(_, e)| e.inst.ended_at) else { return };
+        let Some((i, _)) = ended.min_by_key(|(_, e)| e.inst.ended_at) else {
+            return;
+        };
         entries.remove(i);
     }
 }
@@ -1742,10 +2168,18 @@ mod tests {
         let t = Tracker::new();
         t.set_slots(vec![4], false);
         let (seen, _) = t.preview_slots(&[1, 2]);
-        assert_eq!(seen, [1, 2], "nothing runs: slot 0 is free again and the batch follows the list");
+        assert_eq!(
+            seen,
+            [1, 2],
+            "nothing runs: slot 0 is free again and the batch follows the list"
+        );
         assert_eq!(*t.slots(), [4], "the real slots are untouched");
         t.reserve_slots(&[1, 2], true);
-        assert_eq!(*t.slots(), seen, "a real batch gets what the preview showed");
+        assert_eq!(
+            *t.slots(),
+            seen,
+            "a real batch gets what the preview showed"
+        );
     }
 
     #[test]
@@ -1761,11 +2195,19 @@ mod tests {
     fn a_batch_keeps_its_slots_until_it_ends() {
         let t = Tracker::new();
         t.reserve_slots(&[1, 2, 3], true);
-        assert_eq!(t.slot_of(9), (3, 4), "a launch during the batch goes after it, not into a pending slot");
+        assert_eq!(
+            t.slot_of(9),
+            (3, 4),
+            "a launch during the batch goes after it, not into a pending slot"
+        );
         t.end_batch_slots();
         assert!(t.slots().is_empty(), "none of them started: their slots go");
         t.set_slots(vec![7, 8], true);
-        assert_eq!((t.slot_of(8), t.fit_n.load(Ordering::Relaxed)), ((1, 2), 2), "Tile's order is the layout's");
+        assert_eq!(
+            (t.slot_of(8), t.fit_n.load(Ordering::Relaxed)),
+            ((1, 2), 2),
+            "Tile's order is the layout's"
+        );
     }
 
     #[test]
@@ -1797,13 +2239,20 @@ mod tests {
 
     impl Fake {
         fn new(procs: &[(u32, u64)]) -> Fake {
-            let f = Fake(Mutex::new(Vec::new()), Mutex::new(Vec::new()), Mutex::new(Vec::new()));
+            let f = Fake(
+                Mutex::new(Vec::new()),
+                Mutex::new(Vec::new()),
+                Mutex::new(Vec::new()),
+            );
             f.set(procs);
             f
         }
 
         fn set(&self, procs: &[(u32, u64)]) {
-            *self.0.lock().unwrap() = procs.iter().map(|&(pid, start_time)| ProcInfo { pid, start_time }).collect();
+            *self.0.lock().unwrap() = procs
+                .iter()
+                .map(|&(pid, start_time)| ProcInfo { pid, start_time })
+                .collect();
         }
 
         fn set_hung(&self, pids: &[u32]) {
@@ -1817,7 +2266,12 @@ mod tests {
 
     impl Procs for Fake {
         fn start_time(&self, pid: u32) -> Option<u64> {
-            self.0.lock().unwrap().iter().find(|p| p.pid == pid).map(|p| p.start_time)
+            self.0
+                .lock()
+                .unwrap()
+                .iter()
+                .find(|p| p.pid == pid)
+                .map(|p| p.start_time)
         }
 
         fn roblox(&self) -> Vec<ProcInfo> {
@@ -1842,11 +2296,24 @@ mod tests {
     }
 
     fn info(pid: u32, started_at: i64, via_bootstrapper: bool) -> LaunchInfo {
-        LaunchInfo { account_id: 1, pid, browser_tracker_id: BTID, place_id: Some(1818), started_at, via_bootstrapper, warning: None, fps_cap: None, pid_start: None }
+        LaunchInfo {
+            account_id: 1,
+            pid,
+            browser_tracker_id: BTID,
+            place_id: Some(1818),
+            started_at,
+            via_bootstrapper,
+            warning: None,
+            fps_cap: None,
+            pid_start: None,
+        }
     }
 
     fn target() -> LaunchTarget {
-        LaunchTarget::Place { place_id: 1818, launch_data: None }
+        LaunchTarget::Place {
+            place_id: 1818,
+            launch_data: None,
+        }
     }
 
     #[test]
@@ -1859,7 +2326,12 @@ mod tests {
         assert!(t.claim(2).is_none(), "nor one being launched");
         drop(claim);
         assert!(t.claim(2).is_some());
-        t.entries().iter_mut().find(|e| e.inst.id == id).unwrap().inst.state = Disconnected;
+        t.entries()
+            .iter_mut()
+            .find(|e| e.inst.id == id)
+            .unwrap()
+            .inst
+            .state = Disconnected;
         assert!(!t.has_live_client(1) && t.claim(1).is_some());
     }
 
@@ -1871,23 +2343,51 @@ mod tests {
         assert!(t.successor(&first, 1).is_none(), "nothing took its place");
         let second = t.register(&info(901, start + 5_000, false), target()).id;
         assert_eq!(t.successor(&first, 1).map(|i| i.id), Some(second.clone()));
-        assert!(t.successor(&second, 1).is_none(), "the older one isn't its successor");
+        assert!(
+            t.successor(&second, 1).is_none(),
+            "the older one isn't its successor"
+        );
         assert!(t.successor(&first, 2).is_none(), "another account's");
-        t.entries().iter_mut().find(|e| e.inst.id == second).unwrap().inst.state = Exited;
-        assert!(t.successor(&first, 1).is_none(), "an ended one takes nobody's place");
-        assert_eq!(t.successor("gone", 1).map(|i| i.id), Some(first), "cleared: the account's running client");
+        t.entries()
+            .iter_mut()
+            .find(|e| e.inst.id == second)
+            .unwrap()
+            .inst
+            .state = Exited;
+        assert!(
+            t.successor(&first, 1).is_none(),
+            "an ended one takes nobody's place"
+        );
+        assert_eq!(
+            t.successor("gone", 1).map(|i| i.id),
+            Some(first),
+            "cleared: the account's running client"
+        );
     }
 
     #[test]
     fn a_client_taken_over_is_timed_from_then() {
         let t = Tracker::new();
         let start = now_ms();
-        t.register(&LaunchInfo { pid_start: Some(50), ..info(900, start, false) }, target());
+        t.register(
+            &LaunchInfo {
+                pid_start: Some(50),
+                ..info(900, start, false)
+            },
+            target(),
+        );
         let mut entries = t.entries();
         let e = &mut entries[0];
         settle(e, start);
         let later = start + 100_000;
-        adopt(e, ProcInfo { pid: 901, start_time: 60 }, &mut Vec::new());
+        adopt(
+            e,
+            ProcInfo {
+                pid: 901,
+                start_time: 60,
+            },
+            &mut Vec::new(),
+        );
         settle(e, later);
         assert!(e.runs_free(later + REBIND_MS - 1), "its whole load is free");
         assert!(!e.runs_free(later + REBIND_MS));
@@ -1897,15 +2397,35 @@ mod tests {
     fn playtime_counts_in_game_time_and_caps_gaps() {
         let mut p = Played::default();
         assert_eq!(p.step(None, 0, false), None, "not in a game: nothing");
-        assert_eq!(p.step(Some(7), 1_000, false), None, "the first poll in a game only starts counting");
+        assert_eq!(
+            p.step(Some(7), 1_000, false),
+            None,
+            "the first poll in a game only starts counting"
+        );
         assert_eq!(p.step(Some(7), 2_000, false), None);
-        assert_eq!(p.step(Some(7), 3_000, true), Some((7, 2_000)), "a flush hands out what was counted");
+        assert_eq!(
+            p.step(Some(7), 3_000, true),
+            Some((7, 2_000)),
+            "a flush hands out what was counted"
+        );
         assert_eq!(p.step(Some(7), 3_603_000, false), None, "an hour asleep...");
-        assert_eq!(p.step(Some(7), 3_604_000, true), Some((7, PLAY_GAP_MAX_MS + 1_000)), "...counts 5 s");
+        assert_eq!(
+            p.step(Some(7), 3_604_000, true),
+            Some((7, PLAY_GAP_MAX_MS + 1_000)),
+            "...counts 5 s"
+        );
         assert_eq!(p.step(Some(7), 3_605_000, false), None);
-        assert_eq!(p.step(Some(9), 3_606_000, false), Some((7, 1_000)), "a new place hands out the old one's");
+        assert_eq!(
+            p.step(Some(9), 3_606_000, false),
+            Some((7, 1_000)),
+            "a new place hands out the old one's"
+        );
         assert_eq!(p.step(Some(9), 3_607_000, false), None);
-        assert_eq!(p.step(None, 3_608_000, false), Some((9, 1_000)), "leaving the game hands it out");
+        assert_eq!(
+            p.step(None, 3_608_000, false),
+            Some((9, 1_000)),
+            "leaving the game hands it out"
+        );
         assert_eq!(p.step(None, 3_609_000, true), None, "nothing left");
     }
 
@@ -1913,16 +2433,28 @@ mod tests {
     fn loading_hung_and_full_quality_clients_run_free() {
         let t = Tracker::new();
         let start = now_ms();
-        let a = t.register(&LaunchInfo { pid_start: Some(50), ..info(900, start, false) }, target()).id;
+        let a = t
+            .register(
+                &LaunchInfo {
+                    pid_start: Some(50),
+                    ..info(900, start, false)
+                },
+                target(),
+            )
+            .id;
         let free = |now| t.free(&[], now);
-        let set = |f: &dyn Fn(&mut Entry)| f(t.entries().iter_mut().find(|e| e.inst.id == a).unwrap());
+        let set =
+            |f: &dyn Fn(&mut Entry)| f(t.entries().iter_mut().find(|e| e.inst.id == a).unwrap());
         let settled = |now| set(&|e| _ = settle(e, now));
         assert!(free(start).is_empty(), "not seen by a poll yet");
 
         // A first load: free from the poll that sees it, for as long as a load may take.
         settled(start);
         assert_eq!(free(start + REBIND_MS - 1), std::slice::from_ref(&a));
-        assert!(free(start + REBIND_MS).is_empty(), "stuck loading: limited again");
+        assert!(
+            free(start + REBIND_MS).is_empty(),
+            "stuck loading: limited again"
+        );
 
         // In a game: limited.
         set(&|e| e.facts.in_game = true);
@@ -1949,21 +2481,57 @@ mod tests {
         assert_eq!(free(later), std::slice::from_ref(&a));
         set(&|e| e.hung_polls = 0);
 
-        assert_eq!(t.free(&[1], later), std::slice::from_ref(&a), "Full quality");
+        assert_eq!(
+            t.free(&[1], later),
+            std::slice::from_ref(&a),
+            "Full quality"
+        );
         assert!(t.free(&[2], later).is_empty(), "another account");
     }
 
     #[test]
     fn each_client_is_handed_out_once_when_it_reaches_a_game() {
         let t = Tracker::new();
-        let a = t.register(&LaunchInfo { pid_start: Some(50), ..info(900, now_ms(), false) }, target()).id;
-        let b = t.register(&LaunchInfo { pid_start: Some(60), ..info(901, now_ms(), true) }, target()).id;
-        assert_eq!(t.first_in_game(&|_| true), Vec::<u32>::new(), "still loading: left alone");
+        let a = t
+            .register(
+                &LaunchInfo {
+                    pid_start: Some(50),
+                    ..info(900, now_ms(), false)
+                },
+                target(),
+            )
+            .id;
+        let b = t
+            .register(
+                &LaunchInfo {
+                    pid_start: Some(60),
+                    ..info(901, now_ms(), true)
+                },
+                target(),
+            )
+            .id;
+        assert_eq!(
+            t.first_in_game(&|_| true),
+            Vec::<u32>::new(),
+            "still loading: left alone"
+        );
         t.entries().iter_mut().for_each(|e| e.inst.state = InGame);
-        assert_eq!(t.first_in_game(&|_| false), Vec::<u32>::new(), "no window yet");
-        assert_eq!(t.first_in_game(&|_| true), [900], "a bootstrapper isn't the client");
+        assert_eq!(
+            t.first_in_game(&|_| false),
+            Vec::<u32>::new(),
+            "no window yet"
+        );
+        assert_eq!(
+            t.first_in_game(&|_| true),
+            [900],
+            "a bootstrapper isn't the client"
+        );
         assert_eq!(t.first_in_game(&|_| true), Vec::<u32>::new(), "once");
-        t.entries().iter_mut().find(|e| e.inst.id == b).unwrap().adopted = true;
+        t.entries()
+            .iter_mut()
+            .find(|e| e.inst.id == b)
+            .unwrap()
+            .adopted = true;
         assert_eq!(t.first_in_game(&|_| true), [901]);
         assert!(t.set_micro(&a, Some((320, 240))) && t.get(&a).unwrap().micro);
         assert_eq!(t.get(&a).unwrap().micro_size, Some((320, 240)));
@@ -1978,7 +2546,11 @@ mod tests {
 
     fn append(path: &Path, msgs: &[String]) {
         use std::io::Write;
-        let mut f = std::fs::File::options().create(true).append(true).open(path).unwrap();
+        let mut f = std::fs::File::options()
+            .create(true)
+            .append(true)
+            .open(path)
+            .unwrap();
         for m in msgs {
             writeln!(f, "2026-10-19T09:08:03.437Z,0.437181,0a50,6,Info {m}").unwrap();
         }
@@ -2021,45 +2593,111 @@ mod tests {
         };
         let none = LogFacts::default();
         let in_game = f(|f| f.in_game = true);
-        assert_eq!(state_of(&none, false, false, false, Some(USER)), (Starting, None));
-        assert_eq!(state_of(&none, true, false, false, Some(USER)), (Joining, None));
-        assert_eq!(state_of(&in_game, true, false, false, Some(USER)), (InGame, None));
+        assert_eq!(
+            state_of(&none, false, false, false, Some(USER)),
+            (Starting, None)
+        );
+        assert_eq!(
+            state_of(&none, true, false, false, Some(USER)),
+            (Joining, None)
+        );
+        assert_eq!(
+            state_of(&in_game, true, false, false, Some(USER)),
+            (InGame, None)
+        );
         let dropped = f(|f| {
             f.in_game = true;
             f.disconnected = true;
         });
-        assert_eq!(state_of(&dropped, true, false, false, Some(USER)), (Disconnected, None));
+        assert_eq!(
+            state_of(&dropped, true, false, false, Some(USER)),
+            (Disconnected, None)
+        );
 
         let other = f(|f| f.user_id = Some(USER + 1));
-        assert_eq!(state_of(&other, true, false, false, Some(USER)), (Joining, note("Signed in as another account")));
+        assert_eq!(
+            state_of(&other, true, false, false, Some(USER)),
+            (Joining, note("Signed in as another account"))
+        );
         assert_eq!(state_of(&other, true, false, false, None), (Joining, None));
-        assert_eq!(state_of(&f(|f| f.user_id = Some(USER)), true, false, false, Some(USER)), (Joining, None));
+        assert_eq!(
+            state_of(
+                &f(|f| f.user_id = Some(USER)),
+                true,
+                false,
+                false,
+                Some(USER)
+            ),
+            (Joining, None)
+        );
         let challenged = f(|f| f.challenged = true);
-        assert_eq!(state_of(&challenged, true, false, false, Some(USER)), (Joining, note("Roblox wants a human check")));
+        assert_eq!(
+            state_of(&challenged, true, false, false, Some(USER)),
+            (Joining, note("Roblox wants a human check"))
+        );
         let mut refused = LogFacts::default();
         refused.auth_failed = true;
-        assert_eq!(state_of(&refused, true, false, false, Some(USER)), (Joining, note("Roblox refused the sign-in (error 403)")));
-        assert_eq!(state_of(&refused, true, true, false, Some(USER)), (Exited, note("Roblox refused the sign-in (error 403)")));
-        assert_eq!(state_of(&refused, true, true, true, Some(USER)), (Exited, note("Closed")));
+        assert_eq!(
+            state_of(&refused, true, false, false, Some(USER)),
+            (Joining, note("Roblox refused the sign-in (error 403)"))
+        );
+        assert_eq!(
+            state_of(&refused, true, true, false, Some(USER)),
+            (Exited, note("Roblox refused the sign-in (error 403)"))
+        );
+        assert_eq!(
+            state_of(&refused, true, true, true, Some(USER)),
+            (Exited, note("Closed"))
+        );
 
         let teleport = f(|f| (f.in_game, f.teleporting, f.disconnected) = (true, true, true));
-        assert_eq!(state_of(&teleport, true, false, false, Some(USER)), (Joining, None), "not a disconnect");
+        assert_eq!(
+            state_of(&teleport, true, false, false, Some(USER)),
+            (Joining, None),
+            "not a disconnect"
+        );
         let failed = f(|f| (f.in_game, f.disconnected) = (true, true));
-        assert_eq!(state_of(&failed, true, false, false, Some(USER)), (Disconnected, None));
+        assert_eq!(
+            state_of(&failed, true, false, false, Some(USER)),
+            (Disconnected, None)
+        );
 
         let replaced = f(|f| f.replaced = true);
-        assert_eq!(state_of(&replaced, true, true, false, Some(USER)), (Exited, note("Replaced by another Roblox client")));
-        assert_eq!(state_of(&replaced, true, true, true, Some(USER)), (Exited, note("Closed")));
-        assert_eq!(state_of(&in_game, true, true, false, Some(USER)), (Exited, note("Closed unexpectedly")));
-        assert_eq!(state_of(&in_game, true, true, true, Some(USER)), (Exited, note("Closed")));
-        assert_eq!(state_of(&other, true, true, false, Some(USER)), (Exited, note("Signed in as another account")));
-        assert_eq!(state_of(&challenged, false, true, false, Some(USER)), (Exited, note("Roblox wants a human check")));
+        assert_eq!(
+            state_of(&replaced, true, true, false, Some(USER)),
+            (Exited, note("Replaced by another Roblox client"))
+        );
+        assert_eq!(
+            state_of(&replaced, true, true, true, Some(USER)),
+            (Exited, note("Closed"))
+        );
+        assert_eq!(
+            state_of(&in_game, true, true, false, Some(USER)),
+            (Exited, note("Closed unexpectedly"))
+        );
+        assert_eq!(
+            state_of(&in_game, true, true, true, Some(USER)),
+            (Exited, note("Closed"))
+        );
+        assert_eq!(
+            state_of(&other, true, true, false, Some(USER)),
+            (Exited, note("Signed in as another account"))
+        );
+        assert_eq!(
+            state_of(&challenged, false, true, false, Some(USER)),
+            (Exited, note("Roblox wants a human check"))
+        );
     }
 
     #[test]
     fn lists_running_first_and_keeps_30_ended() {
         let t = Tracker::new();
-        let ids: Vec<String> = (0..40).map(|n| t.register(&info(100 + n, 1_000 + n as i64, false), target()).id).collect();
+        let ids: Vec<String> = (0..40)
+            .map(|n| {
+                t.register(&info(100 + n, 1_000 + n as i64, false), target())
+                    .id
+            })
+            .collect();
         {
             let mut v = t.entries();
             // 35 end (the first one last), 5 keep running.
@@ -2072,7 +2710,10 @@ mod tests {
         let list = t.list();
         assert_eq!(list.len(), 35);
         let running: Vec<&str> = list[..5].iter().map(|i| i.id.as_str()).collect();
-        assert_eq!(running, ids[35..].iter().map(String::as_str).collect::<Vec<_>>());
+        assert_eq!(
+            running,
+            ids[35..].iter().map(String::as_str).collect::<Vec<_>>()
+        );
         assert_eq!(list[5].id, ids[0]);
         assert_eq!(list[6].id, ids[34]);
         assert_eq!(list.last().unwrap().id, ids[6]);
@@ -2097,7 +2738,10 @@ mod tests {
         assert_eq!(state(&t, &id), (Starting, None, 100));
 
         let log = dir.join("0.744.0.7441080_20261024T120000Z_Player_ABCDE_last.log");
-        append(&dir.join("0.744.0.7441080_20261024T120000Z_Player_ABCDE_CrashHandler_last.log"), &[btid_line(BTID)]);
+        append(
+            &dir.join("0.744.0.7441080_20261024T120000Z_Player_ABCDE_CrashHandler_last.log"),
+            &[btid_line(BTID)],
+        );
         append(&log, &[btid_line(BTID)]);
         assert!(!poll(start + 2_000).is_empty());
         assert_eq!(state(&t, &id), (Joining, None, 100));
@@ -2107,19 +2751,44 @@ mod tests {
         append(&log, &[replicator()]);
         assert!(!poll(start + 4_000).is_empty());
         let i = t.get(&id).unwrap();
-        assert_eq!((i.state, i.job_id.as_deref(), i.place_id), (InGame, Some("0d6c3f4e-5b2a-4c1d-9e8f-7a6b5c4d3e2f"), Some(1818)));
+        assert_eq!(
+            (i.state, i.job_id.as_deref(), i.place_id),
+            (
+                InGame,
+                Some("0d6c3f4e-5b2a-4c1d-9e8f-7a6b5c4d3e2f"),
+                Some(1818)
+            )
+        );
         // In a game: anti-AFK may press keys in it, counting from when it got there.
-        assert_eq!(t.afk_clients().iter().map(|c| (c.pid, c.since)).collect::<Vec<_>>(), [(100, start + 4_000)]);
+        assert_eq!(
+            t.afk_clients()
+                .iter()
+                .map(|c| (c.pid, c.since))
+                .collect::<Vec<_>>(),
+            [(100, start + 4_000)]
+        );
         t.mark_afk(&id, start + 4_500);
         assert_eq!(t.afk_clients()[0].since, start + 4_500);
         assert!(t.set_anti_afk(&id, false) && t.afk_clients().is_empty());
 
-        append(&log, &["[FLog::Network] Disconnection Notification. Reason: 267".into()]);
+        append(
+            &log,
+            &["[FLog::Network] Disconnection Notification. Reason: 267".into()],
+        );
         let moved = poll(start + 5_000);
-        assert_eq!(moved.iter().map(|m| (m.before.state, m.after.state)).collect::<Vec<_>>(), [(InGame, Disconnected)]);
+        assert_eq!(
+            moved
+                .iter()
+                .map(|m| (m.before.state, m.after.state))
+                .collect::<Vec<_>>(),
+            [(InGame, Disconnected)]
+        );
         assert_eq!(state(&t, &id).0, Disconnected);
         // The opt-out and the last press outlive the poll.
-        assert_eq!(t.get(&id).map(|i| (i.anti_afk, i.afk_at)), Some((false, Some(start + 4_500))));
+        assert_eq!(
+            t.get(&id).map(|i| (i.anti_afk, i.afk_at)),
+            Some((false, Some(start + 4_500)))
+        );
 
         // Reached the game, so a vanished process is gone at once.
         procs.set(&[]);
@@ -2141,7 +2810,10 @@ mod tests {
         append(&log, &[btid_line(BTID)]);
         append(&log, &join_lines(USER + 1));
         t.poll(Some(&dir), &procs, &user_of, start + 1_000);
-        assert_eq!(state(&t, &id), (Joining, note("Signed in as another account"), 100));
+        assert_eq!(
+            state(&t, &id),
+            (Joining, note("Signed in as another account"), 100)
+        );
 
         t.mark_closing(&id);
         procs.set(&[]);
@@ -2154,13 +2826,37 @@ mod tests {
     fn readopts_only_the_same_running_client() {
         let old = Tracker::new();
         let start = now_ms();
-        let a = old.register(&LaunchInfo { pid_start: Some(50), ..info(900, start, false) }, target()).id;
-        old.register(&LaunchInfo { pid_start: Some(60), ..info(901, start, true) }, target());
+        let a = old
+            .register(
+                &LaunchInfo {
+                    pid_start: Some(50),
+                    ..info(900, start, false)
+                },
+                target(),
+            )
+            .id;
+        old.register(
+            &LaunchInfo {
+                pid_start: Some(60),
+                ..info(901, start, true)
+            },
+            target(),
+        );
         old.entries()[0].offset = 4_096;
         old.entries()[0].facts.in_game = true;
         old.entries()[0].in_game_at = Some(start + 9);
         // Per-client options travel with it.
-        assert!(old.set_limits(&a, Limits { cpu_cap: Some(20), ..Limits::default() }).is_some() && old.set_anti_afk(&a, false));
+        assert!(
+            old.set_limits(
+                &a,
+                Limits {
+                    cpu_cap: Some(20),
+                    ..Limits::default()
+                }
+            )
+            .is_some()
+                && old.set_anti_afk(&a, false)
+        );
         // The bootstrapper one isn't the client yet: not saved.
         let saved = old.saved();
         assert_eq!(saved.len(), 1);
@@ -2172,13 +2868,25 @@ mod tests {
         let fresh = Tracker::new();
         assert!(readoptable(&saved[0], &[p(900, 50)], &fresh.entries()));
         assert!(!readoptable(&saved[0], &[], &fresh.entries()), "gone");
-        assert!(!readoptable(&saved[0], &[p(900, 51)], &fresh.entries()), "pid reused");
-        assert!(!readoptable(&saved[0], &[p(900, 50)], &old.entries()), "already followed");
+        assert!(
+            !readoptable(&saved[0], &[p(900, 51)], &fresh.entries()),
+            "pid reused"
+        );
+        assert!(
+            !readoptable(&saved[0], &[p(900, 50)], &old.entries()),
+            "already followed"
+        );
 
-        assert_eq!(fresh.readopt(saved.clone(), &[p(900, 50)], &[]), [(900, 50)]);
+        assert_eq!(
+            fresh.readopt(saved.clone(), &[p(900, 50)], &[]),
+            [(900, 50)]
+        );
         assert_eq!(fresh.readopt(saved, &[p(900, 50)], &[]), [], "not twice");
         let e = fresh.entries()[0].clone();
-        assert_eq!((e.offset, e.facts.in_game, e.in_game_at, e.window_seen), (4_096, true, Some(start + 9), true));
+        assert_eq!(
+            (e.offset, e.facts.in_game, e.in_game_at, e.window_seen),
+            (4_096, true, Some(start + 9), true)
+        );
         assert_eq!(fresh.get(&a), old.get(&a), "the UI sees it as before");
         assert_eq!(fresh.clients().len(), 1, "limits apply to it again");
     }
@@ -2186,14 +2894,38 @@ mod tests {
     #[test]
     fn a_client_that_cant_be_read_is_followed_again_after_a_restart() {
         let old = Tracker::new();
-        old.register(&LaunchInfo { pid_start: Some(50), ..info(900, now_ms(), false) }, target());
+        old.register(
+            &LaunchInfo {
+                pid_start: Some(50),
+                ..info(900, now_ms(), false)
+            },
+            target(),
+        );
         let saved = old.saved();
         let p = |pid, start_time| ProcInfo { pid, start_time };
-        assert!(with_unreadable(&saved, vec![], |_| false).is_empty(), "gone");
-        assert_eq!(with_unreadable(&saved, vec![], |pid| pid == 900), [p(900, 50)], "at its saved start time");
-        assert_eq!(with_unreadable(&saved, vec![p(900, 51)], |_| true), [p(900, 51)], "readable: another process took the pid");
+        assert!(
+            with_unreadable(&saved, vec![], |_| false).is_empty(),
+            "gone"
+        );
+        assert_eq!(
+            with_unreadable(&saved, vec![], |pid| pid == 900),
+            [p(900, 50)],
+            "at its saved start time"
+        );
+        assert_eq!(
+            with_unreadable(&saved, vec![p(900, 51)], |_| true),
+            [p(900, 51)],
+            "readable: another process took the pid"
+        );
         let fresh = Tracker::new();
-        assert_eq!(fresh.readopt(saved.clone(), &with_unreadable(&saved, vec![], |_| true), &[]), [(900, 50)]);
+        assert_eq!(
+            fresh.readopt(
+                saved.clone(),
+                &with_unreadable(&saved, vec![], |_| true),
+                &[]
+            ),
+            [(900, 50)]
+        );
     }
 
     #[test]
@@ -2214,7 +2946,12 @@ mod tests {
         let times = std::fs::FileTimes::new()
             .set_created(UNIX_EPOCH + Duration::from_secs(secs))
             .set_modified(std::time::SystemTime::now() - Duration::from_secs(2));
-        std::fs::File::options().write(true).open(path).unwrap().set_times(times).unwrap();
+        std::fs::File::options()
+            .write(true)
+            .open(path)
+            .unwrap()
+            .set_times(times)
+            .unwrap();
     }
 
     #[test]
@@ -2225,12 +2962,26 @@ mod tests {
         let start = now_ms() - 10_000;
         let secs = (start / 1000) as u64;
         let id = t.register(&info(100, start, false), target()).id;
-        let other = t.register(&LaunchInfo { browser_tracker_id: BTID + 1, ..info(300, start, false) }, target()).id;
+        let other = t
+            .register(
+                &LaunchInfo {
+                    browser_tracker_id: BTID + 1,
+                    ..info(300, start, false)
+                },
+                target(),
+            )
+            .id;
         let procs = Fake::new(&[(100, secs), (300, secs)]);
         let poll = |now: i64| t.poll(Some(&dir), &procs, &user_of, now);
 
         let old = dir.join("0.743.0.7431134_20261024T120000Z_Player_AAAAA_last.log");
-        append(&old, &[btid_line(BTID), "[FLog::UpdateController] Update check thread: updateRequired TRUE".into()]);
+        append(
+            &old,
+            &[
+                btid_line(BTID),
+                "[FLog::UpdateController] Update check thread: updateRequired TRUE".into(),
+            ],
+        );
         old_log(&old, secs);
         poll(start + 1_000);
         assert_eq!(state(&t, &id), (Joining, None, 100));
@@ -2312,7 +3063,10 @@ mod tests {
     fn a_start_time_unread_at_launch_is_read_later() {
         let t = Tracker::new();
         let start = now_ms() - 600_000;
-        let launched = LaunchInfo { pid_start: Some(0), ..info(100, start, false) };
+        let launched = LaunchInfo {
+            pid_start: Some(0),
+            ..info(100, start, false)
+        };
         let id = t.register(&launched, target()).id;
         let procs = Fake::new(&[(100, 555)]);
         t.poll(None, &procs, &user_of, start + 300_000);
@@ -2333,7 +3087,11 @@ mod tests {
         t.entries().iter_mut().for_each(|e| e.died_at = Some(gone));
         append(&log, &["[FLog::Network] still here".to_owned()]);
         t.poll(Some(&dir), &procs, &user_of, gone + WRITER_AFTER_MS);
-        assert_eq!(state(&t, &id), (InGame, None, 100), "the log grew after it went");
+        assert_eq!(
+            state(&t, &id),
+            (InGame, None, 100),
+            "the log grew after it went"
+        );
         assert!(t.take_crashes().is_empty());
 
         // Whoever started with that log is the client now.
@@ -2347,9 +3105,21 @@ mod tests {
     fn only_the_client_started_with_the_log_is_picked() {
         let p = |pid, start_time| ProcInfo { pid, start_time };
         let procs = [p(1, 100), p(2, 104), p(3, 200), p(4, 106)];
-        assert_eq!(pick_client(&procs, Some(105), 90, &[]).map(|c| c.pid), Some(2), "the closest in time");
-        assert_eq!(pick_client(&procs, Some(105), 90, &[2]).map(|c| c.pid), Some(4), "not one already followed");
-        assert_eq!(pick_client(&procs, Some(105), 105, &[]).map(|c| c.pid), Some(4), "not one from before the launch");
+        assert_eq!(
+            pick_client(&procs, Some(105), 90, &[]).map(|c| c.pid),
+            Some(2),
+            "the closest in time"
+        );
+        assert_eq!(
+            pick_client(&procs, Some(105), 90, &[2]).map(|c| c.pid),
+            Some(4),
+            "not one already followed"
+        );
+        assert_eq!(
+            pick_client(&procs, Some(105), 105, &[]).map(|c| c.pid),
+            Some(4),
+            "not one from before the launch"
+        );
         // The user's own client, started later, isn't taken just for being the newest.
         assert_eq!(pick_client(&procs, Some(150), 90, &[]), None);
         assert_eq!(pick_client(&procs, None, 90, &[]), None, "no log, no claim");
@@ -2378,7 +3148,12 @@ mod tests {
         append(&log, &["[FLog::Network] still here".to_owned()]);
         t.poll(Some(&dir), &procs, &user_of, gone + WRITER_AFTER_MS);
         assert_eq!(state(&t, &id).0, InGame);
-        t.poll(Some(&dir), &procs, &user_of, gone + WRITER_AFTER_MS + WRITER_PROOF_MS);
+        t.poll(
+            Some(&dir),
+            &procs,
+            &user_of,
+            gone + WRITER_AFTER_MS + WRITER_PROOF_MS,
+        );
         assert_eq!(state(&t, &id), (Exited, note("Closed unexpectedly"), 100));
         std::fs::remove_dir_all(&dir).unwrap();
     }
@@ -2396,7 +3171,11 @@ mod tests {
         t.poll(None, &procs, &user_of, start + 120_000);
         assert_eq!(state(&t, &id), (Exited, note("Closed unexpectedly"), 100));
         let ended = t.take_crashes().remove(0);
-        assert_eq!((ended.uptime_ms, ended.died_after_ms), (120_000, Some(1_000)), "when it really went, not when it was given up on");
+        assert_eq!(
+            (ended.uptime_ms, ended.died_after_ms),
+            (120_000, Some(1_000)),
+            "when it really went, not when it was given up on"
+        );
     }
 
     #[test]
@@ -2416,7 +3195,10 @@ mod tests {
         procs.set(&[(50, secs - 600), (901, secs + 1)]);
         poll(start + 3_000);
         assert_eq!(state(&t, &id), (Starting, None, 900));
-        append(&dir.join("0.744.0.7441080_20261024T120002Z_Player_CCCCC_last.log"), &[btid_line(BTID)]);
+        append(
+            &dir.join("0.744.0.7441080_20261024T120002Z_Player_CCCCC_last.log"),
+            &[btid_line(BTID)],
+        );
         poll(start + 4_000);
         assert_eq!(state(&t, &id), (Joining, None, 901));
         procs.set(&[(50, secs - 600)]);
@@ -2444,7 +3226,10 @@ mod tests {
         procs.set(&[(901, secs + 1)]);
         poll(start + 3_000);
         assert_eq!(state(&t, &id), (Starting, None, 900));
-        append(&dir.join("0.744.0.7441080_20261024T120002Z_Player_DDDDD_last.log"), &[btid_line(BTID)]);
+        append(
+            &dir.join("0.744.0.7441080_20261024T120002Z_Player_DDDDD_last.log"),
+            &[btid_line(BTID)],
+        );
         poll(start + 4_000);
         assert_eq!(state(&t, &id), (Joining, None, 901));
         // Closing applies to the client again, which then ends as closed.
@@ -2474,33 +3259,89 @@ mod tests {
     fn rejoins_disconnects_and_restarts_crashes_and_hangs() {
         use CrashKind::*;
         let base = Tracker::new().register(&info(100, 0, false), target());
-        let inst = |state, note: Option<&str>| Instance { state, note: note.map(Into::into), ..base.clone() };
+        let inst = |state, note: Option<&str>| Instance {
+            state,
+            note: note.map(Into::into),
+            ..base.clone()
+        };
         let facts = |disconnected, left| {
             let mut f = LogFacts::default();
             (f.disconnected, f.left) = (disconnected, left);
             f
         };
         let (kicked, none) = (facts(true, false), facts(false, false));
-        assert_eq!(wants_rejoin(&inst(Disconnected, None), &kicked, false), Some(Disconnect));
-        assert_eq!(wants_rejoin(&inst(Exited, Some(UNEXPECTED)), &kicked, false), Some(Disconnect), "closed by itself after the kick");
-        assert_eq!(wants_rejoin(&inst(Disconnected, None), &facts(true, true), false), None, "the player left");
-        assert_eq!(wants_rejoin(&inst(Exited, Some(UNEXPECTED)), &facts(true, true), false), None, "left, then closed");
+        assert_eq!(
+            wants_rejoin(&inst(Disconnected, None), &kicked, false),
+            Some(Disconnect)
+        );
+        assert_eq!(
+            wants_rejoin(&inst(Exited, Some(UNEXPECTED)), &kicked, false),
+            Some(Disconnect),
+            "closed by itself after the kick"
+        );
+        assert_eq!(
+            wants_rejoin(&inst(Disconnected, None), &facts(true, true), false),
+            None,
+            "the player left"
+        );
+        assert_eq!(
+            wants_rejoin(&inst(Exited, Some(UNEXPECTED)), &facts(true, true), false),
+            None,
+            "left, then closed"
+        );
         // Ended by itself with nothing in its log: a crash (or the window closed by hand).
-        assert_eq!(wants_rejoin(&inst(Exited, Some(UNEXPECTED)), &none, false), Some(Crash));
+        assert_eq!(
+            wants_rejoin(&inst(Exited, Some(UNEXPECTED)), &none, false),
+            Some(Crash)
+        );
         let mut replaced = none.clone();
         replaced.replaced = true;
-        assert_eq!(wants_rejoin(&inst(Exited, Some(UNEXPECTED)), &replaced, false), None);
-        for n in ["Closed", WRONG_ACCOUNT, CHALLENGED, "Gave up after 3 restarts"] {
-            assert_eq!(wants_rejoin(&inst(Exited, Some(n)), &kicked, false), None, "{n}");
-            assert_eq!(wants_rejoin(&inst(InGame, Some(n)), &none, true), None, "hung, {n}");
+        assert_eq!(
+            wants_rejoin(&inst(Exited, Some(UNEXPECTED)), &replaced, false),
+            None
+        );
+        for n in [
+            "Closed",
+            WRONG_ACCOUNT,
+            CHALLENGED,
+            "Gave up after 3 restarts",
+        ] {
+            assert_eq!(
+                wants_rejoin(&inst(Exited, Some(n)), &kicked, false),
+                None,
+                "{n}"
+            );
+            assert_eq!(
+                wants_rejoin(&inst(InGame, Some(n)), &none, true),
+                None,
+                "hung, {n}"
+            );
         }
-        assert_eq!(wants_rejoin(&inst(Disconnected, Some(CHALLENGED)), &kicked, false), None);
+        assert_eq!(
+            wants_rejoin(&inst(Disconnected, Some(CHALLENGED)), &kicked, false),
+            None
+        );
         for state in [Starting, Joining, InGame] {
-            assert_eq!(wants_rejoin(&inst(state, None), &none, false), None, "{state:?}");
-            assert_eq!(wants_rejoin(&inst(state, Some(HUNG)), &none, true), Some(Hang), "{state:?}");
+            assert_eq!(
+                wants_rejoin(&inst(state, None), &none, false),
+                None,
+                "{state:?}"
+            );
+            assert_eq!(
+                wants_rejoin(&inst(state, Some(HUNG)), &none, true),
+                Some(Hang),
+                "{state:?}"
+            );
         }
-        assert_eq!(wants_rejoin(&inst(Disconnected, Some(HUNG)), &kicked, true), Some(Hang));
-        assert_eq!(wants_rejoin(&inst(Exited, Some("Closed")), &none, true), None, "a hung client MTwin Manager closed");
+        assert_eq!(
+            wants_rejoin(&inst(Disconnected, Some(HUNG)), &kicked, true),
+            Some(Hang)
+        );
+        assert_eq!(
+            wants_rejoin(&inst(Exited, Some("Closed")), &none, true),
+            None,
+            "a hung client MTwin Manager closed"
+        );
     }
 
     #[test]
@@ -2510,13 +3351,35 @@ mod tests {
             (f.disconnected, f.left) = (disconnected, left);
             f
         };
-        assert_eq!(crash_kind(&facts(false, false), false, Some(UNEXPECTED)), Some(CrashKind::Crash));
-        assert_eq!(crash_kind(&facts(true, false), false, Some("Closed")), Some(CrashKind::Disconnect));
-        assert_eq!(crash_kind(&facts(false, false), true, Some("Closed")), Some(CrashKind::Hang));
-        for note in ["Closed", "Replaced by another Roblox client", WRONG_ACCOUNT, CHALLENGED] {
-            assert_eq!(crash_kind(&facts(false, false), false, Some(note)), None, "{note}");
+        assert_eq!(
+            crash_kind(&facts(false, false), false, Some(UNEXPECTED)),
+            Some(CrashKind::Crash)
+        );
+        assert_eq!(
+            crash_kind(&facts(true, false), false, Some("Closed")),
+            Some(CrashKind::Disconnect)
+        );
+        assert_eq!(
+            crash_kind(&facts(false, false), true, Some("Closed")),
+            Some(CrashKind::Hang)
+        );
+        for note in [
+            "Closed",
+            "Replaced by another Roblox client",
+            WRONG_ACCOUNT,
+            CHALLENGED,
+        ] {
+            assert_eq!(
+                crash_kind(&facts(false, false), false, Some(note)),
+                None,
+                "{note}"
+            );
         }
-        assert_eq!(crash_kind(&facts(true, true), false, Some(UNEXPECTED)), None, "the player left");
+        assert_eq!(
+            crash_kind(&facts(true, true), false, Some(UNEXPECTED)),
+            None,
+            "the player left"
+        );
     }
 
     #[test]
@@ -2525,13 +3388,21 @@ mod tests {
         let t = Tracker::new();
         let start = now_ms();
         let secs = (start / 1000) as u64;
-        let launch = |pid: u32, account_id: i64| LaunchInfo { account_id, browser_tracker_id: BTID + i64::from(pid), ..info(pid, start, false) };
+        let launch = |pid: u32, account_id: i64| LaunchInfo {
+            account_id,
+            browser_tracker_id: BTID + i64::from(pid),
+            ..info(pid, start, false)
+        };
         let follow = LaunchTarget::FollowUser { user_id: 42 };
         let kicked = t.register(&launch(100, 7), follow.clone()).id;
         let left = t.register(&launch(200, 1), target()).id;
         let closed = t.register(&launch(300, 1), target()).id;
         t.set_rejoins(&kicked, 1);
-        let log = |pid: u32| dir.join(format!("0.744.0.7441080_20261024T1200{pid}Z_Player_R{pid}_last.log"));
+        let log = |pid: u32| {
+            dir.join(format!(
+                "0.744.0.7441080_20261024T1200{pid}Z_Player_R{pid}_last.log"
+            ))
+        };
         for pid in [100, 200, 300] {
             append(&log(pid), &[btid_line(BTID + i64::from(pid))]);
             append(&log(pid), &join_lines(USER));
@@ -2544,21 +3415,55 @@ mod tests {
         assert!(t.take_rejoins().is_empty());
 
         // Kicked (idle, 267) and left by the player (285): only the kick is handed out, once.
-        append(&log(100), &["[FLog::Network] Sending disconnect with reason: 267".into()]);
-        append(&log(200), &["[FLog::Network] Disconnection Notification. Reason: 285".into()]);
+        append(
+            &log(100),
+            &["[FLog::Network] Sending disconnect with reason: 267".into()],
+        );
+        append(
+            &log(200),
+            &["[FLog::Network] Disconnection Notification. Reason: 285".into()],
+        );
         // A plain exit (the window closed, or a crash) is no disconnect: a restart.
         procs.set(&[(100, secs), (200, secs)]);
         poll(start + 2_000);
         assert_eq!(state(&t, &kicked).0, Disconnected);
-        assert_eq!(state(&t, &closed), (Exited, note("Closed unexpectedly"), 300));
-        let crash = Rejoin { from: closed.clone(), account_id: 1, target: target(), rejoins: 1, cause: CrashKind::Crash };
-        let kick = Rejoin { from: kicked.clone(), account_id: 7, target: follow.clone(), rejoins: 2, cause: CrashKind::Disconnect };
+        assert_eq!(
+            state(&t, &closed),
+            (Exited, note("Closed unexpectedly"), 300)
+        );
+        let crash = Rejoin {
+            from: closed.clone(),
+            account_id: 1,
+            target: target(),
+            rejoins: 1,
+            cause: CrashKind::Crash,
+        };
+        let kick = Rejoin {
+            from: kicked.clone(),
+            account_id: 7,
+            target: follow.clone(),
+            rejoins: 2,
+            cause: CrashKind::Disconnect,
+        };
         assert_eq!(t.take_rejoins(), vec![kick, crash]);
         assert!(t.take_rejoins().is_empty());
         // The crash went to the history; the disconnect hasn't ended yet.
         let ended = t.take_crashes();
-        assert_eq!(ended.iter().map(|c| (c.instance_id.as_str(), c.kind)).collect::<Vec<_>>(), [(closed.as_str(), CrashKind::Crash)]);
-        assert_eq!((ended[0].reason.as_ref(), ended[0].uptime_ms, ended[0].log.as_ref()), (None, 2_000, Some(&log(300))));
+        assert_eq!(
+            ended
+                .iter()
+                .map(|c| (c.instance_id.as_str(), c.kind))
+                .collect::<Vec<_>>(),
+            [(closed.as_str(), CrashKind::Crash)]
+        );
+        assert_eq!(
+            (
+                ended[0].reason.as_ref(),
+                ended[0].uptime_ms,
+                ended[0].log.as_ref()
+            ),
+            (None, 2_000, Some(&log(300)))
+        );
         poll(start + 3_000);
         assert!(t.take_rejoins().is_empty());
 
@@ -2567,7 +3472,13 @@ mod tests {
         append(&log(100), &[replicator()]);
         poll(start + 4_000);
         assert!(t.take_rejoins().is_empty());
-        append(&log(100), &["[FLog::Network] Lost connection with reason : You have been kicked from the game".into()]);
+        append(
+            &log(100),
+            &[
+                "[FLog::Network] Lost connection with reason : You have been kicked from the game"
+                    .into(),
+            ],
+        );
         poll(start + 5_000);
         assert_eq!(t.take_rejoins().len(), 1);
         assert_eq!(state(&t, &left).0, Disconnected);
@@ -2602,20 +3513,44 @@ mod tests {
 
         // Over the ended limit it stays; finished, it goes.
         for pid in 0..(MAX_ENDED as u32 + 2) {
-            let other = t.register(&LaunchInfo { account_id: 50 + i64::from(pid), browser_tracker_id: BTID + 10 + i64::from(pid), ..info(1_000 + pid, start, false) }, target()).id;
+            let other = t
+                .register(
+                    &LaunchInfo {
+                        account_id: 50 + i64::from(pid),
+                        browser_tracker_id: BTID + 10 + i64::from(pid),
+                        ..info(1_000 + pid, start, false)
+                    },
+                    target(),
+                )
+                .id;
             let mut entries = t.entries();
             let e = entries.iter_mut().find(|e| e.inst.id == other).unwrap();
             (e.inst.state, e.inst.ended_at) = (Exited, Some(start + 300_000 + i64::from(pid)));
         }
         prune(&mut t.entries());
-        assert_eq!(t.entries().iter().filter(|e| e.inst.state == Exited).count(), MAX_ENDED + 1);
+        assert_eq!(
+            t.entries()
+                .iter()
+                .filter(|e| e.inst.state == Exited)
+                .count(),
+            MAX_ENDED + 1
+        );
         assert!(t.get(&id).is_some());
         t.end_relaunch(&id);
         prune(&mut t.entries());
         assert!(t.get(&id).is_none());
 
         // Close all stops the next one, ended or not.
-        let second = t.register(&LaunchInfo { account_id: 2, browser_tracker_id: BTID + 1, ..info(200, start + 1, false) }, target()).id;
+        let second = t
+            .register(
+                &LaunchInfo {
+                    account_id: 2,
+                    browser_tracker_id: BTID + 1,
+                    ..info(200, start + 1, false)
+                },
+                target(),
+            )
+            .id;
         procs.set(&[(200, secs)]);
         poll(start + 400_000);
         procs.set(&[]);
@@ -2623,21 +3558,64 @@ mod tests {
         assert!(t.begin_relaunch(&second, start) && t.relaunch_wanted(&second, false));
         assert_eq!(t.relaunches_open(), 0, "ended: nothing to close");
         t.cancel_relaunches();
-        assert!(!t.relaunch_wanted(&second, false) && !t.relaunch_wanted(&second, true) && !t.is_relaunching(&second));
+        assert!(
+            !t.relaunch_wanted(&second, false)
+                && !t.relaunch_wanted(&second, true)
+                && !t.is_relaunching(&second)
+        );
         assert!(t.begin_relaunch(&second, start + 1));
-        assert!(!t.relaunch_wanted(&second, false), "handed out after Close all: counts as closed by the user");
-        t.entries().iter_mut().find(|e| e.inst.id == second).unwrap().closing = false;
+        assert!(
+            !t.relaunch_wanted(&second, false),
+            "handed out after Close all: counts as closed by the user"
+        );
+        t.entries()
+            .iter_mut()
+            .find(|e| e.inst.id == second)
+            .unwrap()
+            .closing = false;
 
         // An older ended client of the account says nothing about this relaunch.
-        let older = t.register(&LaunchInfo { account_id: 2, browser_tracker_id: BTID + 3, ..info(202, start, false) }, target()).id;
-        t.entries().iter_mut().find(|e| e.inst.id == older).unwrap().inst.state = Exited;
+        let older = t
+            .register(
+                &LaunchInfo {
+                    account_id: 2,
+                    browser_tracker_id: BTID + 3,
+                    ..info(202, start, false)
+                },
+                target(),
+            )
+            .id;
+        t.entries()
+            .iter_mut()
+            .find(|e| e.inst.id == older)
+            .unwrap()
+            .inst
+            .state = Exited;
         assert!(t.relaunch_wanted(&second, false));
         t.set_relaunch_problem(&second, Some("no network".into()));
         // The account launched since it began: nothing left to do, whatever became of that client.
-        let newer = t.register(&LaunchInfo { account_id: 2, browser_tracker_id: BTID + 2, ..info(201, start + 2, false) }, target()).id;
+        let newer = t
+            .register(
+                &LaunchInfo {
+                    account_id: 2,
+                    browser_tracker_id: BTID + 2,
+                    ..info(201, start + 2, false)
+                },
+                target(),
+            )
+            .id;
         assert!(!t.relaunch_wanted(&second, true));
-        assert_eq!(t.get(&second).unwrap().relaunch_problem, None, "the new client ended the wait");
-        t.entries().iter_mut().find(|e| e.inst.id == newer).unwrap().inst.state = Exited;
+        assert_eq!(
+            t.get(&second).unwrap().relaunch_problem,
+            None,
+            "the new client ended the wait"
+        );
+        t.entries()
+            .iter_mut()
+            .find(|e| e.inst.id == newer)
+            .unwrap()
+            .inst
+            .state = Exited;
         assert!(!t.relaunch_wanted(&second, true));
         std::fs::remove_dir_all(&dir).unwrap();
     }
@@ -2656,7 +3634,10 @@ mod tests {
         let procs = Fake::new(&[(100, secs)]);
         let poll = |now: i64| t.poll(Some(&dir), &procs, &user_of, now);
         poll(start + 1_000);
-        append(&log, &["[FLog::Network] Sending disconnect with reason: 267".into()]);
+        append(
+            &log,
+            &["[FLog::Network] Sending disconnect with reason: 267".into()],
+        );
         poll(start + 2_000);
         assert_eq!(t.take_rejoins().len(), 1);
         t.begin_relaunch(&id, start);
@@ -2671,10 +3652,17 @@ mod tests {
         append(&log, &[replicator()]);
         poll(start + 4_000);
         assert!(t.take_rejoins().is_empty());
-        assert_eq!(t.get(&id).unwrap().relaunch_problem, None, "back in a game: nothing to wait for");
+        assert_eq!(
+            t.get(&id).unwrap().relaunch_problem,
+            None,
+            "back in a game: nothing to wait for"
+        );
         poll(start + 5_000);
         assert_eq!(state(&t, &id), (InGame, None, 100));
-        append(&log, &["[FLog::Network] Sending disconnect with reason: 267".into()]);
+        append(
+            &log,
+            &["[FLog::Network] Sending disconnect with reason: 267".into()],
+        );
         poll(start + 6_000);
         assert_eq!(t.take_rejoins().len(), 1);
         std::fs::remove_dir_all(&dir).unwrap();
@@ -2695,9 +3683,21 @@ mod tests {
         let poll = |now: i64| t.poll(Some(&dir), &procs, &user_of, now);
         poll(start + 1_000);
         t.set_rejoins(&id, 5);
-        append(&log, &["[FLog::Network] Sending disconnect with reason: 267".into()]);
+        append(
+            &log,
+            &["[FLog::Network] Sending disconnect with reason: 267".into()],
+        );
         poll(start + 2_000);
-        assert_eq!(t.take_rejoins(), vec![Rejoin { from: id.clone(), account_id: 1, target: target(), rejoins: 6, cause: CrashKind::Disconnect }]);
+        assert_eq!(
+            t.take_rejoins(),
+            vec![Rejoin {
+                from: id.clone(),
+                account_id: 1,
+                target: target(),
+                rejoins: 6,
+                cause: CrashKind::Disconnect
+            }]
+        );
         assert!(t.still_wants_rejoin(&id));
 
         // Closed by the user during the launch delay: no longer wanted at once, then ended as
@@ -2710,12 +3710,23 @@ mod tests {
         assert!(!t.still_wants_rejoin(&id));
         let ended = t.take_crashes();
         assert_eq!((ended.len(), ended[0].kind), (1, CrashKind::Disconnect));
-        assert_eq!(ended[0].reason.as_deref(), Some("Sending disconnect with reason: 267"));
+        assert_eq!(
+            ended[0].reason.as_deref(),
+            Some("Sending disconnect with reason: 267")
+        );
         t.clear_ended();
         assert!(!t.still_wants_rejoin(&id));
 
         // The panic button covers ended ones waiting for a restart too.
-        let crashed = t.register(&LaunchInfo { browser_tracker_id: BTID + 1, ..info(200, start, false) }, target()).id;
+        let crashed = t
+            .register(
+                &LaunchInfo {
+                    browser_tracker_id: BTID + 1,
+                    ..info(200, start, false)
+                },
+                target(),
+            )
+            .id;
         procs.set(&[(200, secs)]);
         poll(start + 4_000);
         procs.set(&[]);
@@ -2743,7 +3754,10 @@ mod tests {
         assert!(t.take_rejoins().is_empty());
         poll(i64::from(HANG_POLLS) + 1);
         assert_eq!(state(&t, &id), (Starting, note(HUNG), 100));
-        assert_eq!(t.take_rejoins().iter().map(|r| r.cause).collect::<Vec<_>>(), [CrashKind::Hang]);
+        assert_eq!(
+            t.take_rejoins().iter().map(|r| r.cause).collect::<Vec<_>>(),
+            [CrashKind::Hang]
+        );
         assert!(t.take_rejoins().is_empty() && t.still_wants_rejoin(&id));
 
         // Responding again: no longer wanted, and a later hang counts again.
@@ -2766,9 +3780,15 @@ mod tests {
         // It then ends (never reached a game: after 120 s) as hung.
         procs.set(&[]);
         poll(200);
-        assert_eq!(state(&t, &id), (Exited, note("Gave up after 3 restarts"), 100));
+        assert_eq!(
+            state(&t, &id),
+            (Exited, note("Gave up after 3 restarts"), 100)
+        );
         let ended = t.take_crashes();
-        assert_eq!((ended.len(), ended[0].kind, ended[0].reason.as_deref()), (1, CrashKind::Hang, Some(HUNG)));
+        assert_eq!(
+            (ended.len(), ended[0].kind, ended[0].reason.as_deref()),
+            (1, CrashKind::Hang, Some(HUNG))
+        );
     }
 
     #[test]
@@ -2789,7 +3809,10 @@ mod tests {
     fn what_is_in_force_reaches_the_instance() {
         let t = Tracker::new();
         let id = t.register(&info(100, now_ms(), false), target()).id;
-        let on = Limits { eco: true, ..Limits::default() };
+        let on = Limits {
+            eco: true,
+            ..Limits::default()
+        };
         assert!(t.set_in_force(&[(id.clone(), on)]));
         assert_eq!(t.get(&id).unwrap().applied_limits, on);
         assert!(!t.set_in_force(&[(id.clone(), on)]), "no change");
@@ -2818,7 +3841,10 @@ mod tests {
             t.check_memory(4_096, true, &read);
         }
         t.poll(None, &procs, &user_of, start + 2_000);
-        assert_eq!(t.take_rejoins().iter().map(|r| r.cause).collect::<Vec<_>>(), [CrashKind::Mem]);
+        assert_eq!(
+            t.take_rejoins().iter().map(|r| r.cause).collect::<Vec<_>>(),
+            [CrashKind::Mem]
+        );
         assert!(t.take_rejoins().is_empty() && t.still_wants_rejoin(&id));
         t.check_memory(0, true, &read);
         assert!(!t.still_wants_rejoin(&id), "turned off");
@@ -2832,7 +3858,10 @@ mod tests {
         t.poll(None, &procs, &user_of, start + 3_000);
         assert_eq!(state(&t, &id).1, note("Closed"));
         let ended = t.take_crashes();
-        assert_eq!((ended.len(), ended[0].kind, ended[0].reason.as_deref()), (1, CrashKind::Mem, Some("Commit size reached 5000 MB")));
+        assert_eq!(
+            (ended.len(), ended[0].kind, ended[0].reason.as_deref()),
+            (1, CrashKind::Mem, Some("Commit size reached 5000 MB"))
+        );
     }
 
     #[test]
@@ -2870,7 +3899,10 @@ mod tests {
         );
         procs.set(&[]);
         t.poll(Some(&dir), &procs, &user_of, start + 2_000);
-        assert_eq!(state(&t, &id), (Exited, note("Replaced by another Roblox client"), 100));
+        assert_eq!(
+            state(&t, &id),
+            (Exited, note("Replaced by another Roblox client"), 100)
+        );
         std::fs::remove_dir_all(&dir).unwrap();
     }
 }

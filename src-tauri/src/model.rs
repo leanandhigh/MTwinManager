@@ -197,7 +197,6 @@ pub enum Theme {
     System,
 }
 
-
 #[derive(Serialize, Deserialize, TS, Clone, Copy, Debug, PartialEq, Eq, Default)]
 #[serde(rename_all = "lowercase")]
 #[ts(export)]
@@ -426,7 +425,15 @@ pub struct RenderFlags {
 
 impl Default for RenderFlags {
     fn default() -> Self {
-        Self { msaa: Msaa::X1, texture: TextureQuality::Lowest, mode: RenderMode::Default, gray_sky: false, no_grass: true, lowest_frm: true, pause_voxelizer: false }
+        Self {
+            msaa: Msaa::X1,
+            texture: TextureQuality::Lowest,
+            mode: RenderMode::Default,
+            gray_sky: false,
+            no_grass: true,
+            lowest_frm: true,
+            pause_voxelizer: false,
+        }
     }
 }
 
@@ -454,10 +461,12 @@ pub struct AntiAfk {
 
 impl Default for AntiAfk {
     fn default() -> Self {
-        Self { enabled: false, interval_min: 15 }
+        Self {
+            enabled: false,
+            interval_min: 15,
+        }
     }
 }
-
 
 /// Events sent to the Discord webhook (`discord`), each on or off.
 #[derive(Serialize, Deserialize, TS, Clone, Debug, PartialEq, Eq)]
@@ -483,7 +492,18 @@ pub struct DiscordEvents {
 
 impl Default for DiscordEvents {
     fn default() -> Self {
-        Self { crash: true, hang: true, mem_restart: true, disconnect: true, restart: true, breaker: true, batch_done: true, launch: false, status_every_min: 0, ping: String::new() }
+        Self {
+            crash: true,
+            hang: true,
+            mem_restart: true,
+            disconnect: true,
+            restart: true,
+            breaker: true,
+            batch_done: true,
+            launch: false,
+            status_every_min: 0,
+            ping: String::new(),
+        }
     }
 }
 
@@ -509,7 +529,14 @@ pub struct Adaptive {
 
 impl Default for Adaptive {
     fn default() -> Self {
-        Self { enabled: false, background: Limits { cpu_cap: Some(25), eco: true, ..Limits::default() } }
+        Self {
+            enabled: false,
+            background: Limits {
+                cpu_cap: Some(25),
+                eco: true,
+                ..Limits::default()
+            },
+        }
     }
 }
 
@@ -555,7 +582,7 @@ impl Default for Settings {
             online_count: true,
             rolimons_values: false,
             minimize_on_launch: false,
-panic_hotkey: String::new(),
+            panic_hotkey: String::new(),
             clean_logs: false,
             fps_cap: 0,
             low_graphics: true,
@@ -841,11 +868,18 @@ pub struct FriendReport {
 
 /// Where to launch. Ids are numbers; codes stay strings (link codes can be 25-32 digits).
 #[derive(Serialize, Deserialize, TS, Clone, Debug, PartialEq, Eq)]
-#[serde(tag = "kind", rename_all = "camelCase", rename_all_fields = "camelCase")]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 #[ts(export)]
 pub enum LaunchTarget {
     /// A game (its start place); `launch_data` ≤ 200 bytes goes to the game.
-    Place { place_id: i64, launch_data: Option<String> },
+    Place {
+        place_id: i64,
+        launch_data: Option<String>,
+    },
     /// One server (job) of a place.
     Server { place_id: i64, job_id: String },
     /// Private server via its link code (classic `?privateServerLinkCode=` links).
@@ -864,16 +898,30 @@ pub enum LaunchTarget {
 
 /// What `target_parse` made of pasted text.
 #[derive(Serialize, TS, Clone, Debug, PartialEq, Eq)]
-#[serde(tag = "kind", rename_all = "camelCase", rename_all_fields = "camelCase")]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 #[ts(export)]
 pub enum ParsedInput {
-    Target { target: LaunchTarget },
+    Target {
+        target: LaunchTarget,
+    },
     /// A bare job id: the UI must ask for the place.
-    JobIdOnly { job_id: String },
+    JobIdOnly {
+        job_id: String,
+    },
     /// `@name` or a bare username: look it up, then follow.
-    Username { name: String },
-    Invalid { reason: String },
-    Unsupported { reason: String },
+    Username {
+        name: String,
+    },
+    Invalid {
+        reason: String,
+    },
+    Unsupported {
+        reason: String,
+    },
 }
 
 #[derive(Serialize, Deserialize, TS, Clone, Debug, PartialEq)]
@@ -1125,7 +1173,14 @@ pub enum SameServer {
 impl SameServer {
     /// Each account in a different server.
     pub fn spreads(self) -> bool {
-        matches!(self, Self::OwnPrivate | Self::RandomPublic | Self::Closest | Self::MostFull | Self::MostEmpty)
+        matches!(
+            self,
+            Self::OwnPrivate
+                | Self::RandomPublic
+                | Self::Closest
+                | Self::MostFull
+                | Self::MostEmpty
+        )
     }
 }
 
@@ -1161,7 +1216,9 @@ pub enum BulkStage {
     InGame,
     /// Disconnected, and its account allows that (`allow_disconnect`).
     Done,
-    Failed { message: String },
+    Failed {
+        message: String,
+    },
     Cancelled,
 }
 
@@ -1430,13 +1487,17 @@ pub struct News {
 #[serde(tag = "stage", rename_all = "camelCase")]
 #[ts(export)]
 pub enum InstallProgress {
-    Downloading { percent: u8 },
+    Downloading {
+        percent: u8,
+    },
     /// Checking the installer's Authenticode signature.
     Verifying,
     /// Roblox's installer runs.
     Installing,
     Done,
-    Error { message: String },
+    Error {
+        message: String,
+    },
 }
 
 /// Where MTwin Manager keeps its data.

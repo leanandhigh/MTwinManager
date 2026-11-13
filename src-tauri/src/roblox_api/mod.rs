@@ -19,7 +19,9 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use reqwest::header::{ACCEPT, COOKIE, HeaderMap, HeaderValue, ORIGIN, REFERER, RETRY_AFTER, SET_COOKIE};
+use reqwest::header::{
+    ACCEPT, COOKIE, HeaderMap, HeaderValue, ORIGIN, REFERER, RETRY_AFTER, SET_COOKIE,
+};
 use reqwest::{Method, StatusCode, Url};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
@@ -28,16 +30,17 @@ use zeroize::Zeroizing;
 use crate::error::{AppError, Result};
 use crate::vault::Secret;
 use types::{
-    AgeRecommendation, AuthenticatedUser, BadgePage, CollectiblePage, Data, FriendOnline, FriendStatus, FriendStatusRow, Game, GameDetails, GroupRoleRow,
-    GroupRow, Holding, IdPage, Listed, PassPage, Presences, PrivateServerList, Profiles, RobloxBadgeRow, ServerList, ShareLinkResolution, ShareLinkV2,
-    SocialCounts, Thumbnails, TwoStepConfig, UniverseRow, UserDetails, UserGamePage, UserPresence, VipServerResponse, VoteRow,
+    AgeRecommendation, AuthenticatedUser, BadgePage, CollectiblePage, Data, FriendOnline,
+    FriendStatus, FriendStatusRow, Game, GameDetails, GroupRoleRow, GroupRow, Holding, IdPage,
+    Listed, PassPage, Presences, PrivateServerList, Profiles, RobloxBadgeRow, ServerList,
+    ShareLinkResolution, ShareLinkV2, SocialCounts, Thumbnails, TwoStepConfig, UniverseRow,
+    UserDetails, UserGamePage, UserPresence, VipServerResponse, VoteRow,
 };
 
 /// Called with `(account_id, new cookie)` when Roblox rotates a stored account's cookie.
 pub type RotationSink = Arc<dyn Fn(i64, Secret) + Send + Sync>;
 
-const USER_AGENT: &str =
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/158.0.0.0 Safari/537.36";
+const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/158.0.0.0 Safari/537.36";
 const MAX_ATTEMPTS: u32 = 3;
 const CSRF: &str = "x-csrf-token";
 const CHALLENGE: &str = "rblx-challenge-id";
@@ -58,8 +61,16 @@ const PAGE_GAP: Duration = Duration::from_secs(1);
 #[cfg(test)]
 const PAGE_GAP: Duration = Duration::from_millis(1);
 /// 2-step `mediaType` names by enum value.
-const MEDIA_TYPES: [&str; 8] =
-    ["Email", "SMS", "Authenticator", "RecoveryCode", "SecurityKey", "CrossDevice", "Password", "Passkey"];
+const MEDIA_TYPES: [&str; 8] = [
+    "Email",
+    "SMS",
+    "Authenticator",
+    "RecoveryCode",
+    "SecurityKey",
+    "CrossDevice",
+    "Password",
+    "Passkey",
+];
 
 /// Headers, body and the rotated cookie (if any) of a 2xx answer.
 type Reply = (HeaderMap, Vec<u8>, Option<Secret>);
@@ -95,22 +106,45 @@ impl Client {
             .build()
             .map_err(|e| e.without_url().to_string())
             .inspect_err(|e| log::error!("Roblox http client unavailable: {e}"));
-        Client { http, on_rotate, base, csrf: Mutex::default(), windows: Mutex::default() }
+        Client {
+            http,
+            on_rotate,
+            base,
+            csrf: Mutex::default(),
+            windows: Mutex::default(),
+        }
     }
 
     /// `GET users.roblox.com/v1/users/authenticated`, the only reliable cookie check.
     /// `account_id` 0 = cookie not stored yet (no sink call). Returns the user and, if Roblox
     /// rotated the cookie during the call, the new value.
-    pub async fn authenticated_user(&self, account_id: i64, cookie: &Secret) -> Result<(AuthenticatedUser, Option<Secret>)> {
+    pub async fn authenticated_user(
+        &self,
+        account_id: i64,
+        cookie: &Secret,
+    ) -> Result<(AuthenticatedUser, Option<Secret>)> {
         let url = endpoints::USERS_AUTHENTICATED;
-        let (_, body, rotated) = self.request(Method::GET, url, url, None, account_id, Some(cookie)).await?;
+        let (_, body, rotated) = self
+            .request(Method::GET, url, url, None, account_id, Some(cookie))
+            .await?;
         Ok((json(&body)?, rotated))
     }
 
     /// `GET users.roblox.com/v1/users/{id}` (public). Sent with the account's cookie when
     /// one is given (higher limit than anonymous: 30/min).
-    pub async fn user_details(&self, account_id: i64, cookie: Option<&Secret>, user_id: i64) -> Result<UserDetails> {
-        self.get(endpoints::USER, &endpoints::fill(endpoints::USER, user_id), account_id, cookie).await
+    pub async fn user_details(
+        &self,
+        account_id: i64,
+        cookie: Option<&Secret>,
+        user_id: i64,
+    ) -> Result<UserDetails> {
+        self.get(
+            endpoints::USER,
+            &endpoints::fill(endpoints::USER, user_id),
+            account_id,
+            cookie,
+        )
+        .await
     }
 
     /// Avatar headshot URLs, 150x150 PNG, no cookie. ≤100 ids per call (chunks larger
@@ -129,7 +163,10 @@ impl Client {
                 let page: Thumbnails = match self.get(endpoints::HEADSHOTS, &url, 0, None).await {
                     Ok(p) => p,
                     Err(e) if retry > 0 => {
-                        log::debug!("headshots: retry {retry} for {} pending id(s) failed: {e}", pending.len());
+                        log::debug!(
+                            "headshots: retry {retry} for {} pending id(s) failed: {e}",
+                            pending.len()
+                        );
                         break;
                     }
                     Err(e) => return Err(e),
@@ -152,7 +189,13 @@ impl Client {
     /// Legacy Premium: `GET premiumfeatures.roblox.com/v1/users/{id}/validate-membership`
     /// (body is a bare JSON boolean). Marked for removal by Roblox; callers treat errors as unknown.
     pub async fn premium(&self, account_id: i64, cookie: &Secret, user_id: i64) -> Result<bool> {
-        self.get(endpoints::PREMIUM, &endpoints::fill(endpoints::PREMIUM, user_id), account_id, Some(cookie)).await
+        self.get(
+            endpoints::PREMIUM,
+            &endpoints::fill(endpoints::PREMIUM, user_id),
+            account_id,
+            Some(cookie),
+        )
+        .await
     }
 
     /// Roblox Plus via `POST apis.roblox.com/user-profile-api/v1/user/profiles/get-profiles`
@@ -162,12 +205,21 @@ impl Client {
         let (url, mut out) = (endpoints::PROFILES, HashMap::new());
         for chunk in valid_ids(user_ids).chunks(200) {
             let body = serde_json::json!({ "userIds": chunk, "fields": ["hasRobloxSubscription"] });
-            let (_, bytes, _) = self.request(Method::POST, url, url, Some(&body), 0, None).await?;
+            let (_, bytes, _) = self
+                .request(Method::POST, url, url, Some(&body), 0, None)
+                .await?;
             let page: Profiles = json(&bytes)?;
             let (rows, before) = (page.profile_details.len(), out.len());
-            out.extend(page.profile_details.into_iter().filter_map(|p| Some((p.user_id, p.has_roblox_subscription?))));
+            out.extend(
+                page.profile_details
+                    .into_iter()
+                    .filter_map(|p| Some((p.user_id, p.has_roblox_subscription?))),
+            );
             if out.len() - before < rows {
-                log::debug!("plus: {} of {rows} profile(s) without hasRobloxSubscription", rows - (out.len() - before));
+                log::debug!(
+                    "plus: {} of {rows} profile(s) without hasRobloxSubscription",
+                    rows - (out.len() - before)
+                );
             }
         }
         Ok(out)
@@ -176,23 +228,45 @@ impl Client {
     /// `friends.roblox.com/v1/users/{id}/{friends,followers,followings}/count` (public).
     pub async fn social_counts(&self, user_id: i64) -> Result<SocialCounts> {
         let count = move |route: &'static str| async move {
-            field::<i64>(self.get(route, &endpoints::fill(route, user_id), 0, None).await?, "count")
+            field::<i64>(
+                self.get(route, &endpoints::fill(route, user_id), 0, None)
+                    .await?,
+                "count",
+            )
         };
         let (friends, followers, following) = tokio::try_join!(
             count(endpoints::FRIENDS_COUNT),
             count(endpoints::FOLLOWERS_COUNT),
             count(endpoints::FOLLOWINGS_COUNT)
         )?;
-        Ok(SocialCounts { friends, followers, following })
+        Ok(SocialCounts {
+            friends,
+            followers,
+            following,
+        })
     }
 
     /// `POST presence.roblox.com/v1/presence/users {userIds}` as the viewer (its cookie),
     /// ≤50 ids per call (chunks), ids ≤ 0 dropped and duplicates removed before sending.
-    pub async fn presence(&self, account_id: i64, cookie: &Secret, user_ids: &[i64]) -> Result<Vec<UserPresence>> {
+    pub async fn presence(
+        &self,
+        account_id: i64,
+        cookie: &Secret,
+        user_ids: &[i64],
+    ) -> Result<Vec<UserPresence>> {
         let (url, mut out) = (endpoints::PRESENCE, Vec::new());
         for chunk in valid_ids(user_ids).chunks(50) {
             let body = serde_json::json!({ "userIds": chunk });
-            let (_, bytes, _) = self.request(Method::POST, url, url, Some(&body), account_id, Some(cookie)).await?;
+            let (_, bytes, _) = self
+                .request(
+                    Method::POST,
+                    url,
+                    url,
+                    Some(&body),
+                    account_id,
+                    Some(cookie),
+                )
+                .await?;
             out.extend(json::<Presences>(&bytes)?.user_presences);
         }
         Ok(out)
@@ -201,15 +275,25 @@ impl Client {
     /// `GET accountsettings.roblox.com/v1/email` → `verified`. The address is not kept.
     pub async fn email_verified(&self, account_id: i64, cookie: &Secret) -> Result<bool> {
         let url = endpoints::EMAIL;
-        field(self.get(url, url, account_id, Some(cookie)).await?, "verified")
+        field(
+            self.get(url, url, account_id, Some(cookie)).await?,
+            "verified",
+        )
     }
 
     /// `GET twostepverification.roblox.com/v1/users/{id}/configuration` → names of the
     /// enabled methods ("Email", "SMS", "Authenticator", "SecurityKey", "Passkey", …).
     /// `mediaType` may arrive as a number or a string.
-    pub async fn two_step_methods(&self, account_id: i64, cookie: &Secret, user_id: i64) -> Result<Vec<String>> {
+    pub async fn two_step_methods(
+        &self,
+        account_id: i64,
+        cookie: &Secret,
+        user_id: i64,
+    ) -> Result<Vec<String>> {
         let url = endpoints::fill(endpoints::TWO_STEP, user_id);
-        let config: TwoStepConfig = self.get(endpoints::TWO_STEP, &url, account_id, Some(cookie)).await?;
+        let config: TwoStepConfig = self
+            .get(endpoints::TWO_STEP, &url, account_id, Some(cookie))
+            .await?;
         Ok(enabled_methods(config))
     }
 
@@ -221,7 +305,9 @@ impl Client {
         account_id: i64,
         cookie: Option<&Secret>,
     ) -> Result<T> {
-        let (_, body, _) = self.request(Method::GET, route, url, None, account_id, cookie).await?;
+        let (_, body, _) = self
+            .request(Method::GET, route, url, None, account_id, cookie)
+            .await?;
         json(&body)
     }
 
@@ -235,36 +321,91 @@ impl Client {
     /// `POST auth.roblox.com/v1/authentication-ticket/` (JSON body = the assertion, or `{}`),
     /// with Referer/Origin www.roblox.com; the ticket is the `rbx-authentication-ticket`
     /// response header (missing → `Roblox("no ticket")`). Fetched right before each launch.
-    pub async fn authentication_ticket(&self, account_id: i64, cookie: &Secret, assertion: Option<&Value>) -> Result<Secret> {
+    pub async fn authentication_ticket(
+        &self,
+        account_id: i64,
+        cookie: &Secret,
+        assertion: Option<&Value>,
+    ) -> Result<Secret> {
         let (url, empty) = (endpoints::AUTH_TICKET, Value::Object(Default::default()));
         let body = assertion.unwrap_or(&empty);
-        let (headers, _, _) = self.request(Method::POST, url, url, Some(body), account_id, Some(cookie)).await?;
-        let ticket = headers.get(TICKET_HEADER).and_then(|v| v.to_str().ok()).filter(|t| !t.is_empty());
+        let (headers, _, _) = self
+            .request(Method::POST, url, url, Some(body), account_id, Some(cookie))
+            .await?;
+        let ticket = headers
+            .get(TICKET_HEADER)
+            .and_then(|v| v.to_str().ok())
+            .filter(|t| !t.is_empty());
         if ticket.is_none() {
             log::warn!("account {account_id}: auth ticket header missing or unreadable");
         }
-        ticket.map(Secret::new).ok_or_else(|| AppError::Roblox("no ticket".into()))
+        ticket
+            .map(Secret::new)
+            .ok_or_else(|| AppError::Roblox("no ticket".into()))
     }
 
     /// `POST apis.roblox.com/sharelinks/v1/resolve-link {linkId, linkType}` (cookie + CSRF).
     /// The answer has one `*Data` object per link type; see types::ShareLinkResolution.
-    pub async fn resolve_share_link(&self, account_id: i64, cookie: &Secret, code: &str, link_type: &str) -> Result<ShareLinkResolution> {
-        let (url, body) = (endpoints::SHARE_LINK, serde_json::json!({ "linkId": code, "linkType": link_type }));
-        let (_, bytes, _) = self.request(Method::POST, url, url, Some(&body), account_id, Some(cookie)).await?;
+    pub async fn resolve_share_link(
+        &self,
+        account_id: i64,
+        cookie: &Secret,
+        code: &str,
+        link_type: &str,
+    ) -> Result<ShareLinkResolution> {
+        let (url, body) = (
+            endpoints::SHARE_LINK,
+            serde_json::json!({ "linkId": code, "linkType": link_type }),
+        );
+        let (_, bytes, _) = self
+            .request(
+                Method::POST,
+                url,
+                url,
+                Some(&body),
+                account_id,
+                Some(cookie),
+            )
+            .await?;
         json(&bytes)
     }
 
     /// `POST apis.roblox.com/deeplinks/v2/resolve {linkId}` (cookie + CSRF) for `?v=v2` links.
-    pub async fn resolve_share_link_v2(&self, account_id: i64, cookie: &Secret, code: &str) -> Result<ShareLinkV2> {
-        let (url, body) = (endpoints::SHARE_LINK_V2, serde_json::json!({ "linkId": code }));
-        let (_, bytes, _) = self.request(Method::POST, url, url, Some(&body), account_id, Some(cookie)).await?;
+    pub async fn resolve_share_link_v2(
+        &self,
+        account_id: i64,
+        cookie: &Secret,
+        code: &str,
+    ) -> Result<ShareLinkV2> {
+        let (url, body) = (
+            endpoints::SHARE_LINK_V2,
+            serde_json::json!({ "linkId": code }),
+        );
+        let (_, bytes, _) = self
+            .request(
+                Method::POST,
+                url,
+                url,
+                Some(&body),
+                account_id,
+                Some(cookie),
+            )
+            .await?;
         json(&bytes)
     }
 
     /// `GET games.roblox.com/v1/games?universeIds=<csv ≤50>` (no cookie) → universe id →
     /// (root place id, game name). Unknown universes are absent.
-    pub async fn universe_root_places(&self, universe_ids: &[i64]) -> Result<HashMap<i64, (i64, String)>> {
-        Ok(self.games(universe_ids).await?.into_iter().map(|g| (g.universe_id, (g.root_place_id, g.name))).collect())
+    pub async fn universe_root_places(
+        &self,
+        universe_ids: &[i64],
+    ) -> Result<HashMap<i64, (i64, String)>> {
+        Ok(self
+            .games(universe_ids)
+            .await?
+            .into_iter()
+            .map(|g| (g.universe_id, (g.root_place_id, g.name)))
+            .collect())
     }
 
     /// `POST users.roblox.com/v1/usernames/users {usernames ≤200, excludeBannedUsers:true}`
@@ -273,7 +414,9 @@ impl Client {
         let (url, mut out) = (endpoints::USERS_BY_NAME, Vec::new());
         for chunk in names.chunks(200) {
             let body = serde_json::json!({ "usernames": chunk, "excludeBannedUsers": true });
-            let (_, bytes, _) = self.request(Method::POST, url, url, Some(&body), 0, None).await?;
+            let (_, bytes, _) = self
+                .request(Method::POST, url, url, Some(&body), 0, None)
+                .await?;
             out.extend(json::<Data<AuthenticatedUser>>(&bytes)?.data);
         }
         Ok(out)
@@ -282,9 +425,17 @@ impl Client {
     /// `GET friends.roblox.com/v1/users/{id}/friends/online` with the account's cookie:
     /// friends online right now with their presence (PascalCase `UserPresenceType` string,
     /// `gameInstanceId`).
-    pub async fn friends_online(&self, account_id: i64, cookie: &Secret, user_id: i64) -> Result<Vec<FriendOnline>> {
+    pub async fn friends_online(
+        &self,
+        account_id: i64,
+        cookie: &Secret,
+        user_id: i64,
+    ) -> Result<Vec<FriendOnline>> {
         let url = endpoints::fill(endpoints::FRIENDS_ONLINE, user_id);
-        Ok(self.get::<Data<FriendOnline>>(endpoints::FRIENDS_ONLINE, &url, account_id, Some(cookie)).await?.data)
+        Ok(self
+            .get::<Data<FriendOnline>>(endpoints::FRIENDS_ONLINE, &url, account_id, Some(cookie))
+            .await?
+            .data)
     }
 
     /// `GET friends.roblox.com/v1/users/{id}/friends/statuses?userIds=<csv>` with the account's
@@ -301,8 +452,13 @@ impl Client {
         let mut out = HashMap::new();
         for chunk in valid_ids(ids).chunks(50) {
             let url = format!("{}?userIds={}", endpoints::fill(route, user_id), csv(chunk));
-            let page: Data<FriendStatusRow> = self.get(route, &url, account_id, Some(cookie)).await?;
-            out.extend(page.data.iter().map(|r| (r.id, FriendStatus::of(&r.status))));
+            let page: Data<FriendStatusRow> =
+                self.get(route, &url, account_id, Some(cookie)).await?;
+            out.extend(
+                page.data
+                    .iter()
+                    .map(|r| (r.id, FriendStatus::of(&r.status))),
+            );
         }
         Ok(out)
     }
@@ -310,18 +466,49 @@ impl Client {
     /// `POST friends.roblox.com/v1/users/{target}/request-friendship` (cookie + CSRF). A captcha
     /// comes back as `Challenge`; it is never solved here.
     // shortcut: body `{}` (the endpoint left the public spec), send the website's body if Roblox starts refusing it.
-    pub async fn request_friendship(&self, account_id: i64, cookie: &Secret, target: i64) -> Result<()> {
-        let (route, body) = (endpoints::REQUEST_FRIENDSHIP, Value::Object(Default::default()));
+    pub async fn request_friendship(
+        &self,
+        account_id: i64,
+        cookie: &Secret,
+        target: i64,
+    ) -> Result<()> {
+        let (route, body) = (
+            endpoints::REQUEST_FRIENDSHIP,
+            Value::Object(Default::default()),
+        );
         let url = endpoints::fill(route, target);
-        self.request(Method::POST, route, &url, Some(&body), account_id, Some(cookie)).await.map(|_| ())
+        self.request(
+            Method::POST,
+            route,
+            &url,
+            Some(&body),
+            account_id,
+            Some(cookie),
+        )
+        .await
+        .map(|_| ())
     }
 
     /// `POST friends.roblox.com/v1/users/{requester}/accept-friend-request` (cookie + CSRF).
-    pub async fn accept_friend(&self, account_id: i64, cookie: &Secret, requester: i64) -> Result<()> {
+    pub async fn accept_friend(
+        &self,
+        account_id: i64,
+        cookie: &Secret,
+        requester: i64,
+    ) -> Result<()> {
         // `{}` rather than no body: a bodyless POST may go out without Content-Length (411).
         let (route, body) = (endpoints::ACCEPT_FRIEND, Value::Object(Default::default()));
         let url = endpoints::fill(route, requester);
-        self.request(Method::POST, route, &url, Some(&body), account_id, Some(cookie)).await.map(|_| ())
+        self.request(
+            Method::POST,
+            route,
+            &url,
+            Some(&body),
+            account_id,
+            Some(cookie),
+        )
+        .await
+        .map(|_| ())
     }
 
     /// `GET games.roblox.com/v2/games/{placeId}/servers/Public?orderBy=..&excludeFullGames=..&limit=..&cursor=..`
@@ -343,7 +530,9 @@ impl Client {
     ) -> Result<crate::model::ServerPage> {
         use crate::model::{GameServer, ServerOrder, ServerPage};
         if ![10, 25, 50, 100].contains(&limit) {
-            return Err(AppError::Invalid(tr!("A server page holds 10, 25, 50 or 100 servers.")));
+            return Err(AppError::Invalid(tr!(
+                "A server page holds 10, 25, 50 or 100 servers."
+            )));
         }
         let order_by = match order {
             ServerOrder::OccupancyDesc => "OccupancyDesc",
@@ -366,21 +555,30 @@ impl Client {
         }
         let rows = list.data.unwrap_or_default();
         let total = rows.len();
-        let servers: Vec<GameServer> = rows.into_iter().filter_map(|r| {
-            Some(GameServer {
-                // A job id goes into a launch URI: GUIDs only.
-                id: r.id.filter(|id| crate::launcher::target::is_uuid(id))?,
-                playing: r.playing?,
-                max_players: r.max_players?,
-                fps: r.fps,
-                ping: r.ping,
-                friend_count: r.friend_count,
+        let servers: Vec<GameServer> = rows
+            .into_iter()
+            .filter_map(|r| {
+                Some(GameServer {
+                    // A job id goes into a launch URI: GUIDs only.
+                    id: r.id.filter(|id| crate::launcher::target::is_uuid(id))?,
+                    playing: r.playing?,
+                    max_players: r.max_players?,
+                    fps: r.fps,
+                    ping: r.ping,
+                    friend_count: r.friend_count,
+                })
             })
-        }).collect();
+            .collect();
         if servers.len() < total {
-            log::debug!("servers_public: place {place_id}: {} of {total} row(s) dropped", total - servers.len());
+            log::debug!(
+                "servers_public: place {place_id}: {} of {total} row(s) dropped",
+                total - servers.len()
+            );
         }
-        Ok(ServerPage { servers, next_cursor: list.next_page_cursor.filter(|c| !c.is_empty()) })
+        Ok(ServerPage {
+            servers,
+            next_cursor: list.next_page_cursor.filter(|c| !c.is_empty()),
+        })
     }
 
     /// `GET apis.roblox.com/universes/v1/places/{placeId}/universe` (no cookie): the place's
@@ -390,7 +588,11 @@ impl Client {
             return Ok(None);
         }
         let route = endpoints::PLACE_UNIVERSE;
-        field(self.get(route, &endpoints::fill(route, place_id), 0, None).await?, "universeId")
+        field(
+            self.get(route, &endpoints::fill(route, place_id), 0, None)
+                .await?,
+            "universeId",
+        )
     }
 
     /// `GET games.roblox.com/v1/games?universeIds=` (no cookie, ≤50 per call, the existing
@@ -404,14 +606,21 @@ impl Client {
             let page: Data<Game> = self.get(endpoints::GAMES, &url, 0, None).await?;
             let (rows, before) = (page.data.len(), out.len());
             out.extend(page.data.into_iter().filter_map(|g| {
-                let group_id = g.creator.as_ref().filter(|c| c.kind.as_deref() == Some("Group")).and_then(|c| c.id);
+                let group_id = g
+                    .creator
+                    .as_ref()
+                    .filter(|c| c.kind.as_deref() == Some("Group"))
+                    .and_then(|c| c.id);
                 Some(GameDetails {
                     universe_id: g.id?,
                     root_place_id: g.root_place_id?,
                     name: g.name.unwrap_or_default(),
                     creator: g.creator.and_then(|c| c.name).unwrap_or_default(),
                     group_id,
-                    avatar_type: g.universe_avatar_type.and_then(|v| v.as_str().map(str::to_owned)).filter(|s| !s.is_empty()),
+                    avatar_type: g
+                        .universe_avatar_type
+                        .and_then(|v| v.as_str().map(str::to_owned))
+                        .filter(|s| !s.is_empty()),
                     copying: g.copying_allowed,
                     playing: g.playing.unwrap_or_default(),
                     visits: g.visits.unwrap_or_default(),
@@ -420,12 +629,18 @@ impl Client {
                     favourites: g.favorited_count.unwrap_or_default(),
                     created: g.created,
                     updated: g.updated,
-                    genre: g.genre_l1.or(g.genre).filter(|s| !s.is_empty() && s != "All"),
+                    genre: g
+                        .genre_l1
+                        .or(g.genre)
+                        .filter(|s| !s.is_empty() && s != "All"),
                     subgenre: g.genre_l2.filter(|s| !s.is_empty()),
                 })
             }));
             if out.len() - before < rows {
-                log::debug!("games: {} of {rows} row(s) without id or rootPlaceId", rows - (out.len() - before));
+                log::debug!(
+                    "games: {} of {rows} row(s) without id or rootPlaceId",
+                    rows - (out.len() - before)
+                );
             }
         }
         Ok(out)
@@ -435,7 +650,9 @@ impl Client {
     /// calls of one run as the website's do): the Charts' game lists (`popular_of`).
     pub async fn popular_games(&self, session_id: &str) -> Result<Vec<crate::model::GameSort>> {
         let url = endpoints::fill(endpoints::EXPLORE_SORTS, session_id);
-        Ok(popular_of(self.get(endpoints::EXPLORE_SORTS, &url, 0, None).await?))
+        Ok(popular_of(
+            self.get(endpoints::EXPLORE_SORTS, &url, 0, None).await?,
+        ))
     }
 
     /// `GET thumbnails.roblox.com/v1/games/icons?universeIds=..` (no cookie, `GAME_ICONS`): universe
@@ -475,8 +692,14 @@ impl Client {
     /// Roblox doesn't list the universe.
     pub async fn game_votes(&self, universe_id: i64) -> Result<Option<(i64, i64)>> {
         let route = endpoints::GAME_VOTES;
-        let rows: Data<VoteRow> = self.get(route, &endpoints::fill(route, universe_id), 0, None).await?;
-        Ok(rows.data.into_iter().find(|r| r.id == Some(universe_id)).map(|r| (r.up_votes.unwrap_or(0), r.down_votes.unwrap_or(0))))
+        let rows: Data<VoteRow> = self
+            .get(route, &endpoints::fill(route, universe_id), 0, None)
+            .await?;
+        Ok(rows
+            .data
+            .into_iter()
+            .find(|r| r.id == Some(universe_id))
+            .map(|r| (r.up_votes.unwrap_or(0), r.down_votes.unwrap_or(0))))
     }
 
     /// A game's passes (`GAME_PASSES`, no cookie; ≤5 pages of 100) with their icons. A pass off
@@ -491,19 +714,28 @@ impl Client {
             }
             async move {
                 let page: PassPage = self.get(route, &url, 0, None).await?;
-                let rows = page.game_passes.unwrap_or_default().into_iter().filter_map(|p| {
-                    Some(crate::model::GamePass {
-                        id: p.id?,
-                        name: p.display_name.or(p.name).unwrap_or_default(),
-                        price: p.price.filter(|_| p.is_for_sale == Some(true)),
-                        icon_url: None,
-                    })
-                });
+                let rows = page
+                    .game_passes
+                    .unwrap_or_default()
+                    .into_iter()
+                    .filter_map(|p| {
+                        Some(crate::model::GamePass {
+                            id: p.id?,
+                            name: p.display_name.or(p.name).unwrap_or_default(),
+                            price: p.price.filter(|_| p.is_for_sale == Some(true)),
+                            icon_url: None,
+                        })
+                    });
                 Ok((rows.collect(), page.next_page_token))
             }
         })
         .await?;
-        let (icons, complete) = self.thumbnails(endpoints::PASS_ICONS, &list.items.iter().map(|p| p.id).collect::<Vec<_>>()).await;
+        let (icons, complete) = self
+            .thumbnails(
+                endpoints::PASS_ICONS,
+                &list.items.iter().map(|p| p.id).collect::<Vec<_>>(),
+            )
+            .await;
         for p in &mut list.items {
             p.icon_url = icons.get(&p.id).cloned();
         }
@@ -519,22 +751,36 @@ impl Client {
             let url = with_cursor(endpoints::fill(route, universe_id), cursor);
             async move {
                 let page: BadgePage = self.get(route, &url, 0, None).await?;
-                let rows = page.data.unwrap_or_default().into_iter().filter(|b| b.enabled != Some(false)).filter_map(|b| {
-                    let stats = b.statistics.unwrap_or_default();
-                    Some(crate::model::GameBadge {
-                        id: b.id?,
-                        name: b.display_name.or(b.name).unwrap_or_default(),
-                        awarded: stats.awarded_count.unwrap_or(0),
-                        awarded_yesterday: stats.past_day_awarded_count.unwrap_or(0),
-                        win_rate: stats.win_rate_percentage.filter(|r| r.is_finite()).unwrap_or(0.0).clamp(0.0, 1.0),
-                        icon_url: None,
-                    })
-                });
+                let rows = page
+                    .data
+                    .unwrap_or_default()
+                    .into_iter()
+                    .filter(|b| b.enabled != Some(false))
+                    .filter_map(|b| {
+                        let stats = b.statistics.unwrap_or_default();
+                        Some(crate::model::GameBadge {
+                            id: b.id?,
+                            name: b.display_name.or(b.name).unwrap_or_default(),
+                            awarded: stats.awarded_count.unwrap_or(0),
+                            awarded_yesterday: stats.past_day_awarded_count.unwrap_or(0),
+                            win_rate: stats
+                                .win_rate_percentage
+                                .filter(|r| r.is_finite())
+                                .unwrap_or(0.0)
+                                .clamp(0.0, 1.0),
+                            icon_url: None,
+                        })
+                    });
                 Ok((rows.collect(), page.next_page_cursor))
             }
         })
         .await?;
-        let (icons, complete) = self.thumbnails(endpoints::BADGE_ICONS, &list.items.iter().map(|b| b.id).collect::<Vec<_>>()).await;
+        let (icons, complete) = self
+            .thumbnails(
+                endpoints::BADGE_ICONS,
+                &list.items.iter().map(|b| b.id).collect::<Vec<_>>(),
+            )
+            .await;
         for b in &mut list.items {
             b.icon_url = icons.get(&b.id).cloned();
         }
@@ -547,23 +793,38 @@ impl Client {
     pub async fn age_rating(&self, universe_id: i64) -> Result<Option<crate::model::AgeRating>> {
         let url = endpoints::AGE_RATING;
         let body = serde_json::json!({ "universeId": universe_id.to_string() });
-        let (_, bytes, _) = self.request(Method::POST, url, url, Some(&body), 0, None).await?;
-        let details = json::<AgeRecommendation>(&bytes)?.age_recommendation_details.unwrap_or_default();
-        let Some(label) = details.summary.and_then(|s| s.age_recommendation) else { return Ok(None) };
-        let Some(name) = label.display_name.filter(|n| !n.is_empty()) else { return Ok(None) };
+        let (_, bytes, _) = self
+            .request(Method::POST, url, url, Some(&body), 0, None)
+            .await?;
+        let details = json::<AgeRecommendation>(&bytes)?
+            .age_recommendation_details
+            .unwrap_or_default();
+        let Some(label) = details.summary.and_then(|s| s.age_recommendation) else {
+            return Ok(None);
+        };
+        let Some(name) = label.display_name.filter(|n| !n.is_empty()) else {
+            return Ok(None);
+        };
         let descriptors = details
             .descriptor_usages
             .into_iter()
             .filter(|u| u.contains != Some(false))
             .filter_map(|u| u.descriptor?.display_name.filter(|n| !n.is_empty()))
             .collect();
-        Ok(Some(crate::model::AgeRating { label: name, minimum_age: label.minimum_age, descriptors }))
+        Ok(Some(crate::model::AgeRating {
+            label: name,
+            minimum_age: label.minimum_age,
+            descriptors,
+        }))
     }
 
     /// Whether the game is archived (`UNIVERSE`, no cookie).
     pub async fn universe_archived(&self, universe_id: i64) -> Result<Option<bool>> {
         let route = endpoints::UNIVERSE;
-        Ok(self.get::<UniverseRow>(route, &endpoints::fill(route, universe_id), 0, None).await?.is_archived)
+        Ok(self
+            .get::<UniverseRow>(route, &endpoints::fill(route, universe_id), 0, None)
+            .await?
+            .is_archived)
     }
 
     /// How many places a game has (`UNIVERSE_PLACES`, no cookie; ≤2 pages of 100).
@@ -573,7 +834,14 @@ impl Client {
             let url = with_cursor(endpoints::fill(route, universe_id), cursor);
             async move {
                 let page: IdPage = self.get(route, &url, 0, None).await?;
-                Ok((page.data.unwrap_or_default().into_iter().filter_map(|r| r.id).collect(), page.next_page_cursor))
+                Ok((
+                    page.data
+                        .unwrap_or_default()
+                        .into_iter()
+                        .filter_map(|r| r.id)
+                        .collect(),
+                    page.next_page_cursor,
+                ))
             }
         })
         .await
@@ -582,13 +850,18 @@ impl Client {
     /// A group's member count (`GROUP`, no cookie).
     pub async fn group_members(&self, group_id: i64) -> Result<Option<i64>> {
         let route = endpoints::GROUP;
-        Ok(self.get::<GroupRow>(route, &endpoints::fill(route, group_id), 0, None).await?.member_count)
+        Ok(self
+            .get::<GroupRow>(route, &endpoints::fill(route, group_id), 0, None)
+            .await?
+            .member_count)
     }
 
     /// The groups a player is in, with their role (`USER_GROUPS`, no cookie), biggest first.
     pub async fn user_groups(&self, user_id: i64) -> Result<Vec<crate::model::PlayerGroup>> {
         let route = endpoints::USER_GROUPS;
-        let rows: Data<GroupRoleRow> = self.get(route, &endpoints::fill(route, user_id), 0, None).await?;
+        let rows: Data<GroupRoleRow> = self
+            .get(route, &endpoints::fill(route, user_id), 0, None)
+            .await?;
         let mut out: Vec<_> = rows
             .data
             .into_iter()
@@ -609,7 +882,9 @@ impl Client {
     /// The Roblox badges a player holds (`ROBLOX_BADGES`, no cookie; a bare array).
     pub async fn roblox_badges(&self, user_id: i64) -> Result<Vec<crate::model::RobloxBadge>> {
         let route = endpoints::ROBLOX_BADGES;
-        let rows: Vec<RobloxBadgeRow> = self.get(route, &endpoints::fill(route, user_id), 0, None).await?;
+        let rows: Vec<RobloxBadgeRow> = self
+            .get(route, &endpoints::fill(route, user_id), 0, None)
+            .await?;
         Ok(rows
             .into_iter()
             .filter_map(|b| {
@@ -645,7 +920,12 @@ impl Client {
 
     /// `user_id`'s limiteds (`COLLECTIBLES`) with the account's cookie, a page a second (≤50
     /// pages of 100 copies), copies of one item added up. A null RAP counts as 0.
-    pub async fn collectibles(&self, account_id: i64, cookie: &Secret, user_id: i64) -> Result<Listed<Holding>> {
+    pub async fn collectibles(
+        &self,
+        account_id: i64,
+        cookie: &Secret,
+        user_id: i64,
+    ) -> Result<Listed<Holding>> {
         let route = endpoints::COLLECTIBLES;
         let rows = paged("limiteds", MAX_INVENTORY_PAGES, PAGE_GAP, |cursor| {
             let url = with_cursor(endpoints::fill(route, user_id), cursor);
@@ -663,11 +943,20 @@ impl Client {
                 Some(&i) => held[i].copies += 1,
                 None => {
                     at.insert(asset_id, held.len());
-                    held.push(Holding { asset_id, name: r.name.unwrap_or_default(), copies: 1, rap: r.recent_average_price.unwrap_or(0).max(0) });
+                    held.push(Holding {
+                        asset_id,
+                        name: r.name.unwrap_or_default(),
+                        copies: 1,
+                        rap: r.recent_average_price.unwrap_or(0).max(0),
+                    });
                 }
             }
         }
-        Ok(Listed { items: held, more: rows.more, complete: rows.complete })
+        Ok(Listed {
+            items: held,
+            more: rows.more,
+            complete: rows.complete,
+        })
     }
 
     /// `GET thumbnails.roblox.com/v1/places/gameicons?placeIds=..` (no cookie, `PLACE_ICONS`):
@@ -676,7 +965,10 @@ impl Client {
         let mut out = HashMap::new();
         for chunk in valid_ids(place_ids).chunks(100) {
             let url = endpoints::fill(endpoints::PLACE_ICONS, csv(chunk));
-            sort_thumbnails(self.get(endpoints::PLACE_ICONS, &url, 0, None).await?, &mut out);
+            sort_thumbnails(
+                self.get(endpoints::PLACE_ICONS, &url, 0, None).await?,
+                &mut out,
+            );
         }
         Ok(out)
     }
@@ -706,21 +998,24 @@ impl Client {
         let rows = list.data.unwrap_or_default();
         let total = rows.len();
         let (mut bad_job, mut bad_code) = (0usize, 0usize);
-        let servers: Vec<PrivateServer> = rows.into_iter().filter_map(|r| {
-            let (owner_id, owner_name) = r.owner.map_or((None, None), |o| (o.id, o.name));
-            bad_job += usize::from(r.id.as_deref().is_some_and(|id| !is_uuid(id)));
-            bad_code += usize::from(r.access_code.as_deref().is_some_and(|c| !is_uuid(c)));
-            Some(PrivateServer {
-                vip_server_id: r.vip_server_id?,
-                name: r.name.unwrap_or_default(),
-                owner_id,
-                owner_name,
-                playing: r.playing.unwrap_or_default(),
-                max_players: r.max_players.unwrap_or_default(),
-                job_id: r.id.filter(|id| is_uuid(id)),
-                access_code: r.access_code.filter(|code| is_uuid(code)),
+        let servers: Vec<PrivateServer> = rows
+            .into_iter()
+            .filter_map(|r| {
+                let (owner_id, owner_name) = r.owner.map_or((None, None), |o| (o.id, o.name));
+                bad_job += usize::from(r.id.as_deref().is_some_and(|id| !is_uuid(id)));
+                bad_code += usize::from(r.access_code.as_deref().is_some_and(|c| !is_uuid(c)));
+                Some(PrivateServer {
+                    vip_server_id: r.vip_server_id?,
+                    name: r.name.unwrap_or_default(),
+                    owner_id,
+                    owner_name,
+                    playing: r.playing.unwrap_or_default(),
+                    max_players: r.max_players.unwrap_or_default(),
+                    job_id: r.id.filter(|id| is_uuid(id)),
+                    access_code: r.access_code.filter(|code| is_uuid(code)),
+                })
             })
-        }).collect();
+            .collect();
         if servers.len() < total || bad_job + bad_code > 0 {
             log::debug!(
                 "private_servers: place {place_id}: {} of {total} row(s) without vipServerId, {bad_job} job id(s) and {bad_code} access code(s) not GUIDs",
@@ -736,9 +1031,21 @@ impl Client {
 
     /// `GET games.roblox.com/v1/vip-servers/{id}` as its owner (403 for anyone else). Lenient;
     /// the answer's join secrets are never read.
-    pub async fn vip_server(&self, account_id: i64, cookie: &Secret, vip_server_id: i64) -> Result<crate::model::PrivateServerSettings> {
+    pub async fn vip_server(
+        &self,
+        account_id: i64,
+        cookie: &Secret,
+        vip_server_id: i64,
+    ) -> Result<crate::model::PrivateServerSettings> {
         let route = endpoints::VIP_SERVER;
-        let r: VipServerResponse = self.get(route, &endpoints::fill(route, vip_server_id), account_id, Some(cookie)).await?;
+        let r: VipServerResponse = self
+            .get(
+                route,
+                &endpoints::fill(route, vip_server_id),
+                account_id,
+                Some(cookie),
+            )
+            .await?;
         Ok(settings_of(vip_server_id, r))
     }
 
@@ -767,16 +1074,30 @@ impl Client {
         if let Some(friends) = patch.friends_allowed {
             permissions.insert("friendsAllowed".into(), friends.into());
         }
-        for (key, ids) in [("usersToAdd", &patch.users_to_add), ("usersToRemove", &patch.users_to_remove)] {
+        for (key, ids) in [
+            ("usersToAdd", &patch.users_to_add),
+            ("usersToRemove", &patch.users_to_remove),
+        ] {
             let ids = valid_ids(ids.as_deref().unwrap_or_default());
             if !ids.is_empty() {
                 permissions.insert(key.into(), ids.into());
             }
         }
-        for (route, body) in [(endpoints::VIP_SERVER, server), (endpoints::VIP_SERVER_PERMISSIONS, permissions)] {
+        for (route, body) in [
+            (endpoints::VIP_SERVER, server),
+            (endpoints::VIP_SERVER_PERMISSIONS, permissions),
+        ] {
             if !body.is_empty() {
                 let url = endpoints::fill(route, vip_server_id);
-                self.request(Method::PATCH, route, &url, Some(&Value::Object(body)), account_id, Some(cookie)).await?;
+                self.request(
+                    Method::PATCH,
+                    route,
+                    &url,
+                    Some(&Value::Object(body)),
+                    account_id,
+                    Some(cookie),
+                )
+                .await?;
             }
         }
         Ok(())
@@ -784,10 +1105,26 @@ impl Client {
 
     /// `PATCH /v1/vip-servers/{id}/subscription {active, price}`: auto-renew on (spends `price`
     /// Robux a month) or off. `price` is what the owner was shown.
-    pub async fn vip_server_subscription(&self, account_id: i64, cookie: &Secret, vip_server_id: i64, active: bool, price: i64) -> Result<()> {
+    pub async fn vip_server_subscription(
+        &self,
+        account_id: i64,
+        cookie: &Secret,
+        vip_server_id: i64,
+        active: bool,
+        price: i64,
+    ) -> Result<()> {
         let route = endpoints::VIP_SERVER_SUBSCRIPTION;
         let body = serde_json::json!({ "active": active, "price": price });
-        self.request(Method::PATCH, route, &endpoints::fill(route, vip_server_id), Some(&body), account_id, Some(cookie)).await.map(|_| ())
+        self.request(
+            Method::PATCH,
+            route,
+            &endpoints::fill(route, vip_server_id),
+            Some(&body),
+            account_id,
+            Some(cookie),
+        )
+        .await
+        .map(|_| ())
     }
 
     /// `POST /v1/games/vip-servers/{universeId} {name, expectedPrice, isPurchaseConfirmed:true,
@@ -814,34 +1151,63 @@ impl Client {
             "isPurchaseConfirmed": true,
             "idempotencyKey": idempotency_key,
         });
-        self.request(Method::POST, route, &endpoints::fill(route, universe_id), Some(&body), account_id, Some(cookie)).await.map(|_| ())
+        self.request(
+            Method::POST,
+            route,
+            &endpoints::fill(route, universe_id),
+            Some(&body),
+            account_id,
+            Some(cookie),
+        )
+        .await
+        .map(|_| ())
     }
 
     /// `GET clientsettingscdn.roblox.com/v2/client-version/WindowsPlayer` (no cookie) → the live
     /// `clientVersionUpload` (`version-` + 16 hex digits; anything else → `Roblox(..)`).
     pub async fn client_version(&self) -> Result<String> {
         let route = endpoints::CLIENT_VERSION;
-        let (_, body, _) = self.request(Method::GET, route, route, None, 0, None).await?;
+        let (_, body, _) = self
+            .request(Method::GET, route, route, None, 0, None)
+            .await?;
         client_version_of(&body)
     }
 
     /// `client_version` of a release channel (Roblox puts some PCs on a test channel).
     pub async fn client_version_on(&self, channel: &str) -> Result<String> {
         let url = format!("{}/channel/{channel}", endpoints::CLIENT_VERSION);
-        let (_, body, _) = self.request(Method::GET, endpoints::CLIENT_VERSION, &url, None, 0, None).await?;
+        let (_, body, _) = self
+            .request(Method::GET, endpoints::CLIENT_VERSION, &url, None, 0, None)
+            .await?;
         client_version_of(&body)
     }
 
     /// Downloads `url` (no cookie, no redirects) in at most 5 minutes; refused when it is over
     /// `max` bytes (by `Content-Length` before, or while reading). `progress(received, total)`
     /// after each chunk.
-    pub async fn download(&self, url: &str, max: u64, mut progress: impl FnMut(u64, Option<u64>)) -> Result<Vec<u8>> {
-        let http = self.http.as_ref().map_err(|e| AppError::Internal(tr!("HTTP client unavailable: {why}", why = e)))?;
+    pub async fn download(
+        &self,
+        url: &str,
+        max: u64,
+        mut progress: impl FnMut(u64, Option<u64>),
+    ) -> Result<Vec<u8>> {
+        let http = self
+            .http
+            .as_ref()
+            .map_err(|e| AppError::Internal(tr!("HTTP client unavailable: {why}", why = e)))?;
         let (url, _) = self.target(url)?;
-        let mut resp = http.get(url).timeout(Duration::from_secs(300)).send().await.map_err(network)?;
+        let mut resp = http
+            .get(url)
+            .timeout(Duration::from_secs(300))
+            .send()
+            .await
+            .map_err(network)?;
         if !resp.status().is_success() {
             log::warn!("download: HTTP {}", resp.status().as_u16());
-            return Err(AppError::Roblox(format!("download: HTTP {}", resp.status().as_u16())));
+            return Err(AppError::Roblox(format!(
+                "download: HTTP {}",
+                resp.status().as_u16()
+            )));
         }
         let too_big = || {
             log::warn!("download: over {max} bytes, refused");
@@ -875,7 +1241,10 @@ impl Client {
         cookie: Option<&Secret>,
     ) -> Result<Reply> {
         let account_id = if cookie.is_some() { account_id } else { 0 };
-        let http = self.http.as_ref().map_err(|e| AppError::Internal(tr!("HTTP client unavailable: {why}", why = e)))?;
+        let http = self
+            .http
+            .as_ref()
+            .map_err(|e| AppError::Internal(tr!("HTTP client unavailable: {why}", why = e)))?;
         let (url, web) = self.target(url)?;
         let (mut rotated, mut csrf_retried, mut attempts) = (None::<Secret>, false, 0);
         loop {
@@ -886,7 +1255,9 @@ impl Client {
                 req = req.header(COOKIE, cookie_header(current)?);
             }
             if web {
-                req = req.header(REFERER, endpoints::WWW).header(ORIGIN, endpoints::WEB_ORIGIN);
+                req = req
+                    .header(REFERER, endpoints::WWW)
+                    .header(ORIGIN, endpoints::WEB_ORIGIN);
             }
             let token = lock(&self.csrf).get(&account_id).cloned();
             if (method != Method::GET || csrf_retried)
@@ -905,7 +1276,8 @@ impl Client {
                 self.set_window(route, remaining, reset);
             }
             if let Some(current) = current
-                && let Some(new) = rotated_cookie(&headers).filter(|new| new.expose() != current.expose())
+                && let Some(new) =
+                    rotated_cookie(&headers).filter(|new| new.expose() != current.expose())
             {
                 if account_id != 0 {
                     log::debug!("account {account_id}: cookie rotated by Roblox");
@@ -927,7 +1299,11 @@ impl Client {
             }
             if status == StatusCode::TOO_MANY_REQUESTS {
                 attempts += 1;
-                let wait = limits.reset.or(limits.retry_after).unwrap_or(1 << (attempts - 1)).max(1);
+                let wait = limits
+                    .reset
+                    .or(limits.retry_after)
+                    .unwrap_or(1 << (attempts - 1))
+                    .max(1);
                 self.set_window(route, 0, wait);
                 if attempts >= MAX_ATTEMPTS || wait > MAX_WAIT_SECS {
                     log::warn!("rate limited on {route} {attempts} times, giving up");
@@ -946,16 +1322,25 @@ impl Client {
                 continue;
             }
             // The server list's "Guest users are not allowed." (Recommended / BestLatency).
-            if route == endpoints::SERVERS_PUBLIC && status == StatusCode::BAD_REQUEST && error_code(&bytes) == Some((7, 0)) {
+            if route == endpoints::SERVERS_PUBLIC
+                && status == StatusCode::BAD_REQUEST
+                && error_code(&bytes) == Some((7, 0))
+            {
                 return Err(AppError::Invalid(tr!(
                     "Pick an account to sort by Recommended or Best latency: Roblox only does that for a signed-in account."
                 )));
             }
-            let e = vip_refusal(route, status, &headers, &bytes).unwrap_or_else(|| classify(status, &headers, &bytes));
+            let e = vip_refusal(route, status, &headers, &bytes)
+                .unwrap_or_else(|| classify(status, &headers, &bytes));
             log::warn!("{route}: HTTP {status}, code {:?}: {e}", error_code(&bytes));
             if status == StatusCode::FORBIDDEN {
                 // Whose refusal it is (the API's or a CDN's page), without the body.
-                let header = |name| headers.get(name).and_then(|v| v.to_str().ok()).unwrap_or("-");
+                let header = |name| {
+                    headers
+                        .get(name)
+                        .and_then(|v| v.to_str().ok())
+                        .unwrap_or("-")
+                };
                 log::warn!(
                     "{route}: 403 details: CSRF retried {csrf_retried}, x-csrf-token sent back {}, challenge {}, content-type {}, server {}",
                     headers.contains_key(CSRF),
@@ -1008,7 +1393,13 @@ impl Client {
     fn set_window(&self, route: &'static str, remaining: u64, reset_secs: u64) {
         // The value is whatever the header says; the longest real window is an hour.
         let reset_at = Instant::now() + Duration::from_secs(reset_secs.min(3600));
-        lock(&self.windows).insert(route, Window { remaining, reset_at });
+        lock(&self.windows).insert(
+            route,
+            Window {
+                remaining,
+                reset_at,
+            },
+        );
     }
 }
 
@@ -1033,7 +1424,9 @@ impl RateLimit {
     fn parse(h: &HeaderMap) -> RateLimit {
         let get = |name: &str| h.get(name).and_then(|v| v.to_str().ok());
         RateLimit {
-            window: get("x-ratelimit-limit").and_then(|v| v.split_once("w=")).and_then(|(_, w)| first_number(w)),
+            window: get("x-ratelimit-limit")
+                .and_then(|v| v.split_once("w="))
+                .and_then(|(_, w)| first_number(w)),
             remaining: get("x-ratelimit-remaining").and_then(first_number),
             reset: get("x-ratelimit-reset").and_then(first_number),
             retry_after: get(RETRY_AFTER.as_str()).and_then(first_number),
@@ -1067,11 +1460,17 @@ fn rotated_cookie(h: &HeaderMap) -> Option<Secret> {
             || !value.bytes().all(|b| b.is_ascii_graphic())
             || parts.any(|a| {
                 let a = a.trim().to_ascii_lowercase();
-                a == "max-age=0" || a.starts_with("max-age=-") || (a.starts_with("expires=") && a.contains("1970"))
+                a == "max-age=0"
+                    || a.starts_with("max-age=-")
+                    || (a.starts_with("expires=") && a.contains("1970"))
             });
         (!deleted).then(|| Secret::new(value))
     };
-    h.get_all(SET_COOKIE).iter().filter_map(|v| v.to_str().ok()).filter_map(parse).next_back()
+    h.get_all(SET_COOKIE)
+        .iter()
+        .filter_map(|v| v.to_str().ok())
+        .filter_map(parse)
+        .next_back()
 }
 
 fn cookie_header(cookie: &Secret) -> Result<HeaderValue> {
@@ -1087,7 +1486,9 @@ fn cookie_header(cookie: &Secret) -> Result<HeaderValue> {
 /// Maps a final non-2xx answer. Never quotes the body: it may echo what was sent.
 fn classify(status: StatusCode, headers: &HeaderMap, body: &[u8]) -> AppError {
     match status {
-        StatusCode::UNAUTHORIZED if error_code(body) == Some((9002, 2)) => AppError::BoundSessionRequired,
+        StatusCode::UNAUTHORIZED if error_code(body) == Some((9002, 2)) => {
+            AppError::BoundSessionRequired
+        }
         StatusCode::UNAUTHORIZED => AppError::CookieInvalid,
         StatusCode::FORBIDDEN if headers.contains_key(CHALLENGE) => AppError::Challenge,
         s => AppError::Roblox(format!("HTTP {}", s.as_u16())),
@@ -1096,25 +1497,50 @@ fn classify(status: StatusCode, headers: &HeaderMap, body: &[u8]) -> AppError {
 
 /// Roblox's own text for a refused private-server call (a wrong price, alts that aren't friends).
 /// Unlike `classify` it quotes the body: these requests hold only a name, a price and user ids.
-fn vip_refusal(route: &str, status: StatusCode, headers: &HeaderMap, body: &[u8]) -> Option<AppError> {
-    let vip = [endpoints::VIP_SERVER, endpoints::VIP_SERVER_PERMISSIONS, endpoints::VIP_SERVER_SUBSCRIPTION, endpoints::VIP_SERVER_CREATE];
-    if !vip.contains(&route) || !status.is_client_error() || status == StatusCode::UNAUTHORIZED || headers.contains_key(CHALLENGE) {
+fn vip_refusal(
+    route: &str,
+    status: StatusCode,
+    headers: &HeaderMap,
+    body: &[u8],
+) -> Option<AppError> {
+    let vip = [
+        endpoints::VIP_SERVER,
+        endpoints::VIP_SERVER_PERMISSIONS,
+        endpoints::VIP_SERVER_SUBSCRIPTION,
+        endpoints::VIP_SERVER_CREATE,
+    ];
+    if !vip.contains(&route)
+        || !status.is_client_error()
+        || status == StatusCode::UNAUTHORIZED
+        || headers.contains_key(CHALLENGE)
+    {
         return None;
     }
     // A 403 on the server itself means not the owner: left as "HTTP 403" for `owner_error` to word.
-    if status == StatusCode::FORBIDDEN && (route == endpoints::VIP_SERVER || route == endpoints::VIP_SERVER_SUBSCRIPTION) {
+    if status == StatusCode::FORBIDDEN
+        && (route == endpoints::VIP_SERVER || route == endpoints::VIP_SERVER_SUBSCRIPTION)
+    {
         return None;
     }
     let message = serde_json::from_slice::<Value>(body).ok().and_then(|v| {
         let e = v.get("errors").and_then(|e| e.get(0)).unwrap_or(&v);
-        let m: String = e.get("message")?.as_str()?.chars().filter(|c| !c.is_control()).take(200).collect();
+        let m: String = e
+            .get("message")?
+            .as_str()?
+            .chars()
+            .filter(|c| !c.is_control())
+            .take(200)
+            .collect();
         Some(m.trim().to_owned()).filter(|m| !m.is_empty())
     });
     match message {
-        Some(why) => Some(AppError::Invalid(tr!("Roblox refused this: {why}", why = why))),
-        None if route == endpoints::VIP_SERVER_CREATE => {
-            Some(AppError::Invalid(tr!("Roblox refused the purchase and charged nothing: check the price on the game's page.")))
-        }
+        Some(why) => Some(AppError::Invalid(tr!(
+            "Roblox refused this: {why}",
+            why = why
+        ))),
+        None if route == endpoints::VIP_SERVER_CREATE => Some(AppError::Invalid(tr!(
+            "Roblox refused the purchase and charged nothing: check the price on the game's page."
+        ))),
         None => None,
     }
 }
@@ -1124,7 +1550,10 @@ fn vip_refusal(route: &str, status: StatusCode, headers: &HeaderMap, body: &[u8]
 fn error_code(body: &[u8]) -> Option<(i64, i64)> {
     let v: Value = serde_json::from_slice(body).ok()?;
     let e = v.get("errors").and_then(|e| e.get(0)).unwrap_or(&v);
-    Some((e.get("code")?.as_i64()?, e.get("subcode").and_then(Value::as_i64).unwrap_or(0)))
+    Some((
+        e.get("code")?.as_i64()?,
+        e.get("subcode").and_then(Value::as_i64).unwrap_or(0),
+    ))
 }
 
 /// A transport error, named by host only (no path or query).
@@ -1145,7 +1574,10 @@ fn network(e: reqwest::Error) -> AppError {
         why.push_str(&format!(": {s}"));
         src = s.source();
     }
-    log::warn!("Roblox request to {} failed: {why}", host.as_deref().unwrap_or("?"));
+    log::warn!(
+        "Roblox request to {} failed: {why}",
+        host.as_deref().unwrap_or("?")
+    );
     match host {
         Some(host) => AppError::Network(format!("{what} ({host})")),
         None => AppError::Network(what),
@@ -1158,14 +1590,19 @@ fn client_version_of(body: &[u8]) -> Result<String> {
     if crate::launcher::update::is_version(&v) {
         Ok(v)
     } else {
-        log::debug!("client version: unexpected clientVersionUpload {:?}", v.chars().take(64).collect::<String>());
+        log::debug!(
+            "client version: unexpected clientVersionUpload {:?}",
+            v.chars().take(64).collect::<String>()
+        );
         Err(unreadable())
     }
 }
 
 /// A private server's name, trimmed; empty is refused.
 fn server_name(name: &str) -> Result<&str> {
-    Some(name.trim()).filter(|n| !n.is_empty()).ok_or_else(|| AppError::Invalid(tr!("A private server needs a name.")))
+    Some(name.trim())
+        .filter(|n| !n.is_empty())
+        .ok_or_else(|| AppError::Invalid(tr!("A private server needs a name.")))
 }
 
 fn settings_of(vip_server_id: i64, r: VipServerResponse) -> crate::model::PrivateServerSettings {
@@ -1187,7 +1624,10 @@ fn settings_of(vip_server_id: i64, r: VipServerResponse) -> crate::model::Privat
         vip_server_id,
         name: r.name.unwrap_or_default(),
         active: r.active.unwrap_or_default(),
-        friends_allowed: perms.as_ref().and_then(|p| p.friends_allowed).unwrap_or_default(),
+        friends_allowed: perms
+            .as_ref()
+            .and_then(|p| p.friends_allowed)
+            .unwrap_or_default(),
         allowed_users,
         renews: sub.as_ref().and_then(|s| s.active).unwrap_or_default(),
         expired: sub.as_ref().and_then(|s| s.expired).unwrap_or_default(),
@@ -1199,7 +1639,12 @@ fn settings_of(vip_server_id: i64, r: VipServerResponse) -> crate::model::Privat
 fn json<T: DeserializeOwned>(body: &[u8]) -> Result<T> {
     serde_json::from_slice(body).map_err(|e| {
         // The category and place only: the message can quote the body.
-        log::warn!("unreadable Roblox answer: {:?} error at line {} column {}", e.classify(), e.line(), e.column());
+        log::warn!(
+            "unreadable Roblox answer: {:?} error at line {} column {}",
+            e.classify(),
+            e.line(),
+            e.column()
+        );
         unreadable()
     })
 }
@@ -1207,7 +1652,10 @@ fn json<T: DeserializeOwned>(body: &[u8]) -> Result<T> {
 /// One top-level field of a JSON object answer; missing or mistyped is unreadable.
 fn field<T: DeserializeOwned>(mut v: Value, name: &str) -> Result<T> {
     serde_json::from_value(v.get_mut(name).map(Value::take).unwrap_or_default()).map_err(|e| {
-        log::warn!("unreadable Roblox answer: field \"{name}\" is missing or {:?}", e.classify());
+        log::warn!(
+            "unreadable Roblox answer: field \"{name}\" is missing or {:?}",
+            e.classify()
+        );
         unreadable()
     })
 }
@@ -1245,7 +1693,11 @@ where
     F: FnMut(Option<String>) -> Fut,
     Fut: std::future::Future<Output = Result<(Vec<T>, Option<String>)>>,
 {
-    let mut out = Listed { items: Vec::new(), more: false, complete: true };
+    let mut out = Listed {
+        items: Vec::new(),
+        more: false,
+        complete: true,
+    };
     let mut cursor = None;
     for n in 0..max {
         if n > 0 && !gap.is_zero() {
@@ -1261,7 +1713,11 @@ where
             }
             Err(e) if n == 0 => return Err(e),
             Err(e) => {
-                log::info!("{what}: page {} failed, keeping the {} read: {e}", n + 1, out.items.len());
+                log::info!(
+                    "{what}: page {} failed, keeping the {} read: {e}",
+                    n + 1,
+                    out.items.len()
+                );
                 out.more = true;
                 out.complete = false;
                 return Ok(out);
@@ -1283,7 +1739,11 @@ fn sort_thumbnails(page: Thumbnails, out: &mut HashMap<i64, String>) -> Vec<i64>
                 out.insert(t.target_id, url);
             }
             ("Pending", _) => pending.push(t.target_id),
-            (state, _) => log::debug!("thumbnail for {} dropped ({:?})", t.target_id, state.chars().take(64).collect::<String>()),
+            (state, _) => log::debug!(
+                "thumbnail for {} dropped ({:?})",
+                t.target_id,
+                state.chars().take(64).collect::<String>()
+            ),
         }
     }
     pending
@@ -1326,14 +1786,19 @@ pub fn is_private_inventory(e: &AppError) -> bool {
 
 /// An https URL on *.rbxcdn.com.
 fn is_rbxcdn(url: &str) -> bool {
-    Url::parse(url).is_ok_and(|u| u.scheme() == "https" && u.host_str().is_some_and(|h| h.ends_with(".rbxcdn.com")))
+    Url::parse(url).is_ok_and(|u| {
+        u.scheme() == "https" && u.host_str().is_some_and(|h| h.ends_with(".rbxcdn.com"))
+    })
 }
 
 /// Names of the enabled 2-step methods; recovery codes and the password don't count.
 fn enabled_methods(config: TwoStepConfig) -> Vec<String> {
     let name = |v: &Value| match v {
         Value::Number(n) => MEDIA_TYPES.get(usize::try_from(n.as_u64()?).ok()?).copied(),
-        Value::String(s) => MEDIA_TYPES.iter().find(|m| m.eq_ignore_ascii_case(s)).copied(),
+        Value::String(s) => MEDIA_TYPES
+            .iter()
+            .find(|m| m.eq_ignore_ascii_case(s))
+            .copied(),
         _ => None,
     };
     config
@@ -1343,7 +1808,14 @@ fn enabled_methods(config: TwoStepConfig) -> Vec<String> {
         .filter_map(|m| {
             let n = name(&m.media_type);
             if n.is_none() {
-                log::debug!("2-step: unknown mediaType {:?}", m.media_type.to_string().chars().take(64).collect::<String>());
+                log::debug!(
+                    "2-step: unknown mediaType {:?}",
+                    m.media_type
+                        .to_string()
+                        .chars()
+                        .take(64)
+                        .collect::<String>()
+                );
             }
             n
         })

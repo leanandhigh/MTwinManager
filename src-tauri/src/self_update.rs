@@ -1,6 +1,6 @@
 //! MTwin Manager's own updates (Roblox's are `launcher::update`).
 //!
-//! - Check: `GET api.github.com/repos/leanandhigh/RoALT/releases/latest` (published releases
+//! - Check: `GET api.github.com/repos/leanandhigh/MTwinManager/releases/latest` (published releases
 //!   only, never a draft or prerelease) at start and every 6 h while `self_update` is on,
 //!   or on Check now. A `vX.Y.Z` tag newer than this build (`newer`: never the same or older)
 //!   with the assets `MTwinManager-Setup-X.Y.Z.exe` and `.exe.sig` is an update; `app://update` says so.
@@ -29,9 +29,10 @@ use reqwest::redirect::Policy;
 use serde::Deserialize;
 use tauri::{AppHandle, Emitter, Manager};
 use windows::Win32::Security::Cryptography::{
-    BCRYPT_ALG_HANDLE, BCRYPT_ECCPUBLIC_BLOB, BCRYPT_ECDSA_P256_ALGORITHM, BCRYPT_ECDSA_PUBLIC_P256_MAGIC, BCRYPT_FLAGS,
-    BCRYPT_KEY_HANDLE, BCRYPT_OPEN_ALGORITHM_PROVIDER_FLAGS, BCRYPT_SHA256_ALG_HANDLE, BCryptHash, BCryptImportKeyPair,
-    BCryptOpenAlgorithmProvider, BCryptVerifySignature,
+    BCRYPT_ALG_HANDLE, BCRYPT_ECCPUBLIC_BLOB, BCRYPT_ECDSA_P256_ALGORITHM,
+    BCRYPT_ECDSA_PUBLIC_P256_MAGIC, BCRYPT_FLAGS, BCRYPT_KEY_HANDLE,
+    BCRYPT_OPEN_ALGORITHM_PROVIDER_FLAGS, BCRYPT_SHA256_ALG_HANDLE, BCryptHash,
+    BCryptImportKeyPair, BCryptOpenAlgorithmProvider, BCryptVerifySignature,
 };
 use windows::core::{Owned, PCWSTR};
 
@@ -42,20 +43,29 @@ use crate::model::AppUpdate;
 
 pub const UPDATE_EVENT: &str = "app://update";
 const CURRENT: &str = env!("CARGO_PKG_VERSION");
-const LATEST: &str = "https://api.github.com/repos/leanandhigh/RoALT/releases/latest";
+const LATEST: &str = "https://api.github.com/repos/leanandhigh/MTwinManager/releases/latest";
 const CHECK_EVERY: Duration = Duration::from_secs(6 * 60 * 60);
 const MAX_JSON: u64 = 1_000_000;
 const MAX_INSTALLER: u64 = 200_000_000;
 const MAX_SIG: u64 = 4_096;
 /// Where release assets may come from: github.com, then GitHub's redirect to its storage.
-const ASSET_HOSTS: [&str; 3] = ["github.com", "objects.githubusercontent.com", "release-assets.githubusercontent.com"];
+const ASSET_HOSTS: [&str; 3] = [
+    "github.com",
+    "objects.githubusercontent.com",
+    "release-assets.githubusercontent.com",
+];
 const TEMP_PREFIX: &str = "mtwin-update-";
-/// The installer's name on a release, before `-<version>.exe`. Releases also carry it under its
-/// old name (RoALT-Setup), signed as that, for versions made before the rename.
+/// The installer's name on a release, before `-<version>.exe`.
 const SETUP: &str = "MTwinManager-Setup";
 /// Inno Setup's silent install; `/RELAUNCH` is MTwin Manager.iss's own: start MTwin Manager when done.
-const INSTALLER_ARGS: [&str; 5] = ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS", "/RELAUNCH"];
-/// The release signing key (P-256, uncompressed X‖Y): its private half is the `ROALT_UPDATE_KEY`
+const INSTALLER_ARGS: [&str; 5] = [
+    "/VERYSILENT",
+    "/SUPPRESSMSGBOXES",
+    "/NORESTART",
+    "/CLOSEAPPLICATIONS",
+    "/RELAUNCH",
+];
+/// The release signing key (P-256, uncompressed X‖Y): its private half is the `MTWIN_UPDATE_KEY`
 /// secret of the release workflow, never in this repository. The release workflow puts the public
 /// half of that secret here before it builds (`scripts/make-update-key.mjs` makes the pair), so
 /// released builds always match it.
@@ -110,16 +120,29 @@ fn version_key(s: &str) -> Option<(u64, u64, u64, bool)> {
         Some((c, p)) => (c, Some(p)),
         None => (s, None),
     };
-    if pre.is_some_and(|p| p.is_empty() || !p.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'.' || b == b'-')) {
+    if pre.is_some_and(|p| {
+        p.is_empty()
+            || !p
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b == b'.' || b == b'-')
+    }) {
         return None;
     }
     let num = |p: &str| {
-        (!p.is_empty() && p.len() <= 9 && p.bytes().all(|b| b.is_ascii_digit()) && (p == "0" || !p.starts_with('0')))
-            .then(|| p.parse().ok())
-            .flatten()
+        (!p.is_empty()
+            && p.len() <= 9
+            && p.bytes().all(|b| b.is_ascii_digit())
+            && (p == "0" || !p.starts_with('0')))
+        .then(|| p.parse().ok())
+        .flatten()
     };
     let mut parts = core.split('.');
-    let key = (num(parts.next()?)?, num(parts.next()?)?, num(parts.next()?)?, pre.is_none());
+    let key = (
+        num(parts.next()?)?,
+        num(parts.next()?)?,
+        num(parts.next()?)?,
+        pre.is_none(),
+    );
     parts.next().is_none().then_some(key)
 }
 
@@ -163,9 +186,15 @@ pub fn pick(body: &[u8], current: &str) -> Result<Option<Release>> {
                 ok
             })
     };
-    match (url(format!("{SETUP}-{version}.exe")), url(format!("{SETUP}-{version}.exe.sig"))) {
+    match (
+        url(format!("{SETUP}-{version}.exe")),
+        url(format!("{SETUP}-{version}.exe.sig")),
+    ) {
         (Some(exe), Some(sig)) => Ok(Some(Release { version, exe, sig })),
-        _ => Err(failed(tr!("MTwin Manager {version} is out, but without a signed installer. Get it from GitHub Releases.", version = version))),
+        _ => Err(failed(tr!(
+            "MTwin Manager {version} is out, but without a signed installer. Get it from GitHub Releases.",
+            version = version
+        ))),
     }
 }
 
@@ -203,7 +232,8 @@ fn base64(text: &str) -> Option<Vec<u8>> {
 fn public_key() -> [u8; 64] {
     let mut k = [0; 64];
     for (i, b) in k.iter_mut().enumerate() {
-        *b = u8::from_str_radix(&PUBLIC_KEY[2 * i..2 * i + 2], 16).expect("PUBLIC_KEY is 64 bytes of hex");
+        *b = u8::from_str_radix(&PUBLIC_KEY[2 * i..2 * i + 2], 16)
+            .expect("PUBLIC_KEY is 64 bytes of hex");
     }
     k
 }
@@ -229,16 +259,27 @@ fn verify(public: &[u8; 64], data: &[u8], sig: &[u8]) -> bool {
             return false;
         }
         let mut alg = BCRYPT_ALG_HANDLE::default();
-        let st = BCryptOpenAlgorithmProvider(&mut alg, BCRYPT_ECDSA_P256_ALGORITHM, PCWSTR::null(), BCRYPT_OPEN_ALGORITHM_PROVIDER_FLAGS(0));
+        let st = BCryptOpenAlgorithmProvider(
+            &mut alg,
+            BCRYPT_ECDSA_P256_ALGORITHM,
+            PCWSTR::null(),
+            BCRYPT_OPEN_ALGORITHM_PROVIDER_FLAGS(0),
+        );
         if st.is_err() {
-            log::warn!("update signature: BCryptOpenAlgorithmProvider failed: {:#010x}", st.0);
+            log::warn!(
+                "update signature: BCryptOpenAlgorithmProvider failed: {:#010x}",
+                st.0
+            );
             return false;
         }
         let alg = Owned::new(alg);
         let mut key = BCRYPT_KEY_HANDLE::default();
         let st = BCryptImportKeyPair(*alg, None, BCRYPT_ECCPUBLIC_BLOB, &mut key, &blob, 0);
         if st.is_err() {
-            log::warn!("update signature: BCryptImportKeyPair failed: {:#010x}", st.0);
+            log::warn!(
+                "update signature: BCryptImportKeyPair failed: {:#010x}",
+                st.0
+            );
             return false;
         }
         let key = Owned::new(key);
@@ -255,14 +296,25 @@ fn signed_prefix(version: &str) -> Vec<u8> {
 /// Writes `bytes` to the new file `path`, reopens it so nothing can write or delete it while the
 /// handle lives, and checks the signature of `version` and what the file holds, read back through
 /// that handle: the bytes checked are the bytes that run. The handle is returned to keep the lock.
-fn write_verified(path: &Path, version: &str, bytes: &[u8], sig: &[u8], key: &[u8; 64]) -> Result<File> {
+fn write_verified(
+    path: &Path,
+    version: &str,
+    bytes: &[u8],
+    sig: &[u8],
+    key: &[u8; 64],
+) -> Result<File> {
     File::create_new(path)?.write_all(bytes)?;
-    let mut pinned = OpenOptions::new().read(true).share_mode(FILE_SHARE_READ).open(path)?;
+    let mut pinned = OpenOptions::new()
+        .read(true)
+        .share_mode(FILE_SHARE_READ)
+        .open(path)?;
     let mut signed = signed_prefix(version);
     signed.reserve(bytes.len());
     pinned.read_to_end(&mut signed)?;
     if !verify(key, &signed, sig) {
-        return Err(AppError::Invalid(tr!("The downloaded MTwin Manager installer was not run: its signature didn't check out.")));
+        return Err(AppError::Invalid(tr!(
+            "The downloaded MTwin Manager installer was not run: its signature didn't check out."
+        )));
     }
     Ok(pinned)
 }
@@ -307,11 +359,26 @@ fn http() -> Result<reqwest::Client> {
 }
 
 /// GETs `url` within `timeout`; refused over `max` bytes (by `Content-Length`, or while reading).
-async fn get(http: &reqwest::Client, url: &str, accept: &'static str, max: u64, timeout: Duration) -> Result<Vec<u8>> {
-    let mut resp = http.get(url).header(ACCEPT, accept).timeout(timeout).send().await.map_err(network)?;
+async fn get(
+    http: &reqwest::Client,
+    url: &str,
+    accept: &'static str,
+    max: u64,
+    timeout: Duration,
+) -> Result<Vec<u8>> {
+    let mut resp = http
+        .get(url)
+        .header(ACCEPT, accept)
+        .timeout(timeout)
+        .send()
+        .await
+        .map_err(network)?;
     if !resp.status().is_success() {
         log::warn!("update: GitHub answered HTTP {}", resp.status().as_u16());
-        return Err(failed(tr!("GitHub answered HTTP {status}.", status = resp.status().as_u16())));
+        return Err(failed(tr!(
+            "GitHub answered HTTP {status}.",
+            status = resp.status().as_u16()
+        )));
     }
     let too_big = || {
         log::warn!("update: GitHub sent more than {max} bytes");
@@ -332,13 +399,23 @@ async fn get(http: &reqwest::Client, url: &str, accept: &'static str, max: u64, 
 
 /// The newer release on GitHub, if any.
 async fn latest(http: &reqwest::Client) -> Result<Option<Release>> {
-    let body = get(http, LATEST, "application/vnd.github+json", MAX_JSON, Duration::from_secs(20)).await?;
+    let body = get(
+        http,
+        LATEST,
+        "application/vnd.github+json",
+        MAX_JSON,
+        Duration::from_secs(20),
+    )
+    .await?;
     pick(&body, CURRENT)
 }
 
 /// This build's version and the newer one found last (no network).
 pub fn status(s: &App) -> AppUpdate {
-    AppUpdate { current: CURRENT.into(), available: lock(&s.self_update.available).clone() }
+    AppUpdate {
+        current: CURRENT.into(),
+        available: lock(&s.self_update.available).clone(),
+    }
 }
 
 /// Asks GitHub now.
@@ -402,7 +479,10 @@ fn sweep() {
             return;
         }
     };
-    for d in dirs.flatten().filter(|d| d.file_name().to_string_lossy().starts_with(TEMP_PREFIX)) {
+    for d in dirs
+        .flatten()
+        .filter(|d| d.file_name().to_string_lossy().starts_with(TEMP_PREFIX))
+    {
         if let Err(e) = std::fs::remove_dir_all(d.path()) {
             log::info!("could not delete {}: {e}", d.path().display());
         }
@@ -431,10 +511,14 @@ pub async fn install(app: &AppHandle) -> Result<()> {
 /// Refused while a launch, batch, auto-rejoin or Roblox install runs: MTwin Manager quits for the installer.
 fn idle(s: &App) -> Result<()> {
     if s.bulk.any_busy() {
-        return Err(AppError::Invalid(tr!("Wait for the running launch, batch or auto-rejoin to finish, then update MTwin Manager.")));
+        return Err(AppError::Invalid(tr!(
+            "Wait for the running launch, batch or auto-rejoin to finish, then update MTwin Manager."
+        )));
     }
     if s.update.installing() {
-        return Err(AppError::Invalid(tr!("Wait for Roblox's installer to finish, then update MTwin Manager.")));
+        return Err(AppError::Invalid(tr!(
+            "Wait for Roblox's installer to finish, then update MTwin Manager."
+        )));
     }
     Ok(())
 }
@@ -442,20 +526,48 @@ fn idle(s: &App) -> Result<()> {
 async fn run_install(s: &App) -> Result<()> {
     idle(s)?;
     let http = http()?;
-    let release = latest(&http).await?.ok_or_else(|| AppError::Invalid(tr!("MTwin Manager is up to date.")))?;
+    let release = latest(&http)
+        .await?
+        .ok_or_else(|| AppError::Invalid(tr!("MTwin Manager is up to date.")))?;
     *lock(&s.self_update.available) = Some(release.version.clone());
-    let refused = || AppError::Invalid(tr!("The downloaded MTwin Manager installer was not run: its signature file is malformed."));
-    let sig = get(&http, &release.sig, "application/octet-stream", MAX_SIG, Duration::from_secs(30)).await?;
-    let sig = std::str::from_utf8(&sig).ok().and_then(base64).filter(|s| s.len() == 64).ok_or_else(refused)?;
-    let bytes = get(&http, &release.exe, "application/octet-stream", MAX_INSTALLER, Duration::from_secs(600)).await?;
+    let refused = || {
+        AppError::Invalid(tr!(
+            "The downloaded MTwin Manager installer was not run: its signature file is malformed."
+        ))
+    };
+    let sig = get(
+        &http,
+        &release.sig,
+        "application/octet-stream",
+        MAX_SIG,
+        Duration::from_secs(30),
+    )
+    .await?;
+    let sig = std::str::from_utf8(&sig)
+        .ok()
+        .and_then(base64)
+        .filter(|s| s.len() == 64)
+        .ok_or_else(refused)?;
+    let bytes = get(
+        &http,
+        &release.exe,
+        "application/octet-stream",
+        MAX_INSTALLER,
+        Duration::from_secs(600),
+    )
+    .await?;
 
     let dir = TempDir::new(TEMP_PREFIX)?;
     let exe = dir.0.join(format!("{SETUP}-{}.exe", release.version));
     let (checked, version) = (exe.clone(), release.version.clone());
-    let pinned = blocking(move || write_verified(&checked, &version, &bytes, &sig, &public_key())).await?;
+    let pinned =
+        blocking(move || write_verified(&checked, &version, &bytes, &sig, &public_key())).await?;
     // Again: one may have started during the download, and quitting now would cut it off.
     idle(s)?;
-    log::info!("running MTwin Manager {}'s installer (signature checked)", release.version);
+    log::info!(
+        "running MTwin Manager {}'s installer (signature checked)",
+        release.version
+    );
     Command::new(&exe)
         .args(INSTALLER_ARGS)
         .current_dir(&dir.0)
@@ -463,7 +575,12 @@ async fn run_install(s: &App) -> Result<()> {
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
-        .map_err(|e| AppError::Internal(tr!("Could not start MTwin Manager's installer: {why}", why = e)))?;
+        .map_err(|e| {
+            AppError::Internal(tr!(
+                "Could not start MTwin Manager's installer: {why}",
+                why = e
+            ))
+        })?;
     // The installer runs from the folder: kept (write-locked until MTwin Manager exits) for the next start
     // to delete.
     std::mem::forget((pinned, dir));
@@ -508,19 +625,24 @@ mod tests {
         ] {
             assert_eq!(newer(current, tag).as_deref(), want, "{current} → {tag}");
         }
-        assert!(version_key(CURRENT).is_some(), "this build's own version reads");
+        assert!(
+            version_key(CURRENT).is_some(),
+            "this build's own version reads"
+        );
     }
 
     fn fixture() -> Value {
-        let path = format!("{}/../docs/research/fixtures/github-releases-latest.json", env!("CARGO_MANIFEST_DIR"));
-        // Recorded before the rename: its installer goes by the name releases use now.
-        serde_json::from_str(&std::fs::read_to_string(path).unwrap().replace("MTwinManager-Setup", SETUP)).unwrap()
+        let path = format!(
+            "{}/../docs/research/fixtures/github-releases-latest.json",
+            env!("CARGO_MANIFEST_DIR")
+        );
+        serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap()
     }
 
     fn with_sig(mut v: Value) -> Value {
         let mut sig = v["assets"][0].clone();
         sig["name"] = "MTwinManager-Setup-0.5.1.exe.sig".into();
-        sig["browser_download_url"] = "https://github.com/inspectsoftware/RoALT/releases/download/v0.5.1/MTwinManager-Setup-0.5.1.exe.sig".into();
+        sig["browser_download_url"] = "https://github.com/leanandhigh/MTwinManager/releases/download/v0.5.1/MTwinManager-Setup-0.5.1.exe.sig".into();
         v["assets"].as_array_mut().unwrap().push(sig);
         v
     }
@@ -533,7 +655,11 @@ mod tests {
     #[test]
     fn picks_the_signed_installer() {
         let recorded = fixture();
-        assert_eq!(pick(&body(&recorded), "0.5.1").unwrap(), None, "same version");
+        assert_eq!(
+            pick(&body(&recorded), "0.5.1").unwrap(),
+            None,
+            "same version"
+        );
         assert_eq!(pick(&body(&recorded), "0.6.0").unwrap(), None, "older");
         let e = pick(&body(&recorded), "0.5.0").unwrap_err().to_string();
         assert!(e.contains("without a signed installer"), "{e}");
@@ -543,8 +669,8 @@ mod tests {
             pick(&body(&signed), "0.5.0").unwrap(),
             Some(Release {
                 version: "0.5.1".into(),
-                exe: "https://github.com/inspectsoftware/RoALT/releases/download/v0.5.1/MTwinManager-Setup-0.5.1.exe".into(),
-                sig: "https://github.com/inspectsoftware/RoALT/releases/download/v0.5.1/MTwinManager-Setup-0.5.1.exe.sig".into(),
+                exe: "https://github.com/leanandhigh/MTwinManager/releases/download/v0.5.1/MTwinManager-Setup-0.5.1.exe".into(),
+                sig: "https://github.com/leanandhigh/MTwinManager/releases/download/v0.5.1/MTwinManager-Setup-0.5.1.exe.sig".into(),
             })
         );
         for flag in ["draft", "prerelease"] {
@@ -555,12 +681,30 @@ mod tests {
         // Asset names must match exactly, and come from github.com over https.
         for (field, value) in [
             ("name", "mtwinmanager-setup-0.5.1.exe"),
-            ("browser_download_url", "http://github.com/inspectsoftware/RoALT/releases/download/v0.5.1/MTwinManager-Setup-0.5.1.exe"),
-            ("browser_download_url", "https://evil.example/MTwinManager-Setup-0.5.1.exe"),
-            ("browser_download_url", "https://github.com.evil.example/MTwinManager-Setup-0.5.1.exe"),
-            ("browser_download_url", "https://github.com:8443/MTwinManager-Setup-0.5.1.exe"),
-            ("browser_download_url", "https://user@github.com/MTwinManager-Setup-0.5.1.exe"),
-            ("browser_download_url", "https://objects.githubusercontent.com/MTwinManager-Setup-0.5.1.exe"),
+            (
+                "browser_download_url",
+                "http://github.com/leanandhigh/MTwinManager/releases/download/v0.5.1/MTwinManager-Setup-0.5.1.exe",
+            ),
+            (
+                "browser_download_url",
+                "https://evil.example/MTwinManager-Setup-0.5.1.exe",
+            ),
+            (
+                "browser_download_url",
+                "https://github.com.evil.example/MTwinManager-Setup-0.5.1.exe",
+            ),
+            (
+                "browser_download_url",
+                "https://github.com:8443/MTwinManager-Setup-0.5.1.exe",
+            ),
+            (
+                "browser_download_url",
+                "https://user@github.com/MTwinManager-Setup-0.5.1.exe",
+            ),
+            (
+                "browser_download_url",
+                "https://objects.githubusercontent.com/MTwinManager-Setup-0.5.1.exe",
+            ),
         ] {
             let mut v = signed.clone();
             v["assets"][0][field] = value.into();
@@ -589,7 +733,9 @@ mod tests {
         assert_eq!(base64("Zm9v").unwrap(), b"foo");
         assert_eq!(base64(" Zm9vYmFy\r\n").unwrap(), b"foobar");
         assert_eq!(base64("+/+/").unwrap(), [0xfb, 0xff, 0xbf]);
-        for bad in ["Zg=", "Zg", "Z===", "Zg==Zg==", "Zm 9v", "Zm-v", "Zm_v", "A=AA"] {
+        for bad in [
+            "Zg=", "Zg", "Z===", "Zg==Zg==", "Zm 9v", "Zm-v", "Zm_v", "A=AA",
+        ] {
             assert_eq!(base64(bad), None, "{bad:?}");
         }
     }
@@ -597,10 +743,11 @@ mod tests {
     /// A throwaway key made with Node for this test only (crypto.generateKeyPairSync("ec",
     /// P-256), crypto.sign("sha256", MESSAGE, { dsaEncoding: "ieee-p1363" })), as release.yml
     /// signs `MTwinManager-Setup-0.6.0.exe\n` + DATA.
-    const TEST_KEY: &str = "1bb1dec977d50faa29ab7620751690b318bd88e35f0b2d851d74f6440b34eacdc64b254b1782dede62cfc67f513e25d2f426e29e26e95c23a50d09d981be94e7";
-    const MESSAGE: &[u8] = b"RoALT-Setup-0.6.0.exe\nRoALT self-update test vector";
-    const DATA: &[u8] = b"RoALT self-update test vector";
-    const SIGNATURE: &str = "LB7tyBAyRL8yzNJpASkt8mSei6PK6hRkdGh0YjzcF9UDsTqFmE2x7R9ejg5theR7L4bEFxa8O45e62NRjaySWg==";
+    const TEST_KEY: &str = "c987662c7c5f2a9abe8d39b5eb054b9be130260e183679955ade4042da856c9739b20a72e50a777a05ef0518792524d173913dd64c093a96873582a221e10c8f";
+    const MESSAGE: &[u8] = b"MTwinManager-Setup-0.6.0.exe\nMTwin Manager self-update test vector";
+    const DATA: &[u8] = b"MTwin Manager self-update test vector";
+    const SIGNATURE: &str =
+        "kACYTxZAbAX7YTsGaQYmuoEhn1VV2arK0FRaJmQjtedQKFv5U4bKQ5v7z7URlwydwvo08IXwwmd6N0bbFi22cA==";
 
     fn test_key() -> [u8; 64] {
         let mut k = [0; 64];
@@ -615,14 +762,24 @@ mod tests {
         let (key, sig) = (test_key(), base64(SIGNATURE).unwrap());
         assert_eq!([signed_prefix("0.6.0"), DATA.to_vec()].concat(), MESSAGE);
         assert!(verify(&key, MESSAGE, &sig));
-        assert!(!verify(&key, b"RoALT-Setup-0.6.0.exe\nRoALT self-update test vectoR", &sig), "other data");
+        assert!(
+            !verify(
+                &key,
+                b"MTwinManager-Setup-0.6.0.exe\nMTwin Manager self-update test vectoR",
+                &sig
+            ),
+            "other data"
+        );
         assert!(!verify(&key, DATA, &sig), "without the version");
         let mut flipped = sig.clone();
         flipped[10] ^= 1;
         assert!(!verify(&key, MESSAGE, &flipped), "changed signature");
         assert!(!verify(&key, MESSAGE, &sig[..63]), "short signature");
         assert!(!verify(&key, MESSAGE, &[0; 64]), "zero signature");
-        assert!(!verify(&public_key(), MESSAGE, &sig), "the release key didn't sign it");
+        assert!(
+            !verify(&public_key(), MESSAGE, &sig),
+            "the release key didn't sign it"
+        );
         let mut other = key;
         other[63] ^= 1;
         assert!(!verify(&other, MESSAGE, &sig), "not a point on the curve");
@@ -633,15 +790,30 @@ mod tests {
         let dir = TempDir::new("mtwin-update-test-").unwrap();
         let sig = base64(SIGNATURE).unwrap();
         let exe = dir.0.join("setup.exe");
-        assert!(write_verified(&exe, "0.6.0", DATA, &sig, &public_key()).is_err(), "signed by the test key, not the release key");
-        assert!(write_verified(&exe, "0.6.0", DATA, &sig, &test_key()).is_err(), "never over an existing file");
+        assert!(
+            write_verified(&exe, "0.6.0", DATA, &sig, &public_key()).is_err(),
+            "signed by the test key, not the release key"
+        );
+        assert!(
+            write_verified(&exe, "0.6.0", DATA, &sig, &test_key()).is_err(),
+            "never over an existing file"
+        );
         let renamed = dir.0.join("renamed.exe");
-        assert!(write_verified(&renamed, "0.9.0", DATA, &sig, &test_key()).is_err(), "0.6.0's installer offered as 0.9.0");
+        assert!(
+            write_verified(&renamed, "0.9.0", DATA, &sig, &test_key()).is_err(),
+            "0.6.0's installer offered as 0.9.0"
+        );
 
         let good = dir.0.join("good.exe");
         let pinned = write_verified(&good, "0.6.0", DATA, &sig, &test_key()).unwrap();
-        assert!(OpenOptions::new().write(true).open(&good).is_err(), "no writer while pinned");
-        assert!(std::fs::remove_file(&good).is_err(), "no delete while pinned");
+        assert!(
+            OpenOptions::new().write(true).open(&good).is_err(),
+            "no writer while pinned"
+        );
+        assert!(
+            std::fs::remove_file(&good).is_err(),
+            "no delete while pinned"
+        );
         drop(pinned);
         assert!(OpenOptions::new().write(true).open(&good).is_ok());
     }

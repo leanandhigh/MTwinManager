@@ -5,6 +5,8 @@
 #if Ver < EncodeVer(6,6,0)
   #error Inno Setup 6.6 or newer is needed (WizardStyle dynamic windows11)
 #endif
+#include "legacy.iss"
+
 #ifndef AppVersion
   #error Pass /DAppVersion=x.y.z, or build with scripts\build-installer.ps1
 #endif
@@ -21,11 +23,11 @@ AppId={{F65209C5-78F5-4735-AE83-9F83EF9FCD83}
 AppName=MTwin Manager
 AppVersion={#AppVersion}
 AppPublisher=MTwin Manager
-AppPublisherURL=https://github.com/leanandhigh/RoALT
+AppPublisherURL=https://github.com/leanandhigh/MTwinManager
 VersionInfoVersion={#AppNumVersion}
 ; Per-user: {autopf} is %LOCALAPPDATA%\Programs.
 DefaultDirName={autopf}\MTwin Manager
-; Installs made before the rename were in {autopf}\RoALT: this one goes to the new folder and the
+; Installs made before the rename were elsewhere (legacy.iss): this one goes to the new folder and the
 ; old one is removed ([InstallDelete]); the data folder is the app's own and it moves that itself.
 UsePreviousAppDir=no
 DisableProgramGroupPage=yes
@@ -52,10 +54,10 @@ Name: desktopicon; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm
 Source: "{#AppExe}"; DestDir: "{app}"; DestName: "MTwin Manager.exe"; Flags: ignoreversion
 
 [InstallDelete]
-; The program folder and shortcuts under earlier names (RoALT, then MTwin Hub).
-Type: filesandordirs; Name: "{autopf}\RoALT"
-Type: files; Name: "{autoprograms}\RoALT.lnk"
-Type: files; Name: "{autodesktop}\RoALT.lnk"
+; The program folder and shortcuts under earlier names (legacy.iss, then MTwin Hub).
+Type: filesandordirs; Name: "{#LegacyProgramDir}"
+Type: files; Name: "{autoprograms}\{#LegacyShortcut}"
+Type: files; Name: "{autodesktop}\{#LegacyShortcut}"
 Type: files; Name: "{autoprograms}\MTwin Hub.lnk"
 Type: files; Name: "{autodesktop}\MTwin Hub.lnk"
 
@@ -75,7 +77,7 @@ const
   WebView2Download = 'https://go.microsoft.com/fwlink/p/?LinkId=2124703';
   { tauri-plugin-single-instance holds <identifier>-sim while MTwin Manager runs (the second: a
     version from before the rename). }
-  RunningMutex = 'com.mtwin.manager-sim,com.inspectsoftware.roalt-sim';
+  RunningMutex = 'com.mtwin.manager-sim,{#LegacyMutex}';
 
 function HasWebView2(Root: Integer): Boolean;
 var
@@ -139,7 +141,7 @@ begin
     { The window position tauri-plugin-window-state keeps. }
     DelTree(ExpandConstant('{userappdata}\com.mtwin.manager'), True, True, True);
     { What a version from before the rename left, if the app never started since to move it. }
-    DelTree(ExpandConstant('{localappdata}\RoALT'), True, True, True);
-    DelTree(ExpandConstant('{userappdata}\com.inspectsoftware.roalt'), True, True, True);
+    DelTree(ExpandConstant('{#LegacyDataDir}'), True, True, True);
+    DelTree(ExpandConstant('{#LegacyWindowState}'), True, True, True);
   end;
 end;
