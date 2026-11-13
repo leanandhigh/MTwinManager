@@ -1760,5 +1760,10 @@
   "app.sidebarFold": "Collapse sidebar",
   "app.sidebarOpen": "Expand sidebar",
   "launch.batch.rejoining": "rejoining",
-  "accounts.pickOne": "Pick an account in the list to see it here."
+  "accounts.pickOne": "Pick an account in the list to see it here.",
+  "accounts.quick.where": "Game link, place ID or @username",
+  "accounts.quick.wherePlaceholder": "e.g. 920587237",
+  "accounts.quick.job": "Server job ID (optional)",
+  "accounts.quick.jobPlaceholder": "A specific server",
+  "accounts.quick.more": "More options…"
 }

@@ -1703,5 +1703,10 @@
   "app.sidebarFold": "ย่อแถบข้าง",
   "app.sidebarOpen": "ขยายแถบข้าง",
   "launch.batch.rejoining": "กำลังกลับเข้าเกม",
-  "accounts.pickOne": "เลือกบัญชีจากรายการเพื่อดูรายละเอียดที่นี่"
+  "accounts.pickOne": "เลือกบัญชีจากรายการเพื่อดูรายละเอียดที่นี่",
+  "accounts.quick.where": "ลิงก์เกม, Place ID หรือ @ชื่อผู้ใช้",
+  "accounts.quick.wherePlaceholder": "เช่น 920587237",
+  "accounts.quick.job": "Job ID ของเซิร์ฟเวอร์ (ไม่บังคับ)",
+  "accounts.quick.jobPlaceholder": "เซิร์ฟเวอร์ที่ต้องการ",
+  "accounts.quick.more": "ตัวเลือกเพิ่มเติม…"
 }

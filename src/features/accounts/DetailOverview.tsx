@@ -7,6 +7,8 @@ import { browseAs } from "../../app/navigation";
 import { groupColor, qk, useAccountInfo, useBulk, useInstances, useMultiStatus, useUpdateAccount } from "../../data";
 import { fmtDate, fmtList, t, type Key } from "../../i18n";
 import { Chip, Disclosure, Skeleton } from "../../ui/Bits";
+import { Input } from "../../ui/Field";
+import { EMPTY_DRAFT, type Draft } from "../launch/target";
 import { Button } from "../../ui/Button";
 import { Switch } from "../../ui/controls";
 import { Morph } from "../../ui/motion";
@@ -111,10 +113,7 @@ export function DetailOverview({ account: a, groups, checking, instance, onValid
             </Button>
           </div>
         ) : a.status === "valid" ? (
-          // Secondary: the header pill holds the screen's one primary.
-          <Button icon="play" block onClick={onLaunch}>
-            {t("common.playEllipsis")}
-          </Button>
+          <QuickLaunch account={a} onMore={onLaunch} />
         ) : a.status === "unknown" ? (
           <Button icon="refresh" block busy={checking} onClick={onValidate}>
             {t("accounts.menu.validate")}
@@ -176,6 +175,48 @@ export function PresenceBlock({ p }: { p: Presence | null }) {
         </div>
       )}
     </div>
+  );
+}
+
+/** This account straight into a game: a game link, place ID or @username, a server's job ID when
+ * wanted, Play. "More options" opens Play with the account picked. */
+function QuickLaunch({ account: a, onMore }: { account: AccountSummary; onMore: () => void }) {
+  const [text, setText] = useState("");
+  const [job, setJob] = useState("");
+  const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
+  const multi = useMultiStatus().data;
+  const batch = useBulk().data;
+  const others = (useInstances().data ?? []).some((i) => i.state !== "exited" && i.accountId !== a.id);
+  const step = useLaunchStep();
+  const blocked = step ?? launchBlocked(others, multi, batch);
+  const id = useId();
+  const place = text.trim();
+  const jobId = job.trim();
+  const go = () => {
+    if (!place || blocked) return;
+    // A place ID and a job ID: that server. Anything else is read as Play reads it.
+    const where = /^\d+$/.test(place) && jobId ? { kind: "server" as const, placeId: Number(place), jobId } : { draft: { ...draft, text: place }, setDraft };
+    void launchOne(a, where);
+  };
+  return (
+    <form
+      className="flex flex-col gap-2.5"
+      onSubmit={(e) => {
+        e.preventDefault();
+        go();
+      }}
+    >
+      <label htmlFor={`${id}-where`} className="text-[12px] text-fg-3">{t("accounts.quick.where")}</label>
+      <Input id={`${id}-where`} mono value={text} placeholder={t("accounts.quick.wherePlaceholder")} autoComplete="off" onChange={(e) => setText(e.target.value)} />
+      <label htmlFor={`${id}-job`} className="text-[12px] text-fg-3">{t("accounts.quick.job")}</label>
+      <Input id={`${id}-job`} mono value={job} placeholder={t("accounts.quick.jobPlaceholder")} autoComplete="off" onChange={(e) => setJob(e.target.value)} />
+      <div className="flex gap-2 pt-1">
+        <Button type="submit" variant="primary" icon="play" className="flex-1" disabled={!place || !!blocked} data-tip={blocked ?? undefined}>
+          {t("common.launch")}
+        </Button>
+        <Button type="button" onClick={onMore}>{t("accounts.quick.more")}</Button>
+      </div>
+    </form>
   );
 }
 
