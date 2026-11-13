@@ -36,6 +36,9 @@ pub struct LogFacts {
     pub auth_failed: bool,
     /// Closed because another client started (EventWaitResultUpdate then a close request).
     pub replaced: bool,
+    /// That disconnect was the same account starting elsewhere (273, 276: "Same account launched
+    /// experience from different device"): this client is left showing a dead dialog.
+    pub elsewhere: bool,
     /// `EventWaitResultUpdate` seen: another client set the singleton event. A close request
     /// after it is a replacement; before it, the user's own tray Exit (verify M11).
     signalled: bool,
@@ -70,8 +73,15 @@ const AUTH_FAILED: [&str; 2] = ["encountered during authentication", "Error Code
 /// that session). Only the message counts, not the timestamp/thread prefix before " [".
 fn client_initiated(line: &str) -> bool {
     let msg = line.find(" [").map_or(line, |i| &line[i..]);
-    ["DisconnectClientInitiated", "Same account launched", "DuplicateLogin"].iter().any(|m| msg.contains(m))
-        || msg.split(|c: char| !c.is_ascii_digit()).any(|n| n == "285" || n == "273")
+    ["DisconnectClientInitiated", "Same account launched", "DuplicateLogin", "different device"].iter().any(|m| msg.contains(m))
+        || msg.split(|c: char| !c.is_ascii_digit()).any(|n| n == "285" || n == "273" || n == "276")
+}
+
+/// The disconnect was the same account starting a session somewhere else (273 / 276, or its text).
+fn launched_elsewhere(line: &str) -> bool {
+    let msg = line.find(" [").map_or(line, |i| &line[i..]);
+    ["Same account launched", "DuplicateLogin", "different device"].iter().any(|m| msg.contains(m))
+        || msg.split(|c: char| !c.is_ascii_digit()).any(|n| n == "273" || n == "276")
 }
 
 /// `%LOCALAPPDATA%\Roblox\logs`.
@@ -251,6 +261,7 @@ pub fn parse_line(line: &str, facts: &mut LogFacts) {
             facts.teleporting = false;
             facts.disconnected = false;
             facts.left = false;
+            facts.elsewhere = false;
             facts.auth_failed = false;
             facts.reason = None;
         }
@@ -261,6 +272,7 @@ pub fn parse_line(line: &str, facts: &mut LogFacts) {
     } else if let Some(m) = DISCONNECTS.iter().find(|m| line.contains(*m)) {
         facts.disconnected = true;
         facts.left |= client_initiated(line);
+        facts.elsewhere |= launched_elsewhere(line);
         // The first line that names a reason; "Time to disconnect ..." names none.
         if !facts.reason.as_deref().is_some_and(names_reason) {
             facts.reason = reason_of(line, m).or(facts.reason.take());
@@ -611,6 +623,11 @@ mod tests {
             assert!(left.disconnected && left.left, "{l}");
         }
         assert!(!parsed(&[&line("[FLog::Network] Disconnection Notification. Reason: 2851")]).left);
+        for l in ["[FLog::Network] Disconnection Notification. Reason: 276", "[FLog::Network] Disconnection Notification. Reason: 273"] {
+            let other = parsed(&[&line(l)]);
+            assert!(other.disconnected && other.left && other.elsewhere, "{l}");
+        }
+        assert!(!parsed(&[&line("[FLog::Network] Disconnection Notification. Reason: 285")]).elsewhere);
         let elsewhere = parsed(&[&line("[FLog::Network] Disconnection Notification. Reason: 273")]);
         assert!(elsewhere.disconnected && elsewhere.left);
         // A 285 in the timestamp, seconds or thread id is not the reason.

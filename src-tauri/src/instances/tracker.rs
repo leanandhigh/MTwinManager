@@ -562,6 +562,25 @@ impl Tracker {
     /// Returns the process to close, under the same lock: its pid and the start time it was
     /// first seen with (None before that). None once it ended or its process is gone, so a
     /// reused pid is never closed; the next poll ends the entry.
+    /// Clients kicked because their account started again elsewhere (`LogFacts::elsewhere`) while a
+    /// newer client of the same account is tracked and running: the old one only shows a dead
+    /// "Disconnected" dialog. Each is marked closing; their processes to close are returned.
+    pub fn take_superseded(&self) -> Vec<(String, u32, Option<u64>)> {
+        let ids: Vec<String> = {
+            let all = self.entries();
+            all.iter()
+                .filter(|e| e.alive && !e.closing && e.facts.disconnected && e.facts.elsewhere && e.inst.state != InstanceState::Exited)
+                .filter(|e| {
+                    all.iter().any(|n| {
+                        n.inst.account_id == e.inst.account_id && n.inst.id != e.inst.id && n.alive && n.inst.state != InstanceState::Exited && n.inst.started_at > e.inst.started_at
+                    })
+                })
+                .map(|e| e.inst.id.clone())
+                .collect()
+        };
+        ids.into_iter().filter_map(|id| self.mark_closing(&id).map(|(pid, start)| (id, pid, start))).collect()
+    }
+
     pub fn mark_closing(&self, id: &str) -> Option<(u32, Option<u64>)> {
         self.mark_restart(id, None)
     }
@@ -1097,6 +1116,21 @@ impl Tracker {
                         s.limiter.sync(&super::limits::plan_now(&s, &v, &clients, &held));
                     }
                     let throttle_moved = s.tracker.set_in_force(&s.limiter.in_force()) || throttle_moved;
+                    // A client kicked by its own account's newer client (error 276) closes: its window
+                    // would only show "Disconnected" until closed by hand.
+                    let superseded = s.tracker.take_superseded();
+                    if !superseded.is_empty() {
+                        for (id, pid, _) in &superseded {
+                            log::info!("instance {id} (pid {pid}): its account started again elsewhere; closing the old client");
+                        }
+                        tauri::async_runtime::spawn_blocking(move || {
+                            for (id, pid, start) in superseded {
+                                if let Err(e) = process::close(pid, start, false, std::time::Duration::from_secs(3)) {
+                                    log::debug!("instance {id}: closing the superseded client failed: {e}");
+                                }
+                            }
+                        });
+                    }
                     // Once per client, without taking the focus.
                     for pid in s.tracker.first_in_game(&|pid| process::main_window(pid).is_some()) {
                         let id = clients.iter().find(|c| c.1 == pid).map(|c| c.0.clone());
