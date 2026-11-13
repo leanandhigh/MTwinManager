@@ -48,11 +48,7 @@ fn catalog(i: usize) -> &'static Catalog {
 /// A Settings.language value ("" follows Windows' display language) to an index in `LANGS`.
 fn resolve(pref: &str) -> usize {
     let pick = |tag: &str| {
-        let base = tag
-            .split(['-', '_'])
-            .next()
-            .unwrap_or("")
-            .to_ascii_lowercase();
+        let base = tag.split(['-', '_']).next().unwrap_or("").to_ascii_lowercase();
         LANGS.iter().position(|l| *l == base)
     };
     let own = pick(pref);
@@ -78,10 +74,7 @@ fn system_language() -> String {
     let mut buf = [0u16; 85];
     let n = unsafe { LCIDToLocaleName(GetUserDefaultUILanguage() as u32, Some(&mut buf), 0) };
     if n == 0 {
-        log::debug!(
-            "LCIDToLocaleName failed: {}",
-            windows::core::Error::from_thread()
-        );
+        log::debug!("LCIDToLocaleName failed: {}", windows::core::Error::from_thread());
     }
     String::from_utf16_lossy(&buf[..(n.max(1) as usize - 1)])
 }
@@ -119,19 +112,11 @@ pub fn tr(key: &'static str, args: &[(&str, &dyn Display)]) -> String {
 }
 
 /// `trn!`'s work: the form of `other` (or `one`) for `n`, with `{n}` and the placeholders filled.
-pub fn trn(
-    n: u64,
-    one: &'static str,
-    other: &'static str,
-    args: &[(&str, &dyn Display)],
-) -> String {
+pub fn trn(n: u64, one: &'static str, other: &'static str, args: &[(&str, &dyn Display)]) -> String {
     let i = CURRENT.load(Ordering::Relaxed) as usize;
     let cat = category(LANGS[i], n);
     let text = match catalog(i).get(other) {
-        Some(Entry::Plural(forms)) => forms
-            .get(cat)
-            .or_else(|| forms.get("other"))
-            .map_or(other, String::as_str),
+        Some(Entry::Plural(forms)) => forms.get(cat).or_else(|| forms.get("other")).map_or(other, String::as_str),
         _ if cat == "one" => one,
         _ => other,
     };
@@ -159,20 +144,14 @@ mod tests {
     #[test]
     fn plural_categories() {
         let forms = |lang| [0, 1, 2, 5, 11, 21].map(|n| category(lang, n));
-        assert_eq!(
-            forms("en"),
-            ["other", "one", "other", "other", "other", "other"]
-        );
+        assert_eq!(forms("en"), ["other", "one", "other", "other", "other", "other"]);
         assert_eq!(forms("th"), ["other"; 6]);
     }
 
     #[test]
     fn catalogs_parse_and_fill() {
         for (i, lang) in LANGS.iter().enumerate().skip(1) {
-            assert!(
-                serde_json::from_str::<Catalog>(source(i)).is_ok(),
-                "locales/{lang}.json"
-            );
+            assert!(serde_json::from_str::<Catalog>(source(i)).is_ok(), "locales/{lang}.json");
         }
         assert_eq!(fill("{a} and {b}", &[("a", &1), ("b", &"x")]), "1 and x");
         assert_eq!(LANGS[resolve("th")], "th");

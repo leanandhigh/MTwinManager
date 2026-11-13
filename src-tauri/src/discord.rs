@@ -20,9 +20,7 @@ use tauri::{AppHandle, Manager};
 use crate::App;
 use crate::error::{AppError, Result};
 use crate::instances::{Transition, hung, unexpected};
-use crate::model::{
-    AccountSummary, BulkProgress, BulkStage, CrashKind, DiscordEvents, DiscordStatus, InstanceState,
-};
+use crate::model::{AccountSummary, BulkProgress, BulkStage, CrashKind, DiscordEvents, DiscordStatus, InstanceState};
 use crate::vault::Secret;
 
 const DISCORD_AAD: &[u8] = b"mtwin.discord.webhook";
@@ -34,14 +32,8 @@ const GAP: Duration = Duration::from_secs(2);
 const MAX_QUEUED: usize = 50;
 /// Lines in one message; the rest are counted.
 const MAX_LINES: usize = 15;
-const HOSTS: [&str; 6] = [
-    "discord.com",
-    "ptb.discord.com",
-    "canary.discord.com",
-    "discordapp.com",
-    "ptb.discordapp.com",
-    "canary.discordapp.com",
-];
+const HOSTS: [&str; 6] =
+    ["discord.com", "ptb.discord.com", "canary.discord.com", "discordapp.com", "ptb.discordapp.com", "canary.discordapp.com"];
 
 /// A checked webhook: `https://<host>/api/webhooks/<id>/<token>`.
 #[derive(Debug)]
@@ -53,39 +45,23 @@ pub struct Webhook {
 /// Accepts only Discord's own webhook URLs (discord.com or discordapp.com, also their ptb. and
 /// canary. hosts), https on the default port, with nothing but `/api/webhooks/<id>/<token>`.
 pub fn parse_webhook(raw: &str) -> Result<Webhook> {
-    let bad = || {
-        AppError::Invalid(tr!(
-            "Paste a Discord webhook URL: https://discord.com/api/webhooks/<id>/<token>."
-        ))
-    };
+    let bad = || AppError::Invalid(tr!("Paste a Discord webhook URL: https://discord.com/api/webhooks/<id>/<token>."));
     let u = url::Url::parse(raw.trim()).map_err(|_| bad())?;
     let host = u.host_str().filter(|h| HOSTS.contains(h)).ok_or_else(bad)?;
-    if u.scheme() != "https"
-        || !u.username().is_empty()
-        || u.password().is_some()
-        || u.port().is_some()
-    {
+    if u.scheme() != "https" || !u.username().is_empty() || u.password().is_some() || u.port().is_some() {
         return Err(bad());
     }
     if u.query().is_some() || u.fragment().is_some() {
         return Err(bad());
     }
     let parts: Vec<&str> = u.path_segments().ok_or_else(bad)?.collect();
-    let [api, webhooks, id, token] = parts[..] else {
-        return Err(bad());
-    };
+    let [api, webhooks, id, token] = parts[..] else { return Err(bad()) };
     let id_ok = (1..=25).contains(&id.len()) && id.bytes().all(|b| b.is_ascii_digit());
-    let token_ok = (1..=128).contains(&token.len())
-        && token
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_');
+    let token_ok = (1..=128).contains(&token.len()) && token.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_');
     if api != "api" || webhooks != "webhooks" || !id_ok || !token_ok {
         return Err(bad());
     }
-    Ok(Webhook {
-        url: Secret::new(format!("https://{host}/api/webhooks/{id}/{token}")),
-        id: id.to_owned(),
-    })
+    Ok(Webhook { url: Secret::new(format!("https://{host}/api/webhooks/{id}/{token}")), id: id.to_owned() })
 }
 
 /// Who alerts ping, as typed: a user id (`123`, `<@123>`, `<@!123>`) or a role (`<@&123>`).
@@ -103,15 +79,9 @@ pub fn parse_ping(raw: &str) -> Result<String> {
         None => (false, raw),
     };
     if !(1..=25).contains(&id.len()) || !id.bytes().all(|b| b.is_ascii_digit()) {
-        return Err(AppError::Invalid(tr!(
-            "Ping takes a Discord user ID (only digits), or a role as <@&id>."
-        )));
+        return Err(AppError::Invalid(tr!("Ping takes a Discord user ID (only digits), or a role as <@&id>.")));
     }
-    Ok(if role {
-        format!("<@&{id}>")
-    } else {
-        format!("<@{id}>")
-    })
+    Ok(if role { format!("<@&{id}>") } else { format!("<@{id}>") })
 }
 
 /// Puts a stored ping (`parse_ping`) in a webhook body: as its text, and as the one mention
@@ -121,9 +91,7 @@ fn add_ping(body: &mut Value, ping: &str) {
         Some(r) => ("roles", r),
         None => ("users", ping.strip_prefix("<@").unwrap_or_default()),
     };
-    let Some(id) = rest.strip_suffix('>') else {
-        return;
-    };
+    let Some(id) = rest.strip_suffix('>') else { return };
     body["content"] = json!(ping);
     body["allowed_mentions"][key] = json!([id]);
 }
@@ -136,44 +104,17 @@ fn masked(id: &str) -> String {
 /// Something worth telling the user about.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Event {
-    Crash {
-        name: String,
-        place_id: Option<i64>,
-    },
-    Hang {
-        name: String,
-    },
-    Disconnect {
-        name: String,
-    },
+    Crash { name: String, place_id: Option<i64> },
+    Hang { name: String },
+    Disconnect { name: String },
     /// A client first got into a game.
-    Launch {
-        name: String,
-        place_id: Option<i64>,
-    },
+    Launch { name: String, place_id: Option<i64> },
     /// An auto-rejoin (`Disconnect`) or auto-restart went ahead.
-    Restart {
-        name: String,
-        cause: CrashKind,
-    },
+    Restart { name: String, cause: CrashKind },
     /// The crash breaker gave up on the account.
-    Breaker {
-        name: String,
-        count: u32,
-        window_min: u32,
-    },
-    BatchDone {
-        total: usize,
-        in_game: usize,
-        done: usize,
-        failed: usize,
-        stopped: Option<String>,
-    },
-    Status {
-        clients: usize,
-        ram_mb: f64,
-        cpu_pct: Option<f64>,
-    },
+    Breaker { name: String, count: u32, window_min: u32 },
+    BatchDone { total: usize, in_game: usize, done: usize, failed: usize, stopped: Option<String> },
+    Status { clients: usize, ram_mb: f64, cpu_pct: Option<f64> },
 }
 
 impl Event {
@@ -183,10 +124,7 @@ impl Event {
             Self::Hang { .. } => v.hang,
             Self::Disconnect { .. } => v.disconnect,
             Self::Launch { .. } => v.launch,
-            Self::Restart {
-                cause: CrashKind::Mem,
-                ..
-            } => v.mem_restart,
+            Self::Restart { cause: CrashKind::Mem, .. } => v.mem_restart,
             Self::Restart { .. } => v.restart,
             Self::Breaker { .. } => v.breaker,
             Self::BatchDone { .. } => v.batch_done,
@@ -206,90 +144,27 @@ impl Event {
 
     fn line(&self) -> String {
         match self {
-            Self::Crash {
-                name,
-                place_id: Some(p),
-            } => {
-                format!(
-                    "💥 {}",
-                    tr!(
-                        "**{name}**: the client crashed (place {place}).",
-                        name = name,
-                        place = p
-                    )
-                )
+            Self::Crash { name, place_id: Some(p) } => {
+                format!("💥 {}", tr!("**{name}**: the client crashed (place {place}).", name = name, place = p))
             }
-            Self::Crash {
-                name,
-                place_id: None,
-            } => format!("💥 {}", tr!("**{name}**: the client crashed.", name = name)),
-            Self::Hang { name } => format!(
-                "🧊 {}",
-                tr!("**{name}**: the client stopped responding.", name = name)
-            ),
-            Self::Disconnect { name } => format!(
-                "🔌 {}",
-                tr!("**{name}**: disconnected by Roblox.", name = name)
-            ),
-            Self::Launch {
-                name,
-                place_id: Some(p),
-            } => {
-                format!(
-                    "🎮 {}",
-                    tr!(
-                        "**{name}**: in game (place {place}).",
-                        name = name,
-                        place = p
-                    )
-                )
+            Self::Crash { name, place_id: None } => format!("💥 {}", tr!("**{name}**: the client crashed.", name = name)),
+            Self::Hang { name } => format!("🧊 {}", tr!("**{name}**: the client stopped responding.", name = name)),
+            Self::Disconnect { name } => format!("🔌 {}", tr!("**{name}**: disconnected by Roblox.", name = name)),
+            Self::Launch { name, place_id: Some(p) } => {
+                format!("🎮 {}", tr!("**{name}**: in game (place {place}).", name = name, place = p))
             }
-            Self::Launch {
-                name,
-                place_id: None,
-            } => format!("🎮 {}", tr!("**{name}**: in game.", name = name)),
-            Self::Restart {
-                name,
-                cause: CrashKind::Disconnect,
-            } => format!("🔁 {}", tr!("**{name}**: rejoined.", name = name)),
-            Self::Restart {
-                name,
-                cause: CrashKind::Mem,
-            } => {
-                format!(
-                    "🧹 {}",
-                    tr!(
-                        "**{name}**: restarted, it used too much memory.",
-                        name = name
-                    )
-                )
+            Self::Launch { name, place_id: None } => format!("🎮 {}", tr!("**{name}**: in game.", name = name)),
+            Self::Restart { name, cause: CrashKind::Disconnect } => format!("🔁 {}", tr!("**{name}**: rejoined.", name = name)),
+            Self::Restart { name, cause: CrashKind::Mem } => {
+                format!("🧹 {}", tr!("**{name}**: restarted, it used too much memory.", name = name))
             }
-            Self::Restart {
-                name,
-                cause: CrashKind::Hang,
-            } => {
-                format!(
-                    "🔁 {}",
-                    tr!(
-                        "**{name}**: restarted after it stopped responding.",
-                        name = name
-                    )
-                )
+            Self::Restart { name, cause: CrashKind::Hang } => {
+                format!("🔁 {}", tr!("**{name}**: restarted after it stopped responding.", name = name))
             }
-            Self::Restart {
-                name,
-                cause: CrashKind::Crash,
-            } => {
-                format!(
-                    "🔁 {}",
-                    tr!("**{name}**: restarted after a crash.", name = name)
-                )
+            Self::Restart { name, cause: CrashKind::Crash } => {
+                format!("🔁 {}", tr!("**{name}**: restarted after a crash.", name = name))
             }
-            Self::Breaker {
-                name,
-                count,
-                window_min,
-            } => format!(
+            Self::Breaker { name, count, window_min } => format!(
                 "⛔ {}",
                 trn!(
                     *count,
@@ -299,21 +174,8 @@ impl Event {
                     minutes = window_min
                 )
             ),
-            Self::BatchDone {
-                total,
-                in_game,
-                done,
-                failed,
-                stopped,
-            } => {
-                let mut s = format!(
-                    "🚀 {}",
-                    tr!(
-                        "Batch finished: {in_game} of {total} in game",
-                        in_game = in_game,
-                        total = total
-                    )
-                );
+            Self::BatchDone { total, in_game, done, failed, stopped } => {
+                let mut s = format!("🚀 {}", tr!("Batch finished: {in_game} of {total} in game", in_game = in_game, total = total));
                 if *done > 0 {
                     s += &tr!(", {done} done", done = done);
                 }
@@ -325,14 +187,8 @@ impl Event {
                 }
                 s + "."
             }
-            Self::Status {
-                clients,
-                ram_mb,
-                cpu_pct,
-            } => {
-                let cpu = cpu_pct
-                    .map(|c| format!(" · {c:.0}% CPU"))
-                    .unwrap_or_default();
+            Self::Status { clients, ram_mb, cpu_pct } => {
+                let cpu = cpu_pct.map(|c| format!(" · {c:.0}% CPU")).unwrap_or_default();
                 format!(
                     "📊 {}",
                     trn!(
@@ -358,17 +214,13 @@ pub fn name_of(a: Option<&AccountSummary>, account_id: i64) -> String {
 
 /// Keeps Discord's markdown out of names.
 fn escape(s: &str) -> String {
-    s.chars()
-        .fold(String::with_capacity(s.len()), |mut out, c| {
-            if matches!(
-                c,
-                '\\' | '*' | '_' | '~' | '`' | '|' | '>' | '[' | ']' | '@'
-            ) {
-                out.push('\\');
-            }
-            out.push(c);
-            out
-        })
+    s.chars().fold(String::with_capacity(s.len()), |mut out, c| {
+        if matches!(c, '\\' | '*' | '_' | '~' | '`' | '|' | '>' | '[' | ']' | '@') {
+            out.push('\\');
+        }
+        out.push(c);
+        out
+    })
 }
 
 /// What a client's change is worth telling (pure): it got disconnected, stopped responding,
@@ -376,16 +228,14 @@ fn escape(s: &str) -> String {
 pub fn change_of(t: &Transition) -> Option<CrashKind> {
     let (b, a) = (&t.before, &t.after);
     if a.state == InstanceState::Exited {
-        let by_itself =
-            b.state != InstanceState::Exited && a.note.as_deref() == Some(&*unexpected());
+        let by_itself = b.state != InstanceState::Exited && a.note.as_deref() == Some(&*unexpected());
         return (by_itself && b.state != InstanceState::Disconnected).then_some(CrashKind::Crash);
     }
     if a.state == InstanceState::Disconnected && b.state != InstanceState::Disconnected {
         return Some(CrashKind::Disconnect);
     }
     let hung = hung();
-    (a.note.as_deref() == Some(&*hung) && b.note.as_deref() != Some(&*hung))
-        .then_some(CrashKind::Hang)
+    (a.note.as_deref() == Some(&*hung) && b.note.as_deref() != Some(&*hung)).then_some(CrashKind::Hang)
 }
 
 /// The client got into a game for the first time (pure): not a rejoin, restart or reconnect.
@@ -402,11 +252,7 @@ pub fn launched(t: &Transition) -> bool {
 pub fn message(events: &[Event], ping: &str) -> Value {
     let mut lines: Vec<String> = events.iter().take(MAX_LINES).map(Event::line).collect();
     if events.len() > MAX_LINES {
-        lines.push(trn!(
-            events.len() - MAX_LINES,
-            "…and {n} more.",
-            "…and {n} more."
-        ));
+        lines.push(trn!(events.len() - MAX_LINES, "…and {n} more.", "…and {n} more."));
     }
     let severity = events.iter().map(Event::severity).max();
     let color = match severity {
@@ -496,11 +342,7 @@ impl Discord {
             .build()
             .map_err(|e| e.without_url().to_string())
             .inspect_err(|e| log::error!("discord: http client unavailable: {e}"));
-        Discord {
-            outbox: Mutex::default(),
-            http,
-            last_status: Mutex::new(None),
-        }
+        Discord { outbox: Mutex::default(), http, last_status: Mutex::new(None) }
     }
 
     fn outbox(&self) -> MutexGuard<'_, Outbox> {
@@ -523,17 +365,12 @@ pub(crate) fn unhex(s: &str) -> Option<Vec<u8>> {
     if !s.len().is_multiple_of(2) {
         return None;
     }
-    (0..s.len())
-        .step_by(2)
-        .map(|i| u8::from_str_radix(s.get(i..i + 2)?, 16).ok())
-        .collect()
+    (0..s.len()).step_by(2).map(|i| u8::from_str_radix(s.get(i..i + 2)?, 16).ok()).collect()
 }
 
 /// The stored webhook; None when none is set. `Locked` while the vault is.
 fn webhook(s: &App) -> Result<Option<Webhook>> {
-    let Some(stored) = s.db.setting_value(KEY)? else {
-        return Ok(None);
-    };
+    let Some(stored) = s.db.setting_value(KEY)? else { return Ok(None) };
     let blob = unhex(&stored).ok_or(AppError::Crypto)?;
     parse_webhook(s.vault.decrypt_secret(DISCORD_AAD, &blob)?.expose()).map(Some)
 }
@@ -546,14 +383,8 @@ fn ping(s: &App) -> String {
 /// While the vault is locked a stored webhook still shows as configured (its id unknown).
 pub fn status(s: &App) -> Result<DiscordStatus> {
     match webhook(s) {
-        Ok(hook) => Ok(DiscordStatus {
-            configured: hook.is_some(),
-            webhook: hook.map(|h| masked(&h.id)),
-        }),
-        Err(AppError::Locked) => Ok(DiscordStatus {
-            configured: s.db.setting_value(KEY)?.is_some(),
-            webhook: None,
-        }),
+        Ok(hook) => Ok(DiscordStatus { configured: hook.is_some(), webhook: hook.map(|h| masked(&h.id)) }),
+        Err(AppError::Locked) => Ok(DiscordStatus { configured: s.db.setting_value(KEY)?.is_some(), webhook: None }),
         Err(e) => Err(e),
     }
 }
@@ -594,20 +425,13 @@ pub async fn test(s: &App) -> Result<()> {
     }
     match r? {
         None => Ok(()),
-        Some(wait) => Err(AppError::Invalid(tr!(
-            "Discord is limiting messages. Try again in {seconds} s.",
-            seconds = wait.as_secs().max(1)
-        ))),
+        Some(wait) => Err(AppError::Invalid(tr!("Discord is limiting messages. Try again in {seconds} s.", seconds = wait.as_secs().max(1)))),
     }
 }
 
 /// One POST; Some(wait) when Discord rate-limited it. Errors never carry the URL.
 async fn post(s: &App, hook: &Webhook, body: &Value) -> Result<Option<Duration>> {
-    let http = s
-        .discord
-        .http
-        .as_ref()
-        .map_err(|e| AppError::Internal(e.clone()))?;
+    let http = s.discord.http.as_ref().map_err(|e| AppError::Internal(e.clone()))?;
     let r = http
         .post(hook.url.expose())
         .json(body)
@@ -617,35 +441,24 @@ async fn post(s: &App, hook: &Webhook, body: &Value) -> Result<Option<Duration>>
     match r.status() {
         st if st.is_success() => Ok(None),
         StatusCode::TOO_MANY_REQUESTS => {
-            let header = r
-                .headers()
-                .get(RETRY_AFTER)
-                .and_then(|v| v.to_str().ok())
-                .map(str::to_owned);
-            Ok(Some(retry_after(
-                &r.text().await.unwrap_or_default(),
-                header.as_deref(),
-            )))
+            let header = r.headers().get(RETRY_AFTER).and_then(|v| v.to_str().ok()).map(str::to_owned);
+            Ok(Some(retry_after(&r.text().await.unwrap_or_default(), header.as_deref())))
         }
         StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN | StatusCode::NOT_FOUND => {
-            Err(AppError::Invalid(tr!(
-                "Discord refused the webhook; it may have been deleted. Paste a new one."
-            )))
+            Err(AppError::Invalid(tr!("Discord refused the webhook; it may have been deleted. Paste a new one.")))
         }
-        st => Err(AppError::Network(tr!(
-            "Discord answered {status}.",
-            status = st.as_u16()
-        ))),
+        st => Err(AppError::Network(tr!("Discord answered {status}.", status = st.as_u16()))),
     }
 }
 
 /// Queues an event when its toggle is on, a webhook is set and the vault is unlocked.
 pub fn notify(app: &AppHandle, event: Event) {
     let s = app.state::<App>();
-    let wanted =
-        s.db.settings()
-            .inspect_err(|e| log::warn!("discord: event dropped, settings unreadable: {e}"))
-            .is_ok_and(|v| event.wanted(&v.discord));
+    let wanted = s
+        .db
+        .settings()
+        .inspect_err(|e| log::warn!("discord: event dropped, settings unreadable: {e}"))
+        .is_ok_and(|v| event.wanted(&v.discord));
     if wanted
         && !s.vault.is_locked()
         && s.db
@@ -737,9 +550,7 @@ async fn deliver(s: &App, events: Vec<Event>) {
         // An outage is when the alerts matter most: they go when it's over.
         Err(AppError::Network(e)) => {
             log::warn!("discord: message not sent, trying again: {e}");
-            s.discord
-                .outbox()
-                .retry(events, now, Duration::from_secs(30));
+            s.discord.outbox().retry(events, now, Duration::from_secs(30));
         }
         Err(e) => {
             log::warn!("discord: message not sent: {e}");
@@ -753,11 +564,7 @@ async fn queue_status(app: &AppHandle) {
     let s = app.state::<App>();
     let every = s.db.settings().map_or(0, |v| v.discord.status_every_min);
     let due = {
-        let mut last = s
-            .discord
-            .last_status
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
+        let mut last = s.discord.last_status.lock().unwrap_or_else(|e| e.into_inner());
         let start = *last.get_or_insert_with(Instant::now);
         let due = every > 0 && start.elapsed() >= Duration::from_secs(u64::from(every) * 60);
         if due || every == 0 {
@@ -783,14 +590,7 @@ async fn queue_status(app: &AppHandle) {
         // CPU needs an earlier sample of the same client; without one it's left out, not 0%.
         let cpu: Vec<f64> = m.iter().filter_map(|c| c.cpu_pct).collect();
         let cpu_pct = (!cpu.is_empty()).then(|| cpu.iter().sum());
-        notify(
-            app,
-            Event::Status {
-                clients: m.len(),
-                ram_mb,
-                cpu_pct,
-            },
-        );
+        notify(app, Event::Status { clients: m.len(), ram_mb, cpu_pct });
     }
 }
 
@@ -811,10 +611,7 @@ mod tests {
             let raw = format!("  https://{host}/api/webhooks/123456789012345678/{TOKEN}  ");
             let h = parse_webhook(&raw).unwrap();
             assert_eq!(h.url.expose(), raw.trim(), "{host}");
-            assert_eq!(
-                (h.id.as_str(), masked(&h.id).as_str()),
-                ("123456789012345678", "…5678")
-            );
+            assert_eq!((h.id.as_str(), masked(&h.id).as_str()), ("123456789012345678", "…5678"));
         }
         // Hosts are compared after the parser lowercases them.
         assert!(parse_webhook(&format!("https://Discord.com/api/webhooks/1/{TOKEN}")).is_ok());
@@ -858,10 +655,7 @@ mod tests {
             account_id: 1,
             pid: 1,
             state,
-            target: LaunchTarget::Place {
-                place_id: 1818,
-                launch_data: None,
-            },
+            target: LaunchTarget::Place { place_id: 1818, launch_data: None },
             place_id: Some(1818),
             job_id: None,
             started_at: 0,
@@ -886,82 +680,29 @@ mod tests {
     #[test]
     fn tells_disconnects_hangs_and_crashes_once() {
         use InstanceState::*;
-        let t = |b: Instance, a: Instance| {
-            change_of(&Transition {
-                before: b,
-                after: a,
-                first_game: false,
-            })
-        };
-        assert_eq!(
-            t(inst(InGame, None), inst(Disconnected, None)),
-            Some(CrashKind::Disconnect)
-        );
-        assert_eq!(
-            t(inst(Disconnected, None), inst(Disconnected, Some(HUNG))),
-            Some(CrashKind::Hang)
-        );
-        assert_eq!(
-            t(inst(InGame, None), inst(InGame, Some(HUNG))),
-            Some(CrashKind::Hang)
-        );
-        assert_eq!(
-            t(inst(InGame, Some(HUNG)), inst(InGame, Some(HUNG))),
-            None,
-            "still hung"
-        );
-        assert_eq!(
-            t(inst(InGame, None), inst(Exited, Some(UNEXPECTED))),
-            Some(CrashKind::Crash)
-        );
-        assert_eq!(
-            t(inst(Starting, None), inst(Exited, Some(UNEXPECTED))),
-            Some(CrashKind::Crash)
-        );
+        let t = |b: Instance, a: Instance| change_of(&Transition { before: b, after: a, first_game: false });
+        assert_eq!(t(inst(InGame, None), inst(Disconnected, None)), Some(CrashKind::Disconnect));
+        assert_eq!(t(inst(Disconnected, None), inst(Disconnected, Some(HUNG))), Some(CrashKind::Hang));
+        assert_eq!(t(inst(InGame, None), inst(InGame, Some(HUNG))), Some(CrashKind::Hang));
+        assert_eq!(t(inst(InGame, Some(HUNG)), inst(InGame, Some(HUNG))), None, "still hung");
+        assert_eq!(t(inst(InGame, None), inst(Exited, Some(UNEXPECTED))), Some(CrashKind::Crash));
+        assert_eq!(t(inst(Starting, None), inst(Exited, Some(UNEXPECTED))), Some(CrashKind::Crash));
         // Ended after a disconnect (already told), closed by the user or MTwin Manager, replaced.
-        assert_eq!(
-            t(inst(Disconnected, None), inst(Exited, Some(UNEXPECTED))),
-            None
-        );
+        assert_eq!(t(inst(Disconnected, None), inst(Exited, Some(UNEXPECTED))), None);
         assert_eq!(t(inst(InGame, None), inst(Exited, Some("Closed"))), None);
-        assert_eq!(
-            t(inst(InGame, Some(HUNG)), inst(Exited, Some("Closed"))),
-            None
-        );
-        assert_eq!(
-            t(
-                inst(Joining, None),
-                inst(Exited, Some("Replaced by another Roblox client"))
-            ),
-            None
-        );
+        assert_eq!(t(inst(InGame, Some(HUNG)), inst(Exited, Some("Closed"))), None);
+        assert_eq!(t(inst(Joining, None), inst(Exited, Some("Replaced by another Roblox client"))), None);
         // Ordinary progress.
         assert_eq!(t(inst(Starting, None), inst(Joining, None)), None);
         assert_eq!(t(inst(Joining, None), inst(InGame, None)), None);
-        assert_eq!(
-            t(inst(Disconnected, None), inst(InGame, None)),
-            None,
-            "reconnected"
-        );
+        assert_eq!(t(inst(Disconnected, None), inst(InGame, None)), None, "reconnected");
 
         // Getting into a game is a launch alert, once, and only for the first client.
-        let l = |b: Instance, a: Instance| {
-            launched(&Transition {
-                before: b,
-                after: a,
-                first_game: true,
-            })
-        };
+        let l = |b: Instance, a: Instance| launched(&Transition { before: b, after: a, first_game: true });
         assert!(l(inst(Joining, None), inst(InGame, None)));
         assert!(l(inst(Starting, None), inst(InGame, None)));
-        assert!(
-            !l(inst(InGame, None), inst(InGame, Some(HUNG))),
-            "already in game"
-        );
-        assert!(
-            !l(inst(Disconnected, None), inst(InGame, None)),
-            "reconnected"
-        );
+        assert!(!l(inst(InGame, None), inst(InGame, Some(HUNG))), "already in game");
+        assert!(!l(inst(Disconnected, None), inst(InGame, None)), "reconnected");
         let mut rejoined = inst(InGame, None);
         rejoined.rejoins = 1;
         assert!(!l(inst(Joining, None), rejoined), "a rejoin or restart");
@@ -970,71 +711,29 @@ mod tests {
 
     #[test]
     fn builds_one_embed_per_message() {
-        let crash = Event::Crash {
-            name: "Nova (@nova\\_builds)".into(),
-            place_id: Some(1818),
-        };
+        let crash = Event::Crash { name: "Nova (@nova\\_builds)".into(), place_id: Some(1818) };
         let one = message(std::slice::from_ref(&crash), "");
         assert_eq!(one["username"], "MTwin Manager");
         assert_eq!(one["allowed_mentions"]["parse"], json!([]));
         let embeds = one["embeds"].as_array().unwrap();
         assert_eq!(embeds.len(), 1);
-        assert_eq!(
-            embeds[0]["description"],
-            "💥 **Nova (@nova\\_builds)**: the client crashed (place 1818)."
-        );
+        assert_eq!(embeds[0]["description"], "💥 **Nova (@nova\\_builds)**: the client crashed (place 1818).");
         assert_eq!(embeds[0]["color"], 0xE5484D);
 
-        let rejoin = Event::Restart {
-            name: "A".into(),
-            cause: CrashKind::Disconnect,
-        };
-        assert_eq!(
-            message(std::slice::from_ref(&rejoin), "")["embeds"][0]["color"],
-            0xB4F000
-        );
-        let batch = Event::BatchDone {
-            total: 3,
-            in_game: 1,
-            done: 1,
-            failed: 1,
-            stopped: Some("Cancelled".into()),
-        };
-        assert_eq!(
-            batch.line(),
-            "🚀 Batch finished: 1 of 3 in game, 1 done, 1 failed (stopped: Cancelled)."
-        );
-        let status = Event::Status {
-            clients: 2,
-            ram_mb: 1536.4,
-            cpu_pct: Some(12.6),
-        };
-        assert_eq!(
-            status.line(),
-            "📊 2 clients running · 1536 MB RAM · 13% CPU."
-        );
-        let launch = Event::Launch {
-            name: "A".into(),
-            place_id: Some(1818),
-        };
+        let rejoin = Event::Restart { name: "A".into(), cause: CrashKind::Disconnect };
+        assert_eq!(message(std::slice::from_ref(&rejoin), "")["embeds"][0]["color"], 0xB4F000);
+        let batch = Event::BatchDone { total: 3, in_game: 1, done: 1, failed: 1, stopped: Some("Cancelled".into()) };
+        assert_eq!(batch.line(), "🚀 Batch finished: 1 of 3 in game, 1 done, 1 failed (stopped: Cancelled).");
+        let status = Event::Status { clients: 2, ram_mb: 1536.4, cpu_pct: Some(12.6) };
+        assert_eq!(status.line(), "📊 2 clients running · 1536 MB RAM · 13% CPU.");
+        let launch = Event::Launch { name: "A".into(), place_id: Some(1818) };
         assert_eq!(launch.line(), "🎮 **A**: in game (place 1818).");
-        let no_cpu = Event::Status {
-            clients: 1,
-            ram_mb: 512.0,
-            cpu_pct: None,
-        };
+        let no_cpu = Event::Status { clients: 1, ram_mb: 512.0, cpu_pct: None };
         assert_eq!(no_cpu.line(), "📊 1 client running · 512 MB RAM.");
 
         // Many at once: the first 15 lines, then a count.
-        let many: Vec<Event> = (0..20)
-            .map(|n| Event::Disconnect {
-                name: format!("A{n}"),
-            })
-            .collect();
-        let text = message(&many, "")["embeds"][0]["description"]
-            .as_str()
-            .unwrap()
-            .to_owned();
+        let many: Vec<Event> = (0..20).map(|n| Event::Disconnect { name: format!("A{n}") }).collect();
+        let text = message(&many, "")["embeds"][0]["description"].as_str().unwrap().to_owned();
         assert_eq!(text.lines().count(), 16);
         assert!(text.ends_with("…and 5 more.") && text.starts_with("🔌 **A0**"));
         assert_eq!(message(&many, "")["embeds"][0]["color"], 0xFFA05C);
@@ -1042,64 +741,26 @@ mod tests {
 
     #[test]
     fn parses_pings() {
-        for (raw, want) in [
-            ("", ""),
-            ("  ", ""),
-            (" 123 ", "<@123>"),
-            ("<@123>", "<@123>"),
-            ("<@!123>", "<@123>"),
-            ("<@&9>", "<@&9>"),
-        ] {
+        for (raw, want) in [("", ""), ("  ", ""), (" 123 ", "<@123>"), ("<@123>", "<@123>"), ("<@!123>", "<@123>"), ("<@&9>", "<@&9>")] {
             assert_eq!(parse_ping(raw).unwrap(), want, "{raw}");
         }
-        for bad in [
-            "abc",
-            "<@&>",
-            "<@>",
-            "@everyone",
-            "<@12a>",
-            "<#123>",
-            "<@123",
-            "12 3",
-            &"1".repeat(26),
-        ] {
+        for bad in ["abc", "<@&>", "<@>", "@everyone", "<@12a>", "<#123>", "<@123", "12 3", &"1".repeat(26)] {
             assert!(parse_ping(bad).is_err(), "{bad}");
         }
     }
 
     #[test]
     fn pings_only_when_something_went_wrong() {
-        let crash = [Event::Crash {
-            name: "A".into(),
-            place_id: None,
-        }];
+        let crash = [Event::Crash { name: "A".into(), place_id: None }];
         let m = message(&crash, "<@123>");
         assert_eq!(m["content"], "<@123>");
-        assert_eq!(
-            m["allowed_mentions"],
-            json!({ "parse": [], "users": ["123"] })
-        );
+        assert_eq!(m["allowed_mentions"], json!({ "parse": [], "users": ["123"] }));
         let m = message(&crash, "<@&9>");
-        assert_eq!(
-            m["allowed_mentions"],
-            json!({ "parse": [], "roles": ["9"] })
-        );
+        assert_eq!(m["allowed_mentions"], json!({ "parse": [], "roles": ["9"] }));
         // News and no ping: no mention at all.
-        let news = [
-            Event::Launch {
-                name: "A".into(),
-                place_id: None,
-            },
-            Event::Restart {
-                name: "A".into(),
-                cause: CrashKind::Crash,
-            },
-        ];
+        let news = [Event::Launch { name: "A".into(), place_id: None }, Event::Restart { name: "A".into(), cause: CrashKind::Crash }];
         assert_eq!(message(&news, "<@123>").get("content"), None);
-        assert_eq!(
-            message(&crash, ""),
-            json!({ "username": "MTwin Manager", "allowed_mentions": { "parse": [] }, "embeds": message(&crash, "<@1>")["embeds"] })
-        );
+        assert_eq!(message(&crash, ""), json!({ "username": "MTwin Manager", "allowed_mentions": { "parse": [] }, "embeds": message(&crash, "<@1>")["embeds"] }));
         // A disconnect among news still pings.
         let mixed = [news[0].clone(), Event::Disconnect { name: "B".into() }];
         assert_eq!(message(&mixed, "<@123>")["content"], "<@123>");
@@ -1128,37 +789,20 @@ mod tests {
             main: false,
             custom_flags: Default::default(),
             fps_cap: None,
+
         };
-        assert_eq!(
-            name_of(Some(&a), 1),
-            "\\*Nova\\* \\@everyone (\\@nova\\_builds)"
-        );
+        assert_eq!(name_of(Some(&a), 1), "\\*Nova\\* \\@everyone (\\@nova\\_builds)");
         assert_eq!(name_of(None, 7), "Account 7");
     }
 
     #[test]
     fn toggles_pick_events() {
         let mut v = DiscordEvents::default();
-        let mem = Event::Restart {
-            name: "A".into(),
-            cause: CrashKind::Mem,
-        };
-        let crash_restart = Event::Restart {
-            name: "A".into(),
-            cause: CrashKind::Crash,
-        };
-        let status = Event::Status {
-            clients: 1,
-            ram_mb: 1.0,
-            cpu_pct: Some(1.0),
-        };
-        let launch = Event::Launch {
-            name: "A".into(),
-            place_id: None,
-        };
-        assert!(
-            mem.wanted(&v) && crash_restart.wanted(&v) && !status.wanted(&v) && !launch.wanted(&v)
-        );
+        let mem = Event::Restart { name: "A".into(), cause: CrashKind::Mem };
+        let crash_restart = Event::Restart { name: "A".into(), cause: CrashKind::Crash };
+        let status = Event::Status { clients: 1, ram_mb: 1.0, cpu_pct: Some(1.0) };
+        let launch = Event::Launch { name: "A".into(), place_id: None };
+        assert!(mem.wanted(&v) && crash_restart.wanted(&v) && !status.wanted(&v) && !launch.wanted(&v));
         v.launch = true;
         assert!(launch.wanted(&v));
         v.mem_restart = false;
@@ -1170,24 +814,15 @@ mod tests {
     #[test]
     fn coalesces_and_waits_between_messages() {
         let t0 = Instant::now();
-        let ev = |n: usize| Event::Disconnect {
-            name: format!("A{n}"),
-        };
+        let ev = |n: usize| Event::Disconnect { name: format!("A{n}") };
         let mut o = Outbox::default();
         assert!(o.take(t0).is_empty());
         o.push(ev(0));
         o.push(ev(1));
-        assert_eq!(
-            o.take(t0),
-            [ev(0), ev(1)],
-            "everything queued goes in one message"
-        );
+        assert_eq!(o.take(t0), [ev(0), ev(1)], "everything queued goes in one message");
         o.sent(t0);
         o.push(ev(2));
-        assert!(
-            o.take(t0 + Duration::from_millis(1_999)).is_empty(),
-            "at most one message per 2 s"
-        );
+        assert!(o.take(t0 + Duration::from_millis(1_999)).is_empty(), "at most one message per 2 s");
         o.push(ev(3));
         assert_eq!(o.take(t0 + GAP), [ev(2), ev(3)]);
 
@@ -1196,10 +831,7 @@ mod tests {
         o.retry(vec![ev(2), ev(3)], t0, Duration::from_secs(7));
         assert!(o.take(t0 + Duration::from_secs(6)).is_empty());
         o.sent(t0 + Duration::from_secs(1));
-        assert!(
-            o.take(t0 + Duration::from_secs(6)).is_empty(),
-            "a test message doesn't cut Discord's wait short"
-        );
+        assert!(o.take(t0 + Duration::from_secs(6)).is_empty(), "a test message doesn't cut Discord's wait short");
         assert_eq!(o.take(t0 + Duration::from_secs(7)), [ev(2), ev(3), ev(4)]);
         o.retry(vec![ev(5)], t0, Duration::ZERO);
         assert!(o.take(t0 + Duration::from_millis(1_999)).is_empty());
@@ -1208,35 +840,16 @@ mod tests {
         let mut o = Outbox::default();
         (0..60).for_each(|n| o.push(ev(n)));
         let out = o.take(t0);
-        assert_eq!(
-            (out.len(), out.first(), out.last()),
-            (MAX_QUEUED, Some(&ev(10)), Some(&ev(59)))
-        );
+        assert_eq!((out.len(), out.first(), out.last()), (MAX_QUEUED, Some(&ev(10)), Some(&ev(59))));
     }
 
     #[test]
     fn honours_retry_after() {
-        assert_eq!(
-            retry_after(
-                r#"{"message":"You are being rate limited.","retry_after":3.5,"global":false}"#,
-                None
-            ),
-            Duration::from_millis(3_500)
-        );
+        assert_eq!(retry_after(r#"{"message":"You are being rate limited.","retry_after":3.5,"global":false}"#, None), Duration::from_millis(3_500));
         assert_eq!(retry_after("", Some("9")), Duration::from_secs(9));
-        assert_eq!(
-            retry_after(r#"{"retry_after":0.2}"#, Some("9")),
-            GAP,
-            "never under 2 s"
-        );
+        assert_eq!(retry_after(r#"{"retry_after":0.2}"#, Some("9")), GAP, "never under 2 s");
         assert_eq!(retry_after("not json", None), Duration::from_secs(5));
-        assert_eq!(
-            retry_after(r#"{"retry_after":99999}"#, None),
-            Duration::from_secs(600)
-        );
-        assert_eq!(
-            retry_after(r#"{"retry_after":-1}"#, Some("x")),
-            Duration::from_secs(5)
-        );
+        assert_eq!(retry_after(r#"{"retry_after":99999}"#, None), Duration::from_secs(600));
+        assert_eq!(retry_after(r#"{"retry_after":-1}"#, Some("x")), Duration::from_secs(5));
     }
 }

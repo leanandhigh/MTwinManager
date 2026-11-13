@@ -26,12 +26,7 @@ pub fn random_bytes<const N: usize>() -> [u8; N] {
 /// A fresh `Kdf` with the default cost and a random 16-byte salt.
 pub fn new_kdf() -> Kdf {
     let (m_kib, t, p) = COST;
-    Kdf {
-        salt: random_bytes::<16>().to_vec(),
-        m_kib,
-        t,
-        p,
-    }
+    Kdf { salt: random_bytes::<16>().to_vec(), m_kib, t, p }
 }
 
 #[cfg(not(test))]
@@ -44,12 +39,7 @@ const COST: (u32, u32, u32) = (1024, 1, 1);
 /// rarely used.
 pub fn new_recovery_kdf() -> Kdf {
     let (m_kib, t, p) = RECOVERY_COST;
-    Kdf {
-        salt: random_bytes::<16>().to_vec(),
-        m_kib,
-        t,
-        p,
-    }
+    Kdf { salt: random_bytes::<16>().to_vec(), m_kib, t, p }
 }
 
 #[cfg(not(test))]
@@ -82,24 +72,15 @@ pub fn recovery_code() -> Secret {
 /// What the user typed as `XXX-XXX-XXX`, ignoring case, dashes and spaces; None if it can't be a code.
 pub fn normalize_code(raw: &str) -> Option<Secret> {
     let code: Zeroizing<String> = Zeroizing::new(
-        raw.chars()
-            .filter(|c| *c != '-' && !c.is_whitespace())
-            .map(|c| c.to_ascii_uppercase())
-            .collect(),
+        raw.chars().filter(|c| *c != '-' && !c.is_whitespace()).map(|c| c.to_ascii_uppercase()).collect(),
     );
-    (code.len() == CODE_LEN && code.bytes().all(|b| CODE_ALPHABET.contains(&b)))
-        .then(|| dashed(&code))
+    (code.len() == CODE_LEN && code.bytes().all(|b| CODE_ALPHABET.contains(&b))).then(|| dashed(&code))
 }
 
 /// Argon2id(password, kdf) → 32-byte key.
 pub fn derive_key(password: &str, kdf: &Kdf) -> Result<Zeroizing<[u8; 32]>> {
     let params = Params::new(kdf.m_kib, kdf.t, kdf.p, Some(32)).map_err(|e| {
-        log::warn!(
-            "bad argon2 parameters (m {} KiB, t {}, p {}): {e}",
-            kdf.m_kib,
-            kdf.t,
-            kdf.p
-        );
+        log::warn!("bad argon2 parameters (m {} KiB, t {}, p {}): {e}", kdf.m_kib, kdf.t, kdf.p);
         AppError::Crypto
     })?;
     let mut key = Zeroizing::new([0u8; 32]);
@@ -116,13 +97,7 @@ pub fn derive_key(password: &str, kdf: &Kdf) -> Result<Zeroizing<[u8; 32]>> {
 pub fn seal(key: &[u8; 32], aad: &[u8], plaintext: &[u8]) -> Result<Vec<u8>> {
     let nonce = random_bytes::<NONCE_LEN>();
     let ct = Aes256Gcm::new(key.into())
-        .encrypt(
-            &Nonce::from(nonce),
-            Payload {
-                msg: plaintext,
-                aad,
-            },
-        )
+        .encrypt(&Nonce::from(nonce), Payload { msg: plaintext, aad })
         .map_err(|_| AppError::Crypto)?;
     let mut out = Vec::with_capacity(NONCE_LEN + ct.len());
     out.extend_from_slice(&nonce);
@@ -132,9 +107,7 @@ pub fn seal(key: &[u8; 32], aad: &[u8], plaintext: &[u8]) -> Result<Vec<u8>> {
 
 /// Inverse of `seal`; `AppError::Crypto` when the key, AAD or blob is wrong.
 pub fn open(key: &[u8; 32], aad: &[u8], blob: &[u8]) -> Result<Zeroizing<Vec<u8>>> {
-    let (nonce, ct) = blob
-        .split_first_chunk::<NONCE_LEN>()
-        .ok_or(AppError::Crypto)?;
+    let (nonce, ct) = blob.split_first_chunk::<NONCE_LEN>().ok_or(AppError::Crypto)?;
     Aes256Gcm::new(key.into())
         .decrypt(&Nonce::from(*nonce), Payload { msg: ct, aad })
         .map(Zeroizing::new)
@@ -150,32 +123,19 @@ mod tests {
         let key = random_bytes::<32>();
         let blob = seal(&key, b"aad", b"secret").unwrap();
         assert_eq!(open(&key, b"aad", &blob).unwrap().as_slice(), b"secret");
-        assert_ne!(
-            seal(&key, b"aad", b"secret").unwrap(),
-            blob,
-            "nonce must be fresh"
-        );
+        assert_ne!(seal(&key, b"aad", b"secret").unwrap(), blob, "nonce must be fresh");
     }
 
     #[test]
     fn open_rejects_wrong_key_aad_or_blob() {
         let key = random_bytes::<32>();
         let blob = seal(&key, b"aad", b"secret").unwrap();
-        assert!(matches!(
-            open(&random_bytes::<32>(), b"aad", &blob),
-            Err(AppError::Crypto)
-        ));
+        assert!(matches!(open(&random_bytes::<32>(), b"aad", &blob), Err(AppError::Crypto)));
         assert!(matches!(open(&key, b"other", &blob), Err(AppError::Crypto)));
         let mut tampered = blob.clone();
         *tampered.last_mut().unwrap() ^= 1;
-        assert!(matches!(
-            open(&key, b"aad", &tampered),
-            Err(AppError::Crypto)
-        ));
-        assert!(matches!(
-            open(&key, b"aad", &blob[..5]),
-            Err(AppError::Crypto)
-        ));
+        assert!(matches!(open(&key, b"aad", &tampered), Err(AppError::Crypto)));
+        assert!(matches!(open(&key, b"aad", &blob[..5]), Err(AppError::Crypto)));
     }
 
     #[test]
@@ -199,14 +159,7 @@ mod tests {
             let c = code.expose();
             assert_eq!(c.len(), 11);
             for (i, b) in c.bytes().enumerate() {
-                assert!(
-                    if i == 3 || i == 7 {
-                        b == b'-'
-                    } else {
-                        CODE_ALPHABET.contains(&b)
-                    },
-                    "{c}"
-                );
+                assert!(if i == 3 || i == 7 { b == b'-' } else { CODE_ALPHABET.contains(&b) }, "{c}");
             }
             assert_eq!(normalize_code(c).unwrap().expose(), c);
             seen.insert(c.to_owned());
@@ -216,29 +169,10 @@ mod tests {
 
     #[test]
     fn normalize_ignores_case_dashes_and_spaces() {
-        for raw in [
-            "abc-def-234",
-            "ABCDEF234",
-            " abc def 234\r\n",
-            "a-b-c-d-e-f-2-3-4",
-        ] {
-            assert_eq!(
-                normalize_code(raw).unwrap().expose(),
-                "ABC-DEF-234",
-                "{raw:?}"
-            );
+        for raw in ["abc-def-234", "ABCDEF234", " abc def 234\r\n", "a-b-c-d-e-f-2-3-4"] {
+            assert_eq!(normalize_code(raw).unwrap().expose(), "ABC-DEF-234", "{raw:?}");
         }
-        for raw in [
-            "",
-            "ABC-DEF-23",
-            "ABC-DEF-2345",
-            "ABC-DEF-230",
-            "OBC-DEF-234",
-            "ILC-DEF-234",
-            "ÄBC-DEF-234",
-            "ABC_DEF_234",
-            "Hello world, this is text",
-        ] {
+        for raw in ["", "ABC-DEF-23", "ABC-DEF-2345", "ABC-DEF-230", "OBC-DEF-234", "ILC-DEF-234", "ÄBC-DEF-234", "ABC_DEF_234", "Hello world, this is text"] {
             assert!(normalize_code(raw).is_none(), "{raw:?}");
         }
     }

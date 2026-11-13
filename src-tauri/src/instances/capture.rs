@@ -16,10 +16,7 @@ use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
 use std::sync::{Arc, LazyLock, Mutex, MutexGuard, OnceLock};
 use std::time::{Duration, Instant};
 
-use windows::Graphics::Capture::{
-    Direct3D11CaptureFrame, Direct3D11CaptureFramePool, GraphicsCaptureAccess,
-    GraphicsCaptureAccessKind, GraphicsCaptureItem, GraphicsCaptureSession,
-};
+use windows::Graphics::Capture::{Direct3D11CaptureFrame, Direct3D11CaptureFramePool, GraphicsCaptureAccess, GraphicsCaptureAccessKind, GraphicsCaptureItem, GraphicsCaptureSession};
 use windows::Graphics::DirectX::Direct3D11::IDirect3DDevice;
 use windows::Graphics::DirectX::DirectXPixelFormat;
 use windows::Graphics::SizeInt32;
@@ -27,18 +24,14 @@ use windows::Security::Authorization::AppCapabilityAccess::AppCapabilityAccessSt
 use windows::Win32::Foundation::{HMODULE, HWND};
 use windows::Win32::Graphics::Direct3D::D3D_DRIVER_TYPE_HARDWARE;
 use windows::Win32::Graphics::Direct3D11::{
-    D3D11_BIND_RENDER_TARGET, D3D11_BIND_SHADER_RESOURCE, D3D11_BOX, D3D11_CPU_ACCESS_READ,
-    D3D11_CREATE_DEVICE_BGRA_SUPPORT, D3D11_MAP_READ, D3D11_MAPPED_SUBRESOURCE,
-    D3D11_RESOURCE_MISC_GENERATE_MIPS, D3D11_SDK_VERSION, D3D11_TEXTURE2D_DESC,
-    D3D11_USAGE_DEFAULT, D3D11_USAGE_STAGING, D3D11CreateDevice, ID3D11Device, ID3D11DeviceContext,
-    ID3D11ShaderResourceView, ID3D11Texture2D,
+    D3D11_BIND_RENDER_TARGET, D3D11_BIND_SHADER_RESOURCE, D3D11_BOX, D3D11_CPU_ACCESS_READ, D3D11_CREATE_DEVICE_BGRA_SUPPORT, D3D11_MAP_READ,
+    D3D11_MAPPED_SUBRESOURCE, D3D11_RESOURCE_MISC_GENERATE_MIPS, D3D11_SDK_VERSION, D3D11_TEXTURE2D_DESC, D3D11_USAGE_DEFAULT, D3D11_USAGE_STAGING,
+    D3D11CreateDevice, ID3D11Device, ID3D11DeviceContext, ID3D11ShaderResourceView, ID3D11Texture2D,
 };
 use windows::Win32::Graphics::Dxgi::Common::{DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_SAMPLE_DESC};
 use windows::Win32::Graphics::Dxgi::IDXGIDevice;
 use windows::Win32::System::Com::{COINIT_MULTITHREADED, CoInitializeEx};
-use windows::Win32::System::WinRT::Direct3D11::{
-    CreateDirect3D11DeviceFromDXGIDevice, IDirect3DDxgiInterfaceAccess,
-};
+use windows::Win32::System::WinRT::Direct3D11::{CreateDirect3D11DeviceFromDXGIDevice, IDirect3DDxgiInterfaceAccess};
 use windows::Win32::System::WinRT::Graphics::Capture::IGraphicsCaptureItemInterop;
 use windows::Win32::UI::WindowsAndMessaging::IsWindow;
 use windows::core::{Interface, Result, factory};
@@ -62,9 +55,7 @@ static NEXT_SEQ: AtomicU32 = AtomicU32::new(1);
 static REFUSED: AtomicBool = AtomicBool::new(false);
 
 fn shots() -> MutexGuard<'static, HashMap<isize, Shot>> {
-    SHOTS
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
+    SHOTS.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
 /// Asks for a new picture of the window, at most `max_w` pixels wide (a power-of-two step down from
@@ -74,21 +65,12 @@ pub fn request(hwnd: HWND, max_w: u32) {
     static WORKER: OnceLock<Sender<Request>> = OnceLock::new();
     let worker = WORKER.get_or_init(|| {
         let (tx, rx) = mpsc::channel();
-        if let Err(e) = std::thread::Builder::new()
-            .name("capture".into())
-            .spawn(move || run(&rx))
-        {
+        if let Err(e) = std::thread::Builder::new().name("capture".into()).spawn(move || run(&rx)) {
             log::warn!("live previews off: {e}");
         }
         tx
     });
-    if worker
-        .send(Request {
-            hwnd: hwnd.0 as isize,
-            max_w,
-        })
-        .is_err()
-    {
+    if worker.send(Request { hwnd: hwnd.0 as isize, max_w }).is_err() {
         static DEAD: std::sync::Once = std::sync::Once::new();
         DEAD.call_once(|| log::warn!("live previews off: the capture worker is not running"));
         REFUSED.store(true, Ordering::Relaxed);
@@ -140,9 +122,7 @@ fn run(requests: &Receiver<Request>) {
         log::debug!("live previews: CoInitializeEx failed: {e}");
     }
     if !borderless() {
-        log::info!(
-            "live previews: Windows draws a yellow border around captured client windows here"
-        );
+        log::info!("live previews: Windows draws a yellow border around captured client windows here");
     }
     let mut gpu: Option<Gpu> = None;
     let mut gpu_warned = false;
@@ -160,10 +140,7 @@ fn run(requests: &Receiver<Request>) {
             Err(RecvTimeoutError::Disconnected) => return,
         }
         // SAFETY: asks our own device one question. Asked apart from frames: a lost device has none.
-        if gpu
-            .as_ref()
-            .is_some_and(|g| unsafe { g.device.GetDeviceRemovedReason() }.is_err())
-        {
+        if gpu.as_ref().is_some_and(|g| unsafe { g.device.GetDeviceRemovedReason() }.is_err()) {
             log::info!("live previews: the Direct3D device was lost, making a new one");
             gpu = None;
             captures.drain().for_each(|(_, c)| close(&c));
@@ -237,13 +214,8 @@ fn new_gpu() -> Result<Gpu> {
     let device: ID3D11Device = device.ok_or_else(windows::core::Error::empty)?;
     let context = context.ok_or_else(windows::core::Error::empty)?;
     // SAFETY: wraps our own device for the WinRT capture API.
-    let winrt =
-        unsafe { CreateDirect3D11DeviceFromDXGIDevice(&device.cast::<IDXGIDevice>()?)? }.cast()?;
-    Ok(Gpu {
-        device,
-        context,
-        winrt,
-    })
+    let winrt = unsafe { CreateDirect3D11DeviceFromDXGIDevice(&device.cast::<IDXGIDevice>()?)? }.cast()?;
+    Ok(Gpu { device, context, winrt })
 }
 
 /// Keeps the window's newest frame, if one arrived, as its picture.
@@ -264,9 +236,7 @@ fn serve(gpu: &Gpu, captures: &mut HashMap<isize, Capture>, hwnd: isize, max_w: 
             }
         }
     }
-    let Some(c) = captures.get_mut(&hwnd) else {
-        return;
-    };
+    let Some(c) = captures.get_mut(&hwnd) else { return };
     c.used = Instant::now();
     // Only the newest frame matters; older ones go back to the pool.
     let mut newest: Option<Direct3D11CaptureFrame> = None;
@@ -278,11 +248,7 @@ fn serve(gpu: &Gpu, captures: &mut HashMap<isize, Capture>, hwnd: isize, max_w: 
     if let Some(frame) = newest {
         match scale(gpu, c, &frame, max_w) {
             Ok(Some(thumb)) => {
-                let shot = Shot {
-                    thumb: Arc::new(thumb),
-                    seq: NEXT_SEQ.fetch_add(1, Ordering::Relaxed),
-                    at: Instant::now(),
-                };
+                let shot = Shot { thumb: Arc::new(thumb), seq: NEXT_SEQ.fetch_add(1, Ordering::Relaxed), at: Instant::now() };
                 shots().insert(hwnd, shot);
                 REFUSED.store(false, Ordering::Relaxed);
             }
@@ -301,30 +267,16 @@ fn start(gpu: &Gpu, hwnd: HWND) -> Result<Capture> {
     let pool = Direct3D11CaptureFramePool::CreateFreeThreaded(&gpu.winrt, FORMAT, 2, size)?;
     let session = pool.CreateCaptureSession(&item)?;
     if let Err(e) = session.SetIsBorderRequired(false) {
-        log::debug!(
-            "live preview: window {:#x} keeps the yellow border: {e}",
-            hwnd.0 as isize
-        );
+        log::debug!("live preview: window {:#x} keeps the yellow border: {e}", hwnd.0 as isize);
     }
     let _ = session.SetIsCursorCaptureEnabled(false);
     session.StartCapture()?;
-    Ok(Capture {
-        pool,
-        session,
-        size,
-        scaled: None,
-        used: Instant::now(),
-    })
+    Ok(Capture { pool, session, size, scaled: None, used: Instant::now() })
 }
 
 /// The frame scaled down to at most `max_w` wide; None for an empty window, or the first frame
 /// after a resize.
-fn scale(
-    gpu: &Gpu,
-    c: &mut Capture,
-    frame: &Direct3D11CaptureFrame,
-    max_w: u32,
-) -> Result<Option<Thumb>> {
+fn scale(gpu: &Gpu, c: &mut Capture, frame: &Direct3D11CaptureFrame, max_w: u32) -> Result<Option<Thumb>> {
     let content = frame.ContentSize()?;
     if content.Width != c.size.Width || content.Height != c.size.Height {
         // The window was resized: later frames come at its new size.
@@ -335,11 +287,7 @@ fn scale(
     if content.Width <= 0 || content.Height <= 0 {
         return Ok(None);
     }
-    let fits = |s: &Scaled| {
-        s.size.Width == content.Width
-            && s.size.Height == content.Height
-            && s.level == level_for(content.Width as u32, max_w)
-    };
+    let fits = |s: &Scaled| s.size.Width == content.Width && s.size.Height == content.Height && s.level == level_for(content.Width as u32, max_w);
     if !c.scaled.as_ref().is_some_and(fits) {
         c.scaled = Some(scaled(gpu, content, max_w)?);
     }
@@ -347,39 +295,22 @@ fn scale(
     let access = frame.Surface()?.cast::<IDirect3DDxgiInterfaceAccess>()?;
     // SAFETY: the frame's own Direct3D texture, alive while `frame` is.
     let source: ID3D11Texture2D = unsafe { access.GetInterface()? };
-    let content_box = D3D11_BOX {
-        left: 0,
-        top: 0,
-        front: 0,
-        right: content.Width as u32,
-        bottom: content.Height as u32,
-        back: 1,
-    };
+    let content_box = D3D11_BOX { left: 0, top: 0, front: 0, right: content.Width as u32, bottom: content.Height as u32, back: 1 };
     let mut mapped = D3D11_MAPPED_SUBRESOURCE::default();
     // SAFETY: copies between textures of this device sized as made in `scaled`, then reads the
     // mapped staging texture row by row within its pitch before unmapping it.
     unsafe {
-        gpu.context
-            .CopySubresourceRegion(&s.mips, 0, 0, 0, 0, &source, 0, Some(&content_box));
+        gpu.context.CopySubresourceRegion(&s.mips, 0, 0, 0, 0, &source, 0, Some(&content_box));
         gpu.context.GenerateMips(&s.view);
-        gpu.context
-            .CopySubresourceRegion(&s.staging, 0, 0, 0, 0, &s.mips, s.level, None);
-        gpu.context
-            .Map(&s.staging, 0, D3D11_MAP_READ, 0, Some(&mut mapped))?;
+        gpu.context.CopySubresourceRegion(&s.staging, 0, 0, 0, 0, &s.mips, s.level, None);
+        gpu.context.Map(&s.staging, 0, D3D11_MAP_READ, 0, Some(&mut mapped))?;
         let row = (s.width * 4) as usize;
         let mut bgra = Vec::with_capacity(row * s.height as usize);
         for y in 0..s.height as usize {
-            bgra.extend_from_slice(std::slice::from_raw_parts(
-                (mapped.pData as *const u8).add(y * mapped.RowPitch as usize),
-                row,
-            ));
+            bgra.extend_from_slice(std::slice::from_raw_parts((mapped.pData as *const u8).add(y * mapped.RowPitch as usize), row));
         }
         gpu.context.Unmap(&s.staging, 0);
-        Ok(Some(Thumb {
-            width: s.width,
-            height: s.height,
-            rgba: to_rgba(&bgra),
-        }))
+        Ok(Some(Thumb { width: s.width, height: s.height, rgba: to_rgba(&bgra) }))
     }
 }
 
@@ -402,55 +333,25 @@ fn scaled(gpu: &Gpu, size: SizeInt32, max_w: u32) -> Result<Scaled> {
         MipLevels: mips,
         ArraySize: 1,
         Format: DXGI_FORMAT_B8G8R8A8_UNORM,
-        SampleDesc: DXGI_SAMPLE_DESC {
-            Count: 1,
-            Quality: 0,
-        },
+        SampleDesc: DXGI_SAMPLE_DESC { Count: 1, Quality: 0 },
         Usage: usage,
         BindFlags: bind,
         CPUAccessFlags: cpu,
         MiscFlags: misc,
     };
     // Every level down to the one read back.
-    let mips_desc = texture(
-        w,
-        h,
-        level + 1,
-        D3D11_USAGE_DEFAULT,
-        (D3D11_BIND_RENDER_TARGET.0 | D3D11_BIND_SHADER_RESOURCE.0) as u32,
-        0,
-        D3D11_RESOURCE_MISC_GENERATE_MIPS.0 as u32,
-    );
-    let staging_desc = texture(
-        width,
-        height,
-        1,
-        D3D11_USAGE_STAGING,
-        0,
-        D3D11_CPU_ACCESS_READ.0 as u32,
-        0,
-    );
+    let mips_desc = texture(w, h, level + 1, D3D11_USAGE_DEFAULT, (D3D11_BIND_RENDER_TARGET.0 | D3D11_BIND_SHADER_RESOURCE.0) as u32, 0, D3D11_RESOURCE_MISC_GENERATE_MIPS.0 as u32);
+    let staging_desc = texture(width, height, 1, D3D11_USAGE_STAGING, 0, D3D11_CPU_ACCESS_READ.0 as u32, 0);
     let (mut mips, mut view, mut staging) = (None, None, None);
     // SAFETY: plain resource creation on our device into locals.
     unsafe {
-        gpu.device
-            .CreateTexture2D(&mips_desc, None, Some(&mut mips))?;
+        gpu.device.CreateTexture2D(&mips_desc, None, Some(&mut mips))?;
         let mips_ref = mips.as_ref().ok_or_else(windows::core::Error::empty)?;
-        gpu.device
-            .CreateShaderResourceView(mips_ref, None, Some(&mut view))?;
-        gpu.device
-            .CreateTexture2D(&staging_desc, None, Some(&mut staging))?;
+        gpu.device.CreateShaderResourceView(mips_ref, None, Some(&mut view))?;
+        gpu.device.CreateTexture2D(&staging_desc, None, Some(&mut staging))?;
     }
     let none = windows::core::Error::empty;
-    Ok(Scaled {
-        size,
-        mips: mips.ok_or_else(none)?,
-        view: view.ok_or_else(none)?,
-        level,
-        staging: staging.ok_or_else(none)?,
-        width,
-        height,
-    })
+    Ok(Scaled { size, mips: mips.ok_or_else(none)?, view: view.ok_or_else(none)?, level, staging: staging.ok_or_else(none)?, width, height })
 }
 
 #[cfg(test)]
@@ -478,10 +379,7 @@ mod tests {
         let t = shot.expect("a picture of the taskbar").thumb;
         assert!(t.width <= 480 && t.width > 0 && t.height > 0);
         assert_eq!(t.rgba.len(), (t.width * t.height * 4) as usize);
-        assert!(
-            t.rgba.chunks(4).any(|p| p[..3] != t.rgba[..3]),
-            "not one flat colour"
-        );
+        assert!(t.rgba.chunks(4).any(|p| p[..3] != t.rgba[..3]), "not one flat colour");
     }
 
     /// Brightness of the window in `MTWIN_TEST_HWND` over 6 s of pictures, 15 a second: median,
@@ -489,9 +387,7 @@ mod tests {
     #[test]
     #[ignore]
     fn measures_flashes() {
-        let Ok(h) = std::env::var("MTWIN_TEST_HWND") else {
-            return;
-        };
+        let Ok(h) = std::env::var("MTWIN_TEST_HWND") else { return };
         let hwnd = windows::Win32::Foundation::HWND(h.parse::<isize>().unwrap() as _);
         let mut means = Vec::new();
         let mut pictures = std::collections::HashSet::new();
@@ -500,11 +396,7 @@ mod tests {
             request(hwnd, 480);
             if let Some(t) = last(hwnd).map(|s| s.thumb) {
                 pictures.insert(t.rgba.clone());
-                let sum: u64 = t
-                    .rgba
-                    .chunks(4)
-                    .map(|p| u64::from(p[0]) + u64::from(p[1]) + u64::from(p[2]))
-                    .sum();
+                let sum: u64 = t.rgba.chunks(4).map(|p| u64::from(p[0]) + u64::from(p[1]) + u64::from(p[2])).sum();
                 means.push(sum as f64 / 3.0 / (t.rgba.len() / 4) as f64);
             }
             std::thread::sleep(std::time::Duration::from_millis(66));
@@ -512,12 +404,7 @@ mod tests {
         means.sort_by(f64::total_cmp);
         let median = means[means.len() / 2];
         let flashes = means.iter().filter(|m| **m > median + 60.0).count();
-        println!(
-            "FLASHES samples={} different={} median={median:.0} max={:.0} flashes={flashes}",
-            means.len(),
-            pictures.len(),
-            means.last().unwrap()
-        );
+        println!("FLASHES samples={} different={} median={median:.0} max={:.0} flashes={flashes}", means.len(), pictures.len(), means.last().unwrap());
     }
 
     #[test]

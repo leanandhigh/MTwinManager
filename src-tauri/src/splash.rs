@@ -48,12 +48,7 @@ pub fn start(app: &AppHandle, w: &WebviewWindow, skip: bool) -> tauri::Result<()
     }
     let scale = w.scale_factor()?;
     let (pos, size) = (w.outer_position()?, w.outer_size()?);
-    let mut rect = Rect {
-        x: pos.x,
-        y: pos.y,
-        w: size.width as i32,
-        h: size.height as i32,
-    };
+    let mut rect = Rect { x: pos.x, y: pos.y, w: size.width as i32, h: size.height as i32 };
     let monitor = w.current_monitor()?.or(w.primary_monitor()?);
     // A state saved while the splash was up (closed during it) is no size to grow to.
     if f64::from(rect.w) < MIN.0 * scale || f64::from(rect.h) < MIN.1 * scale {
@@ -90,47 +85,26 @@ pub fn start(app: &AppHandle, w: &WebviewWindow, skip: bool) -> tauri::Result<()
 
 /// A `w` × `h` rect centered on `on`.
 fn centered(on: Rect, w: i32, h: i32) -> Rect {
-    Rect {
-        x: on.x + (on.w - w) / 2,
-        y: on.y + (on.h - h) / 2,
-        w,
-        h,
-    }
+    Rect { x: on.x + (on.w - w) / 2, y: on.y + (on.h - h) / 2, w, h }
 }
 
 /// The monitor's work area (without the taskbar).
 fn area(m: &tauri::Monitor) -> Rect {
     let a = m.work_area();
-    Rect {
-        x: a.position.x,
-        y: a.position.y,
-        w: a.size.width as i32,
-        h: a.size.height as i32,
-    }
+    Rect { x: a.position.x, y: a.position.y, w: a.size.width as i32, h: a.size.height as i32 }
 }
 
 /// `a` to `b` at `t` (0..=1), eased in and out.
 fn lerp(a: Rect, b: Rect, t: f64) -> Rect {
-    let e = if t < 0.5 {
-        4.0 * t * t * t
-    } else {
-        1.0 - (-2.0 * t + 2.0).powi(3) / 2.0
-    };
+    let e = if t < 0.5 { 4.0 * t * t * t } else { 1.0 - (-2.0 * t + 2.0).powi(3) / 2.0 };
     let m = |p: i32, q: i32| p + (f64::from(q - p) * e).round() as i32;
-    Rect {
-        x: m(a.x, b.x),
-        y: m(a.y, b.y),
-        w: m(a.w, b.w),
-        h: m(a.h, b.h),
-    }
+    Rect { x: m(a.x, b.x), y: m(a.y, b.y), w: m(a.w, b.w), h: m(a.h, b.h) }
 }
 
 /// Grows the window from where it is to the target; once (later calls do nothing).
 /// `fallback`: called by the timer, not the UI.
 fn grow(app: &AppHandle, fallback: bool) {
-    let Some(target) = app.state::<Pending>().0.lock().unwrap().take() else {
-        return;
-    };
+    let Some(target) = app.state::<Pending>().0.lock().unwrap().take() else { return };
     if fallback {
         log::warn!("splash: the UI never called splash_done; growing the window anyway");
     }
@@ -139,26 +113,14 @@ fn grow(app: &AppHandle, fallback: bool) {
         return;
     };
     let from = match (w.outer_position(), w.outer_size()) {
-        (Ok(p), Ok(s)) => Rect {
-            x: p.x,
-            y: p.y,
-            w: s.width as i32,
-            h: s.height as i32,
-        },
+        (Ok(p), Ok(s)) => Rect { x: p.x, y: p.y, w: s.width as i32, h: s.height as i32 },
         (p, s) => {
-            log::debug!(
-                "splash: window rect unreadable ({:?}, {:?})",
-                p.err(),
-                s.err()
-            );
+            log::debug!("splash: window rect unreadable ({:?}, {:?})", p.err(), s.err());
             target.rect
         }
     };
     // Tauri's HWND comes from its own `windows` version.
-    let hwnd = w
-        .hwnd()
-        .map(|h| HWND(h.0 as _))
-        .inspect_err(|e| log::debug!("splash: no hwnd: {e}"));
+    let hwnd = w.hwnd().map(|h| HWND(h.0 as _)).inspect_err(|e| log::debug!("splash: no hwnd: {e}"));
     if let Ok(hwnd) = hwnd {
         let start = Instant::now();
         loop {
@@ -166,17 +128,7 @@ fn grow(app: &AppHandle, fallback: bool) {
             let r = lerp(from, target.rect, t);
             // SAFETY: moves and sizes our own top-level window; one call per frame so position and
             // size change together.
-            let _ = unsafe {
-                SetWindowPos(
-                    hwnd,
-                    None,
-                    r.x,
-                    r.y,
-                    r.w,
-                    r.h,
-                    SWP_NOZORDER | SWP_NOACTIVATE,
-                )
-            };
+            let _ = unsafe { SetWindowPos(hwnd, None, r.x, r.y, r.w, r.h, SWP_NOZORDER | SWP_NOACTIVATE) };
             if t >= 1.0 {
                 break;
             }
@@ -199,7 +151,9 @@ fn settle(w: &WebviewWindow, maximized: bool) {
     if let Err(e) = w.set_min_size(Some(LogicalSize::new(MIN.0, MIN.1))) {
         log::warn!("splash: could not set the minimum size: {e}");
     }
-    if maximized && let Err(e) = w.maximize() {
+    if maximized
+        && let Err(e) = w.maximize()
+    {
         log::warn!("splash: could not maximize the window: {e}");
     }
 }
@@ -218,29 +172,11 @@ mod tests {
 
     #[test]
     fn grows_from_the_splash_to_the_target() {
-        let a = Rect {
-            x: 740,
-            y: 390,
-            w: 440,
-            h: 300,
-        };
-        let b = Rect {
-            x: 320,
-            y: 140,
-            w: 1280,
-            h: 800,
-        };
+        let a = Rect { x: 740, y: 390, w: 440, h: 300 };
+        let b = Rect { x: 320, y: 140, w: 1280, h: 800 };
         assert_eq!(lerp(a, b, 0.0), a);
         assert_eq!(lerp(a, b, 1.0), b);
-        assert_eq!(
-            lerp(a, b, 0.5),
-            Rect {
-                x: 530,
-                y: 265,
-                w: 860,
-                h: 550
-            }
-        );
+        assert_eq!(lerp(a, b, 0.5), Rect { x: 530, y: 265, w: 860, h: 550 });
         // Centered on the target, as the grow starts.
         assert_eq!(centered(b, 440, 300), a);
     }

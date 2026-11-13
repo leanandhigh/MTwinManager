@@ -15,22 +15,12 @@ const ROBLOX_LINES: usize = 300;
 /// How much of the end of a log is read.
 const TAIL_BYTES: u64 = 4 << 20;
 /// More words that mark a line not to share, on top of what the log watcher never reports.
-const ALSO_SENSITIVE: [&str; 5] = [
-    "authorization",
-    "bearer",
-    "joinscript",
-    "webhook",
-    "password",
-];
+const ALSO_SENSITIVE: [&str; 5] = ["authorization", "bearer", "joinscript", "webhook", "password"];
 
 /// `line` with what shouldn't leave this PC masked; None when all of it must stay (pure).
 pub fn redact(line: &str) -> Option<String> {
     let lower = line.to_ascii_lowercase();
-    if SENSITIVE
-        .iter()
-        .chain(&ALSO_SENSITIVE)
-        .any(|w| lower.contains(w))
-    {
+    if SENSITIVE.iter().chain(&ALSO_SENSITIVE).any(|w| lower.contains(w)) {
         return None;
     }
     let mut out = mask_user_folder(line);
@@ -41,16 +31,7 @@ pub fn redact(line: &str) -> Option<String> {
 
 /// Ids shaped 8-4-4-4-12 to `…`: a job id with its place id is enough to find that exact server.
 fn mask_uuids(line: &str) -> String {
-    let is_uuid = |s: &[u8]| {
-        s.len() == 36
-            && s.iter().enumerate().all(|(i, c)| {
-                if matches!(i, 8 | 13 | 18 | 23) {
-                    *c == b'-'
-                } else {
-                    c.is_ascii_hexdigit()
-                }
-            })
-    };
+    let is_uuid = |s: &[u8]| s.len() == 36 && s.iter().enumerate().all(|(i, c)| if matches!(i, 8 | 13 | 18 | 23) { *c == b'-' } else { c.is_ascii_hexdigit() });
     let (mut out, mut rest) = (String::new(), line);
     while rest.len() >= 36 {
         match (0..=rest.len() - 36).find(|&i| is_uuid(&rest.as_bytes()[i..i + 36])) {
@@ -67,9 +48,7 @@ fn mask_uuids(line: &str) -> String {
 
 /// Where `key` (lowercase ASCII) first is in `text`, ignoring ASCII case.
 fn find_ascii_ci(text: &str, key: &str) -> Option<usize> {
-    text.as_bytes()
-        .windows(key.len())
-        .position(|w| w.eq_ignore_ascii_case(key.as_bytes()))
+    text.as_bytes().windows(key.len()).position(|w| w.eq_ignore_ascii_case(key.as_bytes()))
 }
 
 /// `C:\Users\name\x` to `C:\Users\…\x`, for every such path.
@@ -106,9 +85,7 @@ fn mask_after(line: &str, key: &str) -> String {
 fn mask_queries(line: &str) -> String {
     let (mut out, mut rest) = (String::new(), line);
     while let Some(i) = rest.find("http") {
-        let end = rest[i..]
-            .find([' ', '"', '\''])
-            .map_or(rest.len(), |e| i + e);
+        let end = rest[i..].find([' ', '"', '\'']).map_or(rest.len(), |e| i + e);
         let url = &rest[i..end];
         out.push_str(&rest[..i]);
         out.push_str(url.find('?').map_or(url, |q| &url[..=q]));
@@ -127,15 +104,10 @@ fn mask_ipv4(line: &str) -> String {
     while let Some(start) = rest.find(|c: char| c.is_ascii_digit()) {
         out.push_str(&rest[..start]);
         rest = &rest[start..];
-        let len = rest
-            .find(|c: char| !c.is_ascii_digit() && c != '.')
-            .unwrap_or(rest.len());
+        let len = rest.find(|c: char| !c.is_ascii_digit() && c != '.').unwrap_or(rest.len());
         let token = &rest[..len];
         let parts: Vec<&str> = token.split('.').collect();
-        let is_ip = parts.len() == 4
-            && parts
-                .iter()
-                .all(|p| (1..=3).contains(&p.len()) && p.parse::<u16>().is_ok_and(|n| n <= 255));
+        let is_ip = parts.len() == 4 && parts.iter().all(|p| (1..=3).contains(&p.len()) && p.parse::<u16>().is_ok_and(|n| n <= 255));
         out.push_str(if is_ip { "x.x.x.x" } else { token });
         rest = &rest[len..];
     }
@@ -153,23 +125,14 @@ pub fn clean_tail(path: &Path, max: usize, names: &[String]) -> Vec<String> {
         f.read_to_end(&mut bytes)?;
         Ok(String::from_utf8_lossy(&bytes).into_owned())
     };
-    let text = read()
-        .inspect_err(|e| log::debug!("diagnostics: {} not read: {e}", path.display()))
-        .unwrap_or_default();
+    let text = read().inspect_err(|e| log::debug!("diagnostics: {} not read: {e}", path.display())).unwrap_or_default();
     let lines: Vec<&str> = text.lines().collect();
-    lines[lines.len().saturating_sub(max)..]
-        .iter()
-        .filter_map(|l| redact(l))
-        .map(|l| mask_names(l, names))
-        .collect()
+    lines[lines.len().saturating_sub(max)..].iter().filter_map(|l| redact(l)).map(|l| mask_names(l, names)).collect()
 }
 
 /// The user's account and favourite names to `…` (shorter ones would mask ordinary words).
 fn mask_names(line: String, names: &[String]) -> String {
-    names
-        .iter()
-        .filter(|n| n.chars().count() >= 3)
-        .fold(line, |l, n| l.replace(n.as_str(), "…"))
+    names.iter().filter(|n| n.chars().count() >= 3).fold(line, |l, n| l.replace(n.as_str(), "…"))
 }
 
 /// The sections under `max` bytes in all: each gets an equal share and keeps its newest lines
@@ -206,15 +169,9 @@ pub struct Sources {
 }
 
 pub fn report(src: &Sources, max: usize) -> String {
-    let mut sections = vec![(
-        "MTwin Manager log".to_owned(),
-        clean_tail(&src.mtwin_log, MTWIN_LINES, &src.names),
-    )];
+    let mut sections = vec![("MTwin Manager log".to_owned(), clean_tail(&src.mtwin_log, MTWIN_LINES, &src.names))];
     for (n, log) in src.roblox_logs.iter().enumerate() {
-        sections.push((
-            format!("Roblox log {}", n + 1),
-            clean_tail(log, ROBLOX_LINES, &src.names),
-        ));
+        sections.push((format!("Roblox log {}", n + 1), clean_tail(log, ROBLOX_LINES, &src.names)));
     }
     compose(&src.head, &sections, max)
 }
@@ -235,46 +192,19 @@ mod tests {
         ] {
             assert_eq!(redact(bad), None, "{bad}");
         }
-        assert_eq!(
-            redact(r"load C:\Users\Marco\AppData\Local\Roblox\x.log").unwrap(),
-            r"load C:\Users\…\AppData\Local\Roblox\x.log"
-        );
-        assert_eq!(
-            redact(r"a C:\USERS\Bob\x b C:\Users\Amy").unwrap(),
-            r"a C:\USERS\…\x b C:\Users\…"
-        );
-        assert_eq!(
-            redact("load time userid:123456, sid:abc-def, place 7").unwrap(),
-            "load time userid:…, sid:…, place 7"
-        );
-        assert_eq!(
-            redact("GET https://games.roblox.com/v1/x?id=5&t=abc failed").unwrap(),
-            "GET https://games.roblox.com/v1/x?… failed"
-        );
-        assert_eq!(
-            redact("Joining at 128.116.1.2 now").unwrap(),
-            "Joining at x.x.x.x now"
-        );
-        assert_eq!(
-            redact("client 0.745.0.7451137 started").unwrap(),
-            "client 0.745.0.7451137 started",
-            "a version stays"
-        );
+        assert_eq!(redact(r"load C:\Users\Marco\AppData\Local\Roblox\x.log").unwrap(), r"load C:\Users\…\AppData\Local\Roblox\x.log");
+        assert_eq!(redact(r"a C:\USERS\Bob\x b C:\Users\Amy").unwrap(), r"a C:\USERS\…\x b C:\Users\…");
+        assert_eq!(redact("load time userid:123456, sid:abc-def, place 7").unwrap(), "load time userid:…, sid:…, place 7");
+        assert_eq!(redact("GET https://games.roblox.com/v1/x?id=5&t=abc failed").unwrap(), "GET https://games.roblox.com/v1/x?… failed");
+        assert_eq!(redact("Joining at 128.116.1.2 now").unwrap(), "Joining at x.x.x.x now");
+        assert_eq!(redact("client 0.745.0.7451137 started").unwrap(), "client 0.745.0.7451137 started", "a version stays");
         assert_eq!(redact("plain line").unwrap(), "plain line");
+        assert_eq!(redact(r"load C:\Users\Marco Rossi\x").unwrap(), r"load C:\Users\…\x", "a name with a space");
         assert_eq!(
-            redact(r"load C:\Users\Marco Rossi\x").unwrap(),
-            r"load C:\Users\…\x",
-            "a name with a space"
-        );
-        assert_eq!(
-            redact("! Joining game '0d6c3f4e-5b2a-4c1d-9e8f-7a6b5c4d3e2f' place 7 at 1.2.3.4")
-                .unwrap(),
+            redact("! Joining game '0d6c3f4e-5b2a-4c1d-9e8f-7a6b5c4d3e2f' place 7 at 1.2.3.4").unwrap(),
             "! Joining game '…' place 7 at x.x.x.x"
         );
-        assert_eq!(
-            mask_names("MyAlt is running".into(), &["MyAlt".into(), "a".into()]),
-            "… is running"
-        );
+        assert_eq!(mask_names("MyAlt is running".into(), &["MyAlt".into(), "a".into()]), "… is running");
     }
 
     /// Over this PC's real Roblox logs: `cargo test -- --ignored redacts_real_logs --nocapture`.
@@ -290,13 +220,7 @@ mod tests {
                 let Some(clean) = redact(line) else { continue };
                 kept += 1;
                 let lower = clean.to_ascii_lowercase();
-                for bad in [
-                    "gameinfo",
-                    "roblosecurity",
-                    "ticket",
-                    "cookie",
-                    r"\users\n\",
-                ] {
+                for bad in ["gameinfo", "roblosecurity", "ticket", "cookie", r"\users\n\"] {
                     assert!(!lower.contains(bad), "{bad} in: {clean}");
                 }
             }
@@ -308,11 +232,7 @@ mod tests {
     #[test]
     fn stays_under_the_limit_keeping_the_newest_lines() {
         let lines: Vec<String> = (0..1000).map(|i| format!("line {i}")).collect();
-        let out = compose(
-            "head\n",
-            &[("a".into(), lines.clone()), ("b".into(), lines)],
-            2000,
-        );
+        let out = compose("head\n", &[("a".into(), lines.clone()), ("b".into(), lines)], 2000);
         assert!(out.len() <= 2000, "{}", out.len());
         assert!(out.starts_with("head\n") && out.contains("line 999") && !out.contains("line 0\n"));
         assert!(compose("h", &[], 10).starts_with('h'));

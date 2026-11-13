@@ -27,10 +27,7 @@ fn exports() -> std::sync::MutexGuard<'static, Vec<PathBuf>> {
 /// Sized once so no growth leaves a copy of a cookie in a freed buffer (Zeroizing scrubs only the
 /// live allocation). `name:cookie\r\n` is `name.len() + cookie.len() + 3`.
 pub fn lines(accounts: &[(String, Secret)]) -> Zeroizing<String> {
-    let total = accounts
-        .iter()
-        .map(|(n, c)| n.len() + c.expose().len() + 3)
-        .sum();
+    let total = accounts.iter().map(|(n, c)| n.len() + c.expose().len() + 3).sum();
     let mut out = Zeroizing::new(String::with_capacity(total));
     for (name, cookie) in accounts {
         out.push_str(name);
@@ -56,10 +53,9 @@ fn local_now() -> (u16, u16, u16, u16, u16, u16) {
 /// An export file MTwin Manager names (`MTwin-cookies-*.txt`, or `legacy::COOKIE_EXPORT_PREFIX`), or a `.txt.tmp` left by a write that crashed
 /// before the atomic rename (`vault::backup::write_atomic`) (pure).
 fn is_export(path: &Path) -> bool {
-    path.file_name().and_then(|n| n.to_str()).is_some_and(|n| {
-        (n.starts_with(PREFIX) || n.starts_with(crate::legacy::COOKIE_EXPORT_PREFIX))
-            && (n.ends_with(".txt") || n.ends_with(".txt.tmp"))
-    })
+    path.file_name()
+        .and_then(|n| n.to_str())
+        .is_some_and(|n| (n.starts_with(PREFIX) || n.starts_with(crate::legacy::COOKIE_EXPORT_PREFIX)) && (n.ends_with(".txt") || n.ends_with(".txt.tmp")))
 }
 
 /// Writes `text` to a new export file and remembers it; returns its path.
@@ -109,9 +105,7 @@ fn remove(path: &Path) {
 
 /// At start: the export files a closed MTwin Manager left behind, nothing else in the folder.
 pub fn sweep(data_dir: &Path) {
-    let Ok(entries) = std::fs::read_dir(data_dir.join(DIR)) else {
-        return;
-    };
+    let Ok(entries) = std::fs::read_dir(data_dir.join(DIR)) else { return };
     for p in entries.filter_map(|e| Some(e.ok()?.path())) {
         if p.is_file() && is_export(&p) {
             remove(&p);
@@ -130,23 +124,14 @@ mod tests {
 
     #[test]
     fn lines_are_username_colon_cookie() {
-        let accounts = [
-            ("bob123".to_owned(), Secret::new("TOKEN-A")),
-            ("alice".to_owned(), Secret::new("TOKEN-B")),
-        ];
-        assert_eq!(
-            lines(&accounts).as_str(),
-            "bob123:TOKEN-A\r\nalice:TOKEN-B\r\n"
-        );
+        let accounts = [("bob123".to_owned(), Secret::new("TOKEN-A")), ("alice".to_owned(), Secret::new("TOKEN-B"))];
+        assert_eq!(lines(&accounts).as_str(), "bob123:TOKEN-A\r\nalice:TOKEN-B\r\n");
         assert_eq!(lines(&[]).as_str(), "");
     }
 
     #[test]
     fn names_its_files_and_sweeps_only_those() {
-        assert_eq!(
-            file_name((2026, 11, 4, 9, 5, 7)),
-            "MTwin-cookies-20261104-090507.txt"
-        );
+        assert_eq!(file_name((2026, 11, 4, 9, 5, 7)), "MTwin-cookies-20261104-090507.txt");
         let d = std::env::temp_dir().join(format!("mtwin-export-{}", uuid::Uuid::new_v4()));
         let dir = d.join(DIR);
         std::fs::create_dir_all(&dir).unwrap();

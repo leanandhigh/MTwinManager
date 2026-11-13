@@ -44,12 +44,7 @@ pub fn setup(app: &AppHandle) -> tauri::Result<()> {
         .show_menu_on_left_click(false)
         .on_menu_event(|app, e| on_menu(app, e.id().as_ref()))
         .on_tray_icon_event(|tray, e| {
-            if let TrayIconEvent::Click {
-                button: MouseButton::Left,
-                button_state: MouseButtonState::Up,
-                ..
-            } = e
-            {
+            if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = e {
                 show_main(tray.app_handle());
             }
         });
@@ -93,11 +88,7 @@ pub fn refresh(app: &AppHandle) {
 fn view(app: &AppHandle) -> View {
     let s = app.state::<App>();
     let favourites = match s.db.favourites() {
-        Ok(rows) => rows
-            .into_iter()
-            .filter(|f| f.in_tray)
-            .map(|f| (f.id, f.name))
-            .collect(),
+        Ok(rows) => rows.into_iter().filter(|f| f.in_tray).map(|f| (f.id, f.name)).collect(),
         Err(e) => {
             log::warn!("tray: could not read favourites: {e}");
             Vec::new()
@@ -113,24 +104,12 @@ fn view(app: &AppHandle) -> View {
 }
 
 fn menu(app: &AppHandle, v: &View) -> tauri::Result<Menu<Wry>> {
-    let item = |id: &str, text: &str, enabled: bool| {
-        MenuItem::with_id(app, id, text, enabled, None::<&str>)
-    };
+    let item = |id: &str, text: &str, enabled: bool| MenuItem::with_id(app, id, text, enabled, None::<&str>);
     let favourites = Submenu::new(app, tr!("Favourites"), true)?;
     if v.favourites.is_empty() {
-        favourites.append(&MenuItem::new(
-            app,
-            tr!("No favourites"),
-            false,
-            None::<&str>,
-        )?)?;
+        favourites.append(&MenuItem::new(app, tr!("No favourites"), false, None::<&str>)?)?;
     } else if v.locked {
-        favourites.append(&MenuItem::new(
-            app,
-            tr!("Unlock MTwin Manager to launch"),
-            false,
-            None::<&str>,
-        )?)?;
+        favourites.append(&MenuItem::new(app, tr!("Unlock MTwin Manager to launch"), false, None::<&str>)?)?;
     } else {
         for (id, name) in &v.favourites {
             // A single `&` would mark a shortcut key in a Windows menu.
@@ -178,11 +157,7 @@ fn on_menu(app: &AppHandle, id: &str) {
             let app = app.clone();
             tauri::async_runtime::spawn(async move {
                 if let Err(e) = commands::close_running(&app.state::<App>(), false).await {
-                    notice(
-                        &app,
-                        true,
-                        tr!("Couldn't close the clients: {why}", why = e.message()),
-                    );
+                    notice(&app, true, tr!("Couldn't close the clients: {why}", why = e.message()));
                 }
             });
         }
@@ -204,14 +179,7 @@ pub fn kill_all(app: &AppHandle) {
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         if let Err(e) = commands::kill_all(&app.state::<App>()).await {
-            notice(
-                &app,
-                true,
-                tr!(
-                    "Couldn't kill every Roblox client: {why}",
-                    why = e.message()
-                ),
-            );
+            notice(&app, true, tr!("Couldn't kill every Roblox client: {why}", why = e.message()));
         }
     });
 }
@@ -225,22 +193,14 @@ fn launch_favourite(app: &AppHandle, id: i64) {
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         if let Err(e) = launch(&app, id).await {
-            notice(
-                &app,
-                true,
-                tr!("Couldn't launch that favourite: {why}", why = e.message()),
-            );
+            notice(&app, true, tr!("Couldn't launch that favourite: {why}", why = e.message()));
         }
     });
 }
 
 async fn launch(app: &AppHandle, id: i64) -> Result<()> {
     let s = app.state::<App>();
-    let row =
-        s.db.favourites()?
-            .into_iter()
-            .find(|f| f.id == id)
-            .ok_or(AppError::NotFound)?;
+    let row = s.db.favourites()?.into_iter().find(|f| f.id == id).ok_or(AppError::NotFound)?;
     let fav = commands::favourite_of(&s, row)?;
     let ids: Vec<i64> = fav
         .account_ids
@@ -257,36 +217,17 @@ async fn launch(app: &AppHandle, id: i64) -> Result<()> {
     match ids.len() {
         0 => {
             show_main(app);
-            notice(
-                app,
-                false,
-                tr!(
-                    "No account of \"{name}\" can launch. Pick accounts for it in MTwin Manager.",
-                    name = fav.name
-                ),
-            );
+            notice(app, false, tr!("No account of \"{name}\" can launch. Pick accounts for it in MTwin Manager.", name = fav.name));
         }
         1 => {
             // Without the multi-instance lock it would end the client that runs.
-            if !s.multi.is_active()
-                && s.tracker.list().iter().any(|i| {
-                    i.account_id != ids[0] && i.state != crate::model::InstanceState::Exited
-                })
-            {
+            if !s.multi.is_active() && s.tracker.list().iter().any(|i| i.account_id != ids[0] && i.state != crate::model::InstanceState::Exited) {
                 show_main(app);
-                notice(
-                    app,
-                    false,
-                    tr!(
-                        "\"{name}\" wasn't started: another client is running and multi-instance is off.",
-                        name = fav.name
-                    ),
-                );
+                notice(app, false, tr!("\"{name}\" wasn't started: another client is running and multi-instance is off.", name = fav.name));
                 return Ok(());
             }
             let _single = s.bulk.begin_single_launch()?;
-            commands::launch_tracked(app, &s, ids[0], fav.target, Some(fav.id), None, None, true)
-                .await?;
+            commands::launch_tracked(app, &s, ids[0], fav.target, Some(fav.id), None, None, true).await?;
         }
         _ => {
             let delay_ms = s.db.settings()?.launch_delay_ms;

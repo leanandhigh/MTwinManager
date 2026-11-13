@@ -472,12 +472,10 @@ impl FriendStatus {
     pub fn of(v: &serde_json::Value) -> FriendStatus {
         let n = match v {
             serde_json::Value::Number(n) => n.as_i64(),
-            serde_json::Value::String(s) => {
-                ["NotFriends", "Friends", "RequestSent", "RequestReceived"]
-                    .iter()
-                    .position(|x| x.eq_ignore_ascii_case(s))
-                    .map(|i| i as i64)
-            }
+            serde_json::Value::String(s) => ["NotFriends", "Friends", "RequestSent", "RequestReceived"]
+                .iter()
+                .position(|x| x.eq_ignore_ascii_case(s))
+                .map(|i| i as i64),
             _ => None,
         };
         match n {

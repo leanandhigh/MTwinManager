@@ -43,13 +43,7 @@ pub async fn items(db: &Db, now: i64, fetch: bool) -> Option<Arc<Items>> {
     items_in(&STATE, db, now, fetch, download).await
 }
 
-async fn items_in<F, Fut>(
-    state: &tokio::sync::Mutex<State>,
-    db: &Db,
-    now: i64,
-    fetch: bool,
-    download: F,
-) -> Option<Arc<Items>>
+async fn items_in<F, Fut>(state: &tokio::sync::Mutex<State>, db: &Db, now: i64, fetch: bool, download: F) -> Option<Arc<Items>>
 where
     F: FnOnce() -> Fut,
     Fut: std::future::Future<Output = Option<String>>,
@@ -63,10 +57,7 @@ where
     }
     let stale = s.items.as_ref().is_none_or(|(at, _)| now - at >= FRESH_MS);
     if fetch && stale && now - s.failed_at >= RETRY_MS {
-        match download()
-            .await
-            .and_then(|body| parse(&body).map(|items| (body, items)))
-        {
+        match download().await.and_then(|body| parse(&body).map(|items| (body, items))) {
             Some((body, items)) => {
                 if let Err(e) = db.cache_put(KEY, &body, now) {
                     log::warn!("rolimons: list not kept: {e}");
@@ -90,56 +81,35 @@ async fn download() -> Option<String> {
         .build()
         .inspect_err(|e| log::warn!("rolimons: http client unavailable: {e}"))
         .ok()?;
-    let mut resp = http
-        .get(URL)
-        .send()
-        .await
-        .map_err(|e| log::info!("rolimons: unreachable: {}", e.without_url()))
-        .ok()?;
+    let mut resp = http.get(URL).send().await.map_err(|e| log::info!("rolimons: unreachable: {}", e.without_url())).ok()?;
     if !resp.status().is_success() {
         log::info!("rolimons: answered HTTP {}", resp.status().as_u16());
         return None;
     }
     let mut out = Vec::new();
-    while let Some(chunk) = resp
-        .chunk()
-        .await
-        .map_err(|e| log::info!("rolimons: cut off: {}", e.without_url()))
-        .ok()?
-    {
+    while let Some(chunk) = resp.chunk().await.map_err(|e| log::info!("rolimons: cut off: {}", e.without_url())).ok()? {
         if out.len() + chunk.len() > MAX_BODY {
             log::info!("rolimons: sent more than {MAX_BODY} bytes");
             return None;
         }
         out.extend_from_slice(&chunk);
     }
-    String::from_utf8(out)
-        .inspect_err(|_| log::info!("rolimons: sent text that isn't UTF-8"))
-        .ok()
+    String::from_utf8(out).inspect_err(|_| log::info!("rolimons: sent text that isn't UTF-8")).ok()
 }
 
 /// `{success, items: {"<assetId>": [name, acronym, rap, value, default value, demand, trend,
 /// projected, hyped, rare, ..]}}`, read by position: -1 is "none", flags are 1 or -1. Rows too
 /// short are left out; None when it isn't a list, or most rows are unreadable (the format changed).
 fn parse(body: &str) -> Option<Items> {
-    let v: Value = serde_json::from_str(body)
-        .inspect_err(|e| log::info!("rolimons: list unreadable: {e}"))
-        .ok()?;
+    let v: Value = serde_json::from_str(body).inspect_err(|e| log::info!("rolimons: list unreadable: {e}")).ok()?;
     if v.get("success").and_then(Value::as_bool) != Some(true) {
         log::info!("rolimons: the list says it failed");
         return None;
     }
     let rows = v.get("items")?.as_object()?;
-    let items: Items = rows
-        .iter()
-        .filter_map(|(id, row)| Some((id.parse::<i64>().ok()?, item(row.as_array()?)?)))
-        .collect();
+    let items: Items = rows.iter().filter_map(|(id, row)| Some((id.parse::<i64>().ok()?, item(row.as_array()?)?))).collect();
     if items.len() * 2 < rows.len() {
-        log::warn!(
-            "rolimons: {} of {} rows unreadable (format changed?)",
-            rows.len() - items.len(),
-            rows.len()
-        );
+        log::warn!("rolimons: {} of {} rows unreadable (format changed?)", rows.len() - items.len(), rows.len());
         return None;
     }
     Some(items)
@@ -177,34 +147,12 @@ mod tests {
         assert_eq!(items.len(), 2, "the short row is left out");
         assert_eq!(
             items[&1029025],
-            RolimonsItem {
-                value: Some(450000),
-                demand: Some(4),
-                trend: Some(2),
-                projected: false,
-                hyped: true,
-                rare: true,
-                acronym: Some("CF".into())
-            }
+            RolimonsItem { value: Some(450000), demand: Some(4), trend: Some(2), projected: false, hyped: true, rare: true, acronym: Some("CF".into()) }
         );
         let helm = &items[&1365767];
-        assert_eq!(
-            (
-                helm.value,
-                helm.demand,
-                helm.trend,
-                helm.projected,
-                helm.acronym.as_deref()
-            ),
-            (None, None, None, true, None),
-            "-1, out of range, empty"
-        );
+        assert_eq!((helm.value, helm.demand, helm.trend, helm.projected, helm.acronym.as_deref()), (None, None, None, true, None), "-1, out of range, empty");
         assert_eq!(parse(r#"{"success":false,"items":{}}"#), None);
-        assert_eq!(
-            parse(r#"{"success":true,"items":{"1":[1],"2":[2],"3":["a","",1,1,1,1,1,1,1,1]}}"#),
-            None,
-            "mostly unreadable"
-        );
+        assert_eq!(parse(r#"{"success":true,"items":{"1":[1],"2":[2],"3":["a","",1,1,1,1,1,1,1,1]}}"#), None, "mostly unreadable");
         assert_eq!(parse("<html>"), None);
     }
 
@@ -222,52 +170,17 @@ mod tests {
     async fn items_without_fetch_never_calls_out() {
         let db = Db::open_in_memory().unwrap();
         let state = tokio::sync::Mutex::new(State::default());
-        assert!(
-            items_in(&state, &db, 1_000_000, false, never)
-                .await
-                .is_none(),
-            "nothing kept, nothing fetched"
-        );
+        assert!(items_in(&state, &db, 1_000_000, false, never).await.is_none(), "nothing kept, nothing fetched");
         db.cache_put(KEY, LIST, 0).unwrap();
         let state = tokio::sync::Mutex::new(State::default());
         let now = 10 * FRESH_MS;
-        assert_eq!(
-            items_in(&state, &db, now, false, never)
-                .await
-                .map(|i| i.len()),
-            Some(2),
-            "a kept list at any age"
-        );
+        assert_eq!(items_in(&state, &db, now, false, never).await.map(|i| i.len()), Some(2), "a kept list at any age");
         // A count: the old list is downloaded again; a failed download keeps it and waits.
-        assert_eq!(
-            items_in(&state, &db, now, true, fails)
-                .await
-                .map(|i| i.len()),
-            Some(2)
-        );
-        assert!(
-            items_in(&state, &db, now + 60_000, true, never)
-                .await
-                .is_some(),
-            "no retry within 5 minutes"
-        );
-        assert!(
-            items_in(&state, &db, now + RETRY_MS, true, fresh)
-                .await
-                .is_some()
-        );
-        assert!(
-            items_in(&state, &db, now + RETRY_MS + 1, true, never)
-                .await
-                .is_some(),
-            "fresh for 30 minutes"
-        );
-        assert!(
-            db.cache_get(KEY, 1, now + RETRY_MS)
-                .unwrap()
-                .is_some_and(|(b, _)| b.contains("777777")),
-            "kept in the cache table"
-        );
+        assert_eq!(items_in(&state, &db, now, true, fails).await.map(|i| i.len()), Some(2));
+        assert!(items_in(&state, &db, now + 60_000, true, never).await.is_some(), "no retry within 5 minutes");
+        assert!(items_in(&state, &db, now + RETRY_MS, true, fresh).await.is_some());
+        assert!(items_in(&state, &db, now + RETRY_MS + 1, true, never).await.is_some(), "fresh for 30 minutes");
+        assert!(db.cache_get(KEY, 1, now + RETRY_MS).unwrap().is_some_and(|(b, _)| b.contains("777777")), "kept in the cache table");
     }
 
     /// Against Rolimons: `cargo test rolimons::tests::live -- --ignored --nocapture`.
@@ -275,11 +188,7 @@ mod tests {
     #[ignore]
     async fn live() {
         let items = parse(&download().await.unwrap()).unwrap();
-        println!(
-            "rolimons: {} items; fedora {:?}",
-            items.len(),
-            items.get(&1029025)
-        );
+        println!("rolimons: {} items; fedora {:?}", items.len(), items.get(&1029025));
         assert!(items.len() > 1000);
     }
 }

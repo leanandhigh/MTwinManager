@@ -8,14 +8,10 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use windows::Win32::Foundation::{FILETIME, HANDLE};
-use windows::Win32::System::ProcessStatus::{
-    K32GetProcessMemoryInfo, PROCESS_MEMORY_COUNTERS, PROCESS_MEMORY_COUNTERS_EX,
-    PROCESS_MEMORY_COUNTERS_EX2,
-};
+use windows::Win32::System::ProcessStatus::{K32GetProcessMemoryInfo, PROCESS_MEMORY_COUNTERS, PROCESS_MEMORY_COUNTERS_EX, PROCESS_MEMORY_COUNTERS_EX2};
 use windows::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
 use windows::Win32::System::Threading::{
-    GetProcessIoCounters, GetProcessTimes, GetSystemTimes, IO_COUNTERS,
-    PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_SYNCHRONIZE,
+    GetProcessIoCounters, GetProcessTimes, GetSystemTimes, IO_COUNTERS, PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_SYNCHRONIZE,
 };
 
 use super::gpu::{Gpu, Usage};
@@ -70,12 +66,7 @@ pub struct Sampler {
 
 impl Sampler {
     pub fn new() -> Sampler {
-        Sampler {
-            last: Mutex::new(HashMap::new()),
-            cache: Mutex::new(None),
-            gpu: Mutex::new(None),
-            system: Mutex::new(None),
-        }
+        Sampler { last: Mutex::new(HashMap::new()), cache: Mutex::new(None), gpu: Mutex::new(None), system: Mutex::new(None) }
     }
 
     /// How busy the whole PC is, reused for `CACHE`; None if Windows doesn't say.
@@ -88,13 +79,7 @@ impl Sampler {
         }
         let times = cpu_times()?;
         let (used, total) = memory()?;
-        let usage = SystemUsage {
-            cpu_pct: last
-                .as_ref()
-                .and_then(|(_, _, before)| busy_pct(*before, times)),
-            mem_used_mb: used as f64 / MB,
-            mem_total_mb: total as f64 / MB,
-        };
+        let usage = SystemUsage { cpu_pct: last.as_ref().and_then(|(_, _, before)| busy_pct(*before, times)), mem_used_mb: used as f64 / MB, mem_total_mb: total as f64 / MB };
         *last = Some((Instant::now(), usage, times));
         Some(usage)
     }
@@ -110,9 +95,7 @@ impl Sampler {
         if let Some((until, m)) = cache.as_ref()
             && Instant::now() < *until
             && m.len() == clients.len()
-            && m.iter()
-                .zip(clients)
-                .all(|(m, c)| m.instance_id == c.0 && m.pid == c.1)
+            && m.iter().zip(clients).all(|(m, c)| m.instance_id == c.0 && m.pid == c.1)
         {
             return m.clone();
         }
@@ -128,28 +111,18 @@ impl Sampler {
         let began = Instant::now();
         let usage = match gpu {
             Some(g) => g.read(),
-            None => Usage {
-                pct: None,
-                mem_mb: None,
-            },
+            None => Usage { pct: None, mem_mb: None },
         };
         // What the rates are measured from: when these values were read.
         let now = Instant::now();
         // A process using nothing has no counter instance: 0, when the counters answered at all.
-        let of = |m: &Option<HashMap<u32, f64>>, pid: u32| {
-            m.as_ref().map(|m| m.get(&pid).copied().unwrap_or(0.0))
-        };
+        let of = |m: &Option<HashMap<u32, f64>>, pid: u32| m.as_ref().map(|m| m.get(&pid).copied().unwrap_or(0.0));
         let mut out = Vec::new();
         for (id, pid, t0, _) in clients {
             let Some(r) = read(*pid, *t0) else { continue };
             let prev = last.get(id).filter(|l| l.t0 == *t0);
-            let secs = prev
-                .map(|l| now.duration_since(l.at).as_secs_f64())
-                .filter(|&s| s > 0.0);
-            let rate = |f: fn(&Reading) -> u64| {
-                prev.zip(secs)
-                    .map(|(l, s)| f(&r).saturating_sub(f(&l.r)) as f64 / s)
-            };
+            let secs = prev.map(|l| now.duration_since(l.at).as_secs_f64()).filter(|&s| s > 0.0);
+            let rate = |f: fn(&Reading) -> u64| prev.zip(secs).map(|(l, s)| f(&r).saturating_sub(f(&l.r)) as f64 / s);
             out.push(ClientMetrics {
                 instance_id: id.clone(),
                 pid: *pid,
@@ -162,14 +135,7 @@ impl Sampler {
                 gpu_pct: of(&usage.pct, *pid).map(|p| p.min(100.0)),
                 gpu_mem_mb: of(&usage.mem_mb, *pid),
             });
-            last.insert(
-                id.clone(),
-                Last {
-                    at: now,
-                    t0: *t0,
-                    r,
-                },
-            );
+            last.insert(id.clone(), Last { at: now, t0: *t0, r });
         }
         let read = began.elapsed();
         log::debug!("metrics: {} clients read in {read:?}", clients.len());
@@ -186,11 +152,7 @@ impl Default for Sampler {
 
 /// All cores' CPU time so far, 100 ns ticks: idle, and kernel (which includes idle) + user.
 fn cpu_times() -> Option<(u64, u64)> {
-    let (mut idle, mut kernel, mut user) = (
-        FILETIME::default(),
-        FILETIME::default(),
-        FILETIME::default(),
-    );
+    let (mut idle, mut kernel, mut user) = (FILETIME::default(), FILETIME::default(), FILETIME::default());
     // SAFETY: three local FILETIMEs to write to.
     unsafe { GetSystemTimes(Some(&mut idle), Some(&mut kernel), Some(&mut user)) }
         .inspect_err(|e| log::debug!("metrics: system times unreadable: {e}"))
@@ -200,18 +162,12 @@ fn cpu_times() -> Option<(u64, u64)> {
 
 /// Physical memory in use and in all, bytes.
 pub(super) fn memory() -> Option<(u64, u64)> {
-    let mut m = MEMORYSTATUSEX {
-        dwLength: size_of::<MEMORYSTATUSEX>() as u32,
-        ..Default::default()
-    };
+    let mut m = MEMORYSTATUSEX { dwLength: size_of::<MEMORYSTATUSEX>() as u32, ..Default::default() };
     // SAFETY: a local MEMORYSTATUSEX whose dwLength says its size.
     unsafe { GlobalMemoryStatusEx(&mut m) }
         .inspect_err(|e| log::debug!("metrics: memory status unreadable: {e}"))
         .ok()?;
-    Some((
-        m.ullTotalPhys.saturating_sub(m.ullAvailPhys),
-        m.ullTotalPhys,
-    ))
+    Some((m.ullTotalPhys.saturating_sub(m.ullAvailPhys), m.ullTotalPhys))
 }
 
 /// The share of time not idle between two `cpu_times` (pure); None without any time passing.
@@ -228,14 +184,8 @@ pub fn read(pid: u32, t0: u64) -> Option<Reading> {
         return None;
     }
     let cpu = cpu_ticks(*h)?;
-    let (ex2, ex) = (
-        size_of::<PROCESS_MEMORY_COUNTERS_EX2>() as u32,
-        size_of::<PROCESS_MEMORY_COUNTERS_EX>() as u32,
-    );
-    let mut mem = PROCESS_MEMORY_COUNTERS_EX2 {
-        cb: ex2,
-        ..Default::default()
-    };
+    let (ex2, ex) = (size_of::<PROCESS_MEMORY_COUNTERS_EX2>() as u32, size_of::<PROCESS_MEMORY_COUNTERS_EX>() as u32);
+    let mut mem = PROCESS_MEMORY_COUNTERS_EX2 { cb: ex2, ..Default::default() };
     let counters = (&raw mut mem).cast::<PROCESS_MEMORY_COUNTERS>();
     let mut io = IO_COUNTERS::default();
     // SAFETY: `h` is live with PROCESS_QUERY_LIMITED_INFORMATION (all these need); `mem` is a
@@ -249,18 +199,12 @@ pub fn read(pid: u32, t0: u64) -> Option<Reading> {
                 .inspect_err(|e| log::debug!("metrics: memory of process {pid} unreadable: {e}"))
                 .ok()?;
         }
-        GetProcessIoCounters(*h, &mut io)
-            .inspect_err(|e| log::debug!("metrics: I/O of process {pid} unreadable: {e}"))
-            .ok()?;
+        GetProcessIoCounters(*h, &mut io).inspect_err(|e| log::debug!("metrics: I/O of process {pid} unreadable: {e}")).ok()?;
     }
     Some(Reading {
         cpu,
         // Zero on that older Windows, which can only say the whole working set.
-        memory: if mem.PrivateWorkingSetSize > 0 {
-            mem.PrivateWorkingSetSize
-        } else {
-            mem.WorkingSetSize
-        } as u64,
+        memory: if mem.PrivateWorkingSetSize > 0 { mem.PrivateWorkingSetSize } else { mem.WorkingSetSize } as u64,
         working_set: mem.WorkingSetSize as u64,
         private: mem.PrivateUsage as u64,
         read: io.ReadTransferCount,
@@ -269,12 +213,8 @@ pub fn read(pid: u32, t0: u64) -> Option<Reading> {
 }
 
 fn cpu_ticks(h: HANDLE) -> Option<u64> {
-    let (mut created, mut exited, mut kernel, mut user) = (
-        FILETIME::default(),
-        FILETIME::default(),
-        FILETIME::default(),
-        FILETIME::default(),
-    );
+    let (mut created, mut exited, mut kernel, mut user) =
+        (FILETIME::default(), FILETIME::default(), FILETIME::default(), FILETIME::default());
     // SAFETY: `h` is live with PROCESS_QUERY_LIMITED_INFORMATION; the out pointers are locals.
     unsafe { GetProcessTimes(h, &mut created, &mut exited, &mut kernel, &mut user) }
         .inspect_err(|e| log::debug!("metrics: CPU time unreadable: {e}"))
@@ -289,11 +229,7 @@ fn ticks(f: FILETIME) -> u64 {
 /// How many 10 s memory samples in a row a client has been over the limit, after one more
 /// sample of `private_mb` (pure). 0 when the limit is off.
 pub fn mem_strikes(prev: u32, private_mb: u64, limit_mb: u32) -> u32 {
-    if limit_mb > 0 && private_mb > u64::from(limit_mb) {
-        prev.saturating_add(1)
-    } else {
-        0
-    }
+    if limit_mb > 0 && private_mb > u64::from(limit_mb) { prev.saturating_add(1) } else { 0 }
 }
 
 /// Whether a client is held by the memory throttle after a sample of `private_mb` (pure): on
@@ -336,21 +272,12 @@ mod tests {
         let s = Sampler::new();
         let clients = [("i".to_owned(), pid, t0, Limits::default())];
         let first = s.sample(&clients);
-        assert_eq!(
-            (first.len(), first[0].cpu_pct, first[0].read_bps),
-            (1, None, None),
-            "no delta yet"
-        );
+        assert_eq!((first.len(), first[0].cpu_pct, first[0].read_bps), (1, None, None), "no delta yet");
         assert_eq!(s.sample(&clients), first, "cached for 2 s");
         *s.cache.lock().unwrap() = None;
         std::thread::sleep(Duration::from_millis(50));
         let second = s.sample(&clients);
-        assert!(
-            second[0]
-                .cpu_pct
-                .is_some_and(|c| (0.0..=100.0).contains(&c)),
-            "{second:?}"
-        );
+        assert!(second[0].cpu_pct.is_some_and(|c| (0.0..=100.0).contains(&c)), "{second:?}");
         assert!(second[0].memory_mb > 0.0);
         child.kill().unwrap();
         child.wait().unwrap();
@@ -369,17 +296,10 @@ mod tests {
         assert_eq!(busy_pct((100, 1_000), (150, 1_200)), Some(75.0));
         assert_eq!(busy_pct((100, 1_000), (300, 1_200)), Some(0.0));
         assert_eq!(busy_pct((100, 1_000), (100, 1_000)), None, "no time passed");
-        assert_eq!(
-            busy_pct((100, 1_000), (100, 900)),
-            None,
-            "a clock can't run back"
-        );
+        assert_eq!(busy_pct((100, 1_000), (100, 900)), None, "a clock can't run back");
         let s = Sampler::new();
         let first = s.system().expect("Windows says how busy it is");
-        assert!(
-            first.mem_total_mb > first.mem_used_mb && first.mem_used_mb > 0.0,
-            "{first:?}"
-        );
+        assert!(first.mem_total_mb > first.mem_used_mb && first.mem_used_mb > 0.0, "{first:?}");
         assert_eq!(first.cpu_pct, None, "nothing to compare with yet");
         assert_eq!(s.system(), Some(first), "cached");
     }
@@ -388,11 +308,7 @@ mod tests {
     fn memory_strikes() {
         assert_eq!(mem_strikes(0, 5_000, 4_096), 1);
         assert_eq!(mem_strikes(2, 5_000, 4_096), MEM_STRIKES);
-        assert_eq!(
-            mem_strikes(2, 4_096, 4_096),
-            0,
-            "at the limit is not over it"
-        );
+        assert_eq!(mem_strikes(2, 4_096, 4_096), 0, "at the limit is not over it");
         assert_eq!(mem_strikes(2, 99_999, 0), 0, "off");
         assert_eq!(mem_strikes(u32::MAX, 5_000, 1), u32::MAX);
     }
@@ -400,14 +316,8 @@ mod tests {
     #[test]
     fn memory_throttle_has_hysteresis() {
         assert!(mem_throttled(false, 4_097, 4_096), "over");
-        assert!(
-            !mem_throttled(false, 4_096, 4_096),
-            "at the limit is not over it"
-        );
-        assert!(
-            mem_throttled(true, 3_700, 4_096),
-            "between 90 % and the limit: stays"
-        );
+        assert!(!mem_throttled(false, 4_096, 4_096), "at the limit is not over it");
+        assert!(mem_throttled(true, 3_700, 4_096), "between 90 % and the limit: stays");
         assert!(!mem_throttled(false, 3_700, 4_096), "between: stays off");
         assert!(!mem_throttled(true, 3_686, 4_096), "under 90 %: lifted");
         assert!(!mem_throttled(true, 99_999, 0), "off");

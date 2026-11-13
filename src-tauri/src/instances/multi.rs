@@ -18,12 +18,11 @@ use std::sync::{Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
 use windows::Win32::Foundation::{
-    CompareObjectHandles, DUPLICATE_CLOSE_SOURCE, DUPLICATE_HANDLE_OPTIONS, DuplicateHandle,
-    ERROR_ACCESS_DENIED, ERROR_INVALID_HANDLE, GENERIC_READ, HANDLE, STATUS_INFO_LENGTH_MISMATCH,
+    CompareObjectHandles, DUPLICATE_CLOSE_SOURCE, DUPLICATE_HANDLE_OPTIONS, DuplicateHandle, ERROR_ACCESS_DENIED, ERROR_INVALID_HANDLE,
+    GENERIC_READ, HANDLE, STATUS_INFO_LENGTH_MISMATCH,
 };
 use windows::Win32::System::Threading::{
-    CreateMutexW, GetCurrentProcess, OpenEventW, OpenMutexW, OpenProcess, PROCESS_DUP_HANDLE,
-    SYNCHRONIZATION_SYNCHRONIZE,
+    CreateMutexW, GetCurrentProcess, OpenEventW, OpenMutexW, OpenProcess, PROCESS_DUP_HANDLE, SYNCHRONIZATION_SYNCHRONIZE,
 };
 use windows::core::{HSTRING, Owned};
 
@@ -38,9 +37,7 @@ fn running() -> String {
 }
 
 fn elevated() -> String {
-    tr!(
-        "Roblox's lock belongs to a program running as administrator (often Roblox started by a bootstrapper set to run as administrator). Close it, or turn that off."
-    )
+    tr!("Roblox's lock belongs to a program running as administrator (often Roblox started by a bootstrapper set to run as administrator). Close it, or turn that off.")
 }
 
 /// How long `holders` keeps its answer: the status is asked every 5 s while the lock is wanted.
@@ -92,12 +89,7 @@ unsafe impl Sync for Singleton {}
 
 impl Multi {
     pub fn new() -> Multi {
-        Multi {
-            inner: Mutex::new(None),
-            launches: AtomicUsize::new(0),
-            why: Mutex::new(None),
-            holders: Mutex::new(None),
-        }
+        Multi { inner: Mutex::new(None), launches: AtomicUsize::new(0), why: Mutex::new(None), holders: Mutex::new(None) }
     }
 
     /// Takes the lock (no-op when held). The name decides: if it already belongs to an event
@@ -115,12 +107,7 @@ impl Multi {
     pub fn take_over(&self) -> Result<()> {
         let mut pids: Vec<u32> = process::roblox_processes().iter().map(|p| p.pid).collect();
         if pids.is_empty() {
-            pids = self
-                .holders(SINGLETON_NAME)
-                .unwrap_or_default()
-                .into_iter()
-                .map(|(pid, _)| pid)
-                .collect();
+            pids = self.holders(SINGLETON_NAME).unwrap_or_default().into_iter().map(|(pid, _)| pid).collect();
         }
         self.take_over_at(SINGLETON_NAME, &pids)
     }
@@ -207,18 +194,10 @@ impl Multi {
         self.status_at(SINGLETON_NAME, enabled, protect_shared_login)
     }
 
-    fn status_at(
-        &self,
-        name: &str,
-        enabled: bool,
-        protect_shared_login: bool,
-    ) -> MultiInstanceStatus {
+    fn status_at(&self, name: &str, enabled: bool, protect_shared_login: bool) -> MultiInstanceStatus {
         let active = self.is_active();
-        let mut blocked_by: Vec<u32> = if active {
-            Vec::new()
-        } else {
-            process::roblox_processes().iter().map(|p| p.pid).collect()
-        };
+        let mut blocked_by: Vec<u32> =
+            if active { Vec::new() } else { process::roblox_processes().iter().map(|p| p.pid).collect() };
         let message = if !enabled || active {
             None
         } else if !blocked_by.is_empty() {
@@ -228,30 +207,14 @@ impl Multi {
             match self.holders(name) {
                 Ok(h) if !h.is_empty() => {
                     blocked_by = h.iter().map(|(pid, _)| *pid).collect();
-                    let names: Vec<String> = h
-                        .into_iter()
-                        .map(|(pid, exe)| format!("{exe} ({pid})"))
-                        .collect();
-                    Some(tr!(
-                        "Roblox's lock is held by {names}. Close it, or take it over.",
-                        names = names.join(", ")
-                    ))
+                    let names: Vec<String> = h.into_iter().map(|(pid, exe)| format!("{exe} ({pid})")).collect();
+                    Some(tr!("Roblox's lock is held by {names}. Close it, or take it over.", names = names.join(", ")))
                 }
                 Err(why) => Some(why),
-                Ok(_) => Some(
-                    self.why()
-                        .clone()
-                        .unwrap_or_else(|| tr!("Multi-instance isn't active yet.")),
-                ),
+                Ok(_) => Some(self.why().clone().unwrap_or_else(|| tr!("Multi-instance isn't active yet."))),
             }
         };
-        MultiInstanceStatus {
-            enabled,
-            active,
-            protect_shared_login,
-            blocked_by,
-            message,
-        }
+        MultiInstanceStatus { enabled, active, protect_shared_login, blocked_by, message }
     }
 
     /// Creates (or opens) the mutex `name`; no-op when already held. A failure is kept for
@@ -259,17 +222,10 @@ impl Multi {
     fn take(&self, name: &str) -> Result<()> {
         let mut held = self.held();
         if held.is_none() {
-            let survivors = process::roblox_processes()
-                .iter()
-                .map(|p| (p.pid, p.start_time))
-                .collect();
+            let survivors = process::roblox_processes().iter().map(|p| (p.pid, p.start_time)).collect();
             let mutex = create_mutex(name);
             *self.why() = mutex.as_ref().err().map(AppError::message);
-            *held = Some(Held {
-                _mutex: mutex?,
-                files: Vec::new(),
-                survivors,
-            });
+            *held = Some(Held { _mutex: mutex?, files: Vec::new(), survivors });
         }
         Ok(())
     }
@@ -284,9 +240,7 @@ impl Multi {
         }
         let h = find_holders(name);
         match &h {
-            Ok(list) if !list.is_empty() => {
-                log::info!("multi-instance: Roblox's lock is held by {list:?}")
-            }
+            Ok(list) if !list.is_empty() => log::info!("multi-instance: Roblox's lock is held by {list:?}"),
             Err(e) => log::info!("multi-instance: who holds Roblox's lock can't be found: {e}"),
             Ok(_) => {}
         }
@@ -305,16 +259,11 @@ impl Multi {
             return Ok(());
         }
         let suffix = format!("\\{name}");
-        let table: Vec<Handle> = handle_table()?
-            .into_iter()
-            .filter(|h| pids.contains(&h.pid))
-            .collect();
+        let table: Vec<Handle> = handle_table()?.into_iter().filter(|h| pids.contains(&h.pid)).collect();
         let mut failed = None;
         for &pid in pids {
             match close_in(pid, &table, &suffix) {
-                Ok(n) => log::info!(
-                    "multi-instance take-over: closed {n} singleton handle(s) in process {pid}"
-                ),
+                Ok(n) => log::info!("multi-instance take-over: closed {n} singleton handle(s) in process {pid}"),
                 Err(e) => {
                     log::warn!("multi-instance take-over: process {pid}: {e}");
                     failed.get_or_insert(e);
@@ -353,8 +302,7 @@ fn relock(h: &mut Held, paths: &[PathBuf]) {
 
 /// Drops survivors that have exited; true while any runs.
 fn survivors_alive(h: &mut Held) -> bool {
-    h.survivors
-        .retain(|&(pid, t)| process::start_time(pid) == Some(t));
+    h.survivors.retain(|&(pid, t)| process::start_time(pid) == Some(t));
     !h.survivors.is_empty()
 }
 
@@ -375,15 +323,11 @@ fn create_mutex(name: &str) -> Result<Singleton> {
         Err(e) => return Err(AppError::Internal(tr!("Could not take the multi-instance lock: {why}", why = e.message()))),
     };
     // SAFETY: as above.
-    Ok(Singleton {
-        _handle: unsafe { Owned::new(h) },
-    })
+    Ok(Singleton { _handle: unsafe { Owned::new(h) } })
 }
 
 fn still_running() -> String {
-    tr!(
-        "Roblox's lock is still there after the take-over (a client may have just started). Close Roblox instead."
-    )
+    tr!("Roblox's lock is still there after the take-over (a client may have just started). Close Roblox instead.")
 }
 
 /// SystemExtendedHandleInformation, ObjectNameInformation, ObjectTypeInformation.
@@ -394,13 +338,7 @@ const OBJECT_TYPE_INFORMATION: u32 = 2;
 #[link(name = "ntdll")]
 unsafe extern "system" {
     fn NtQuerySystemInformation(class: u32, info: *mut c_void, len: u32, ret_len: *mut u32) -> i32;
-    fn NtQueryObject(
-        handle: HANDLE,
-        class: u32,
-        info: *mut c_void,
-        len: u32,
-        ret_len: *mut u32,
-    ) -> i32;
+    fn NtQueryObject(handle: HANDLE, class: u32, info: *mut c_void, len: u32, ret_len: *mut u32) -> i32;
 }
 
 /// SYSTEM_HANDLE_TABLE_ENTRY_INFO_EX; only `pid` and `handle` are read.
@@ -445,54 +383,32 @@ fn handle_table() -> Result<Vec<Handle>> {
         let mut need = 0u32;
         // SAFETY: `buf` is writable for the length given; `need` is a local.
         let st = unsafe {
-            NtQuerySystemInformation(
-                SYSTEM_EXTENDED_HANDLE_INFORMATION,
-                buf.as_mut_ptr().cast(),
-                size as u32,
-                &mut need,
-            )
+            NtQuerySystemInformation(SYSTEM_EXTENDED_HANDLE_INFORMATION, buf.as_mut_ptr().cast(), size as u32, &mut need)
         };
         if st == STATUS_INFO_LENGTH_MISMATCH.0 {
             // The table grows between calls: some room on top.
             size = (need as usize + (1 << 16)).max(size * 2);
             if size > 1 << 30 {
-                return Err(AppError::Internal(tr!(
-                    "The system's handle table is too large to read."
-                )));
+                return Err(AppError::Internal(tr!("The system's handle table is too large to read.")));
             }
             continue;
         }
         if st < 0 {
-            return Err(AppError::Internal(tr!(
-                "Could not read the system's handle table (NTSTATUS {status}).",
-                status = format!("{st:#x}")
-            )));
+            return Err(AppError::Internal(tr!("Could not read the system's handle table (NTSTATUS {status}).", status = format!("{st:#x}"))));
         }
         // NumberOfHandles, Reserved, then the entries.
         let count = buf[0] as usize;
-        if count
-            .saturating_mul(size_of::<HandleEntry>())
-            .saturating_add(16)
-            > size
-        {
-            return Err(AppError::Internal(tr!(
-                "The system's handle table came back truncated."
-            )));
+        if count.saturating_mul(size_of::<HandleEntry>()).saturating_add(16) > size {
+            return Err(AppError::Internal(tr!("The system's handle table came back truncated.")));
         }
         // SAFETY: the kernel wrote `count` entries right after the two-word header, inside `buf`
         // (checked above); HandleEntry is plain data with the kernel's layout.
-        let entries =
-            unsafe { std::slice::from_raw_parts(buf.as_ptr().add(2).cast::<HandleEntry>(), count) };
+        let entries = unsafe { std::slice::from_raw_parts(buf.as_ptr().add(2).cast::<HandleEntry>(), count) };
         return Ok(entries
             .iter()
             .filter_map(|e| {
                 let pid = u32::try_from(e.pid).ok()?;
-                Some(Handle {
-                    pid,
-                    value: e.handle,
-                    object: e.object as usize,
-                    type_index: e.type_index,
-                })
+                Some(Handle { pid, value: e.handle, object: e.object as usize, type_index: e.type_index })
             })
             .collect());
     }
@@ -511,23 +427,14 @@ fn close_in(pid: u32, table: &[Handle], suffix: &str) -> Result<usize> {
             if e.code() == ERROR_ACCESS_DENIED.to_hresult() {
                 AppError::Invalid(elevated())
             } else {
-                AppError::Invalid(tr!(
-                    "Windows wouldn't let MTwin Manager into Roblox (process {pid}): {why}",
-                    pid = pid,
-                    why = e.message()
-                ))
+                AppError::Invalid(tr!("Windows wouldn't let MTwin Manager into Roblox (process {pid}): {why}", pid = pid, why = e.message()))
             }
         })?;
     let mut closed = 0;
     for h in table.iter().filter(|h| h.pid == pid) {
         let source = HANDLE(h.value as *mut c_void);
-        let Some(copy) = dup(*proc, h.value) else {
-            continue;
-        };
-        if !matches!(
-            object_string(*copy, OBJECT_TYPE_INFORMATION).as_deref(),
-            Some("Event" | "Mutant")
-        ) {
+        let Some(copy) = dup(*proc, h.value) else { continue };
+        if !matches!(object_string(*copy, OBJECT_TYPE_INFORMATION).as_deref(), Some("Event" | "Mutant")) {
             continue;
         }
         if !object_string(*copy, OBJECT_NAME_INFORMATION).is_some_and(|n| n.ends_with(suffix)) {
@@ -535,31 +442,17 @@ fn close_in(pid: u32, table: &[Handle], suffix: &str) -> Result<usize> {
         }
         // The client may have closed `source` and reused its value since: close it only while it
         // still names the object just checked (a fresh copy, compared right before the close).
-        let Some(again) = dup(*proc, h.value) else {
-            continue;
-        };
+        let Some(again) = dup(*proc, h.value) else { continue };
         // SAFETY: both are our own handles.
         if !unsafe { CompareObjectHandles(*copy, *again) }.as_bool() {
             continue;
         }
         // SAFETY: closes `source` inside `proc` (DUPLICATE_CLOSE_SOURCE, no copy is made); no
         // memory of the process is touched.
-        let r = unsafe {
-            DuplicateHandle(
-                *proc,
-                source,
-                HANDLE::default(),
-                std::ptr::null_mut(),
-                0,
-                false,
-                DUPLICATE_CLOSE_SOURCE,
-            )
-        };
+        let r = unsafe { DuplicateHandle(*proc, source, HANDLE::default(), std::ptr::null_mut(), 0, false, DUPLICATE_CLOSE_SOURCE) };
         match r {
             Ok(()) => closed += 1,
-            Err(e) => log::warn!(
-                "multi-instance take-over: could not close a handle in process {pid}: {e}"
-            ),
+            Err(e) => log::warn!("multi-instance take-over: could not close a handle in process {pid}: {e}"),
         }
     }
     Ok(closed)
@@ -571,18 +464,7 @@ fn dup(proc: HANDLE, value: usize) -> Option<Owned<HANDLE>> {
     let mut copy = HANDLE::default();
     // SAFETY: `proc` has PROCESS_DUP_HANDLE; `value` is a handle value in that process (one
     // closed since just fails); the copy is ours, with no access, closed on drop.
-    unsafe {
-        DuplicateHandle(
-            proc,
-            HANDLE(value as *mut c_void),
-            GetCurrentProcess(),
-            &mut copy,
-            0,
-            false,
-            DUPLICATE_HANDLE_OPTIONS(0),
-        )
-    }
-    .ok()?;
+    unsafe { DuplicateHandle(proc, HANDLE(value as *mut c_void), GetCurrentProcess(), &mut copy, 0, false, DUPLICATE_HANDLE_OPTIONS(0)) }.ok()?;
     // SAFETY: as above.
     Some(unsafe { Owned::new(copy) })
 }
@@ -592,44 +474,26 @@ fn dup(proc: HANDLE, value: usize) -> Option<Owned<HANDLE>> {
 /// when there is no such event (or the name is a mutex: another tool's, which blocks clients).
 fn find_holders(name: &str) -> Holders {
     // SAFETY: OpenEventW only reads the name; the handle is ours, closed on drop.
-    let ours = match unsafe { OpenEventW(SYNCHRONIZATION_SYNCHRONIZE, false, &HSTRING::from(name)) }
-    {
+    let ours = match unsafe { OpenEventW(SYNCHRONIZATION_SYNCHRONIZE, false, &HSTRING::from(name)) } {
         // SAFETY: as above.
         Ok(h) => unsafe { Owned::new(h) },
         Err(e) if e.code() == ERROR_ACCESS_DENIED.to_hresult() => return Err(elevated()),
         Err(_) => return Ok(Vec::new()),
     };
     let table = handle_table().map_err(|e| e.message())?;
-    let Some(mine) = table
-        .iter()
-        .find(|h| h.pid == std::process::id() && h.value == ours.0 as usize)
-        .copied()
-    else {
+    let Some(mine) = table.iter().find(|h| h.pid == std::process::id() && h.value == ours.0 as usize).copied() else {
         return Ok(Vec::new());
     };
     let pids = holding(&table, mine, *ours, mine.object != 0);
-    Ok(pids
-        .into_iter()
-        .map(|pid| {
-            (
-                pid,
-                process::exe_name(pid).unwrap_or_else(|| tr!("process {pid}", pid = pid)),
-            )
-        })
-        .collect())
+    Ok(pids.into_iter().map(|pid| (pid, process::exe_name(pid).unwrap_or_else(|| tr!("process {pid}", pid = pid)))).collect())
 }
 
 /// The pids with a handle to the object behind `mine` (our handle `ours`), `mine` left out: by
 /// kernel address, else (address hidden) by comparing each handle of its type with ours.
 fn holding(table: &[Handle], mine: Handle, ours: HANDLE, by_address: bool) -> BTreeSet<u32> {
-    let others = table
-        .iter()
-        .filter(|h| !(h.pid == mine.pid && h.value == mine.value));
+    let others = table.iter().filter(|h| !(h.pid == mine.pid && h.value == mine.value));
     if by_address {
-        return others
-            .filter(|h| h.object == mine.object)
-            .map(|h| h.pid)
-            .collect();
+        return others.filter(|h| h.object == mine.object).map(|h| h.pid).collect();
     }
     let mut procs: HashMap<u32, Option<Owned<HANDLE>>> = HashMap::new();
     let mut pids = BTreeSet::new();
@@ -638,15 +502,10 @@ fn holding(table: &[Handle], mine: Handle, ours: HANDLE, by_address: bool) -> BT
             continue;
         }
         // SAFETY: opens the process with the one right DuplicateHandle needs; closed on drop.
-        let proc = procs.entry(h.pid).or_insert_with(|| {
-            unsafe { OpenProcess(PROCESS_DUP_HANDLE, false, h.pid) }
-                .ok()
-                .map(|p| unsafe { Owned::new(p) })
-        });
+        let proc = procs.entry(h.pid).or_insert_with(|| unsafe { OpenProcess(PROCESS_DUP_HANDLE, false, h.pid) }.ok().map(|p| unsafe { Owned::new(p) }));
         // SAFETY: both are our own handles.
         if let Some(proc) = proc
-            && dup(**proc, h.value)
-                .is_some_and(|copy| unsafe { CompareObjectHandles(ours, *copy) }.as_bool())
+            && dup(**proc, h.value).is_some_and(|copy| unsafe { CompareObjectHandles(ours, *copy) }.as_bool())
         {
             pids.insert(h.pid);
         }
@@ -660,15 +519,7 @@ fn object_string(h: HANDLE, class: u32) -> Option<String> {
     let mut buf = vec![0u64; 512];
     let mut len = 0u32;
     // SAFETY: `h` is our own handle; `buf` is writable and pointer-aligned for the length given.
-    let st = unsafe {
-        NtQueryObject(
-            h,
-            class,
-            buf.as_mut_ptr().cast(),
-            (buf.len() * 8) as u32,
-            &mut len,
-        )
-    };
+    let st = unsafe { NtQueryObject(h, class, buf.as_mut_ptr().cast(), (buf.len() * 8) as u32, &mut len) };
     if st < 0 {
         return None;
     }
@@ -679,10 +530,7 @@ fn object_string(h: HANDLE, class: u32) -> Option<String> {
         if us.buffer.is_null() {
             return Some(String::new());
         }
-        Some(String::from_utf16_lossy(std::slice::from_raw_parts(
-            us.buffer,
-            usize::from(us.length) / 2,
-        )))
+        Some(String::from_utf16_lossy(std::slice::from_raw_parts(us.buffer, usize::from(us.length) / 2)))
     }
 }
 
@@ -697,13 +545,7 @@ fn lock_files(paths: &[PathBuf]) -> Vec<File> {
             if let Some(dir) = p.parent() {
                 let _ = std::fs::create_dir_all(dir);
             }
-            match OpenOptions::new()
-                .write(true)
-                .create(true)
-                .access_mode(GENERIC_READ.0)
-                .share_mode(0)
-                .open(p)
-            {
+            match OpenOptions::new().write(true).create(true).access_mode(GENERIC_READ.0).share_mode(0).open(p) {
                 Ok(f) => Some(f),
                 Err(e) => {
                     log::warn!("could not lock {}: {e}", p.display());
@@ -749,14 +591,9 @@ mod tests {
         a.take(&name).unwrap();
         assert!(a.is_active());
         let s = a.status(true, true);
-        assert!(
-            s.active && s.blocked_by.is_empty() && s.message.is_none() && s.protect_shared_login
-        );
+        assert!(s.active && s.blocked_by.is_empty() && s.message.is_none() && s.protect_shared_login);
         // A client can't create its event while the mutex holds the name.
-        assert_eq!(
-            event(&name).unwrap_err().code(),
-            ERROR_INVALID_HANDLE.to_hresult()
-        );
+        assert_eq!(event(&name).unwrap_err().code(), ERROR_INVALID_HANDLE.to_hresult());
         // Creating the same mutex again (ERROR_ALREADY_EXISTS) still counts as held.
         b.take(&name).unwrap();
         assert!(b.is_active());
@@ -772,10 +609,7 @@ mod tests {
         let _roblox = event(&name).unwrap();
         let m = Multi::new();
         let err = m.take(&name).unwrap_err();
-        assert!(
-            matches!(err, AppError::Invalid(ref s) if *s == running()),
-            "{err}"
-        );
+        assert!(matches!(err, AppError::Invalid(ref s) if *s == running()), "{err}");
         assert!(!m.is_active());
     }
 
@@ -799,23 +633,13 @@ mod tests {
         let me = std::process::id();
         let found = find_holders(&name).unwrap();
         assert_eq!(found.iter().map(|h| h.0).collect::<Vec<_>>(), [me]);
-        assert!(
-            found[0].1.to_ascii_lowercase().ends_with(".exe"),
-            "{found:?}"
-        );
+        assert!(found[0].1.to_ascii_lowercase().ends_with(".exe"), "{found:?}");
 
         // Where Windows hides kernel addresses: compared handle by handle, the same answer.
         // SAFETY: as in `find_holders`.
-        let ours = unsafe {
-            Owned::new(
-                OpenEventW(SYNCHRONIZATION_SYNCHRONIZE, false, &HSTRING::from(&name)).unwrap(),
-            )
-        };
+        let ours = unsafe { Owned::new(OpenEventW(SYNCHRONIZATION_SYNCHRONIZE, false, &HSTRING::from(&name)).unwrap()) };
         let table = handle_table().unwrap();
-        let mine = *table
-            .iter()
-            .find(|h| h.pid == me && h.value == ours.0 as usize)
-            .unwrap();
+        let mine = *table.iter().find(|h| h.pid == me && h.value == ours.0 as usize).unwrap();
         assert_eq!(holding(&table, mine, *ours, false), BTreeSet::from([me]));
         if mine.object != 0 {
             assert_eq!(holding(&table, mine, *ours, true), BTreeSet::from([me]));
@@ -835,12 +659,7 @@ mod tests {
         let s = m.status_at(&name, true, false);
         if process::roblox_processes().is_empty() {
             assert_eq!(s.blocked_by, [me]);
-            assert!(
-                s.message
-                    .as_deref()
-                    .is_some_and(|t| t.contains(&found[0].1)),
-                "{s:?}"
-            );
+            assert!(s.message.as_deref().is_some_and(|t| t.contains(&found[0].1)), "{s:?}");
         }
     }
 
@@ -861,10 +680,7 @@ mod tests {
         // Nobody to take over from: the plain error.
         let _roblox = event(&name).unwrap();
         let err = Multi::new().take_over_at(&name, &[]).unwrap_err();
-        assert!(
-            matches!(err, AppError::Invalid(ref s) if *s == still_running()),
-            "{err}"
-        );
+        assert!(matches!(err, AppError::Invalid(ref s) if *s == still_running()), "{err}");
     }
 
     #[test]
@@ -897,9 +713,7 @@ mod tests {
         std::fs::write(&file, b"{}").unwrap();
         let missing = dir.join("LocalStorage").join("appStorage.json");
         let files = [file.clone(), missing.clone()];
-        let locked = |p: &PathBuf| {
-            File::open(p).unwrap_err().raw_os_error() == Some(ERROR_SHARING_VIOLATION.0 as i32)
-        };
+        let locked = |p: &PathBuf| File::open(p).unwrap_err().raw_os_error() == Some(ERROR_SHARING_VIOLATION.0 as i32);
 
         let m = Multi::new();
         m.lock_shared_at(&files); // not held: nothing

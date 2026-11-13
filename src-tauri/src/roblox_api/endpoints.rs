@@ -8,7 +8,8 @@ pub const WEB_ORIGIN: &str = "https://www.roblox.com";
 
 // Account info. `{}` is filled by `fill`; each template is also its endpoint's throttle key.
 pub const USER: &str = "https://users.roblox.com/v1/users/{}";
-pub const HEADSHOTS: &str = "https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds={}&size=150x150&format=Png&isCircular=false";
+pub const HEADSHOTS: &str =
+    "https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds={}&size=150x150&format=Png&isCircular=false";
 pub const CURRENCY: &str = "https://economy.roblox.com/v1/user/currency";
 pub const PREMIUM: &str = "https://premiumfeatures.roblox.com/v1/users/{}/validate-membership";
 pub const PROFILES: &str = "https://apis.roblox.com/user-profile-api/v1/user/profiles/get-profiles";
@@ -44,30 +45,25 @@ pub const VIP_SERVER_SUBSCRIPTION: &str = "https://games.roblox.com/v1/vip-serve
 /// Buys a private server of a universe: spends Robux.
 pub const VIP_SERVER_CREATE: &str = "https://games.roblox.com/v1/games/vip-servers/{}";
 pub const PLACE_UNIVERSE: &str = "https://apis.roblox.com/universes/v1/places/{}/universe";
-pub const PLACE_ICONS: &str = "https://thumbnails.roblox.com/v1/places/gameicons?placeIds={}&returnPolicy=PlaceHolder&size=150x150&format=Png&isCircular=false";
+pub const PLACE_ICONS: &str =
+    "https://thumbnails.roblox.com/v1/places/gameicons?placeIds={}&returnPolicy=PlaceHolder&size=150x150&format=Png&isCircular=false";
 
 // Browse's Popular (no cookie): the Charts' lists, and game icons by universe.
-pub const EXPLORE_SORTS: &str =
-    "https://apis.roblox.com/explore-api/v1/get-sorts?sessionId={}&device=computer";
+pub const EXPLORE_SORTS: &str = "https://apis.roblox.com/explore-api/v1/get-sorts?sessionId={}&device=computer";
 pub const GAME_ICONS: &str = "https://thumbnails.roblox.com/v1/games/icons?universeIds={}&returnPolicy=PlaceHolder&size=150x150&format=Png&isCircular=false";
 
 // A game's details (no cookie, verified 2026-11-08). Paging is appended by the caller: passes
 // `&pageToken=`, badges and collectibles `&cursor=`. (games.roblox.com's own game-passes list is gone: 404.)
 pub const GAME_VOTES: &str = "https://games.roblox.com/v1/games/votes?universeIds={}";
-pub const GAME_PASSES: &str =
-    "https://apis.roblox.com/game-passes/v1/universes/{}/game-passes?passView=Full&pageSize=100";
-pub const PASS_ICONS: &str =
-    "https://thumbnails.roblox.com/v1/game-passes?gamePassIds={}&size=150x150&format=Png";
-pub const GAME_BADGES: &str =
-    "https://badges.roblox.com/v1/universes/{}/badges?limit=100&sortOrder=Asc";
+pub const GAME_PASSES: &str = "https://apis.roblox.com/game-passes/v1/universes/{}/game-passes?passView=Full&pageSize=100";
+pub const PASS_ICONS: &str = "https://thumbnails.roblox.com/v1/game-passes?gamePassIds={}&size=150x150&format=Png";
+pub const GAME_BADGES: &str = "https://badges.roblox.com/v1/universes/{}/badges?limit=100&sortOrder=Asc";
 /// Progress: any asset's picture (a decal or image id the in-game script or the Catalog gives).
 pub const ASSET_ICONS: &str = "https://thumbnails.roblox.com/v1/assets?assetIds={}&returnPolicy=PlaceHolder&size=150x150&format=Png&isCircular=false";
-pub const BADGE_ICONS: &str =
-    "https://thumbnails.roblox.com/v1/badges/icons?badgeIds={}&size=150x150&format=Png";
+pub const BADGE_ICONS: &str = "https://thumbnails.roblox.com/v1/badges/icons?badgeIds={}&size=150x150&format=Png";
 /// An account's limiteds, one row per copy, with their RAP (`recentAveragePrice`). Sent with the
 /// account's own cookie: it sees a private inventory, and the limit is per user, not per address.
-pub const COLLECTIBLES: &str =
-    "https://inventory.roblox.com/v1/users/{}/assets/collectibles?limit=100&sortOrder=Asc";
+pub const COLLECTIBLES: &str = "https://inventory.roblox.com/v1/users/{}/assets/collectibles?limit=100&sortOrder=Asc";
 /// More of a game (no cookie, verified 2026-11-08): its age rating (POST `{universeId}`), its
 /// universe (`isArchived`) and places, and the group that owns it (7 a minute: only inside the
 /// cached `game_stats`).
@@ -81,8 +77,7 @@ pub const GROUP: &str = "https://groups.roblox.com/v1/groups/{}";
 pub const USER_GROUPS: &str = "https://groups.roblox.com/v2/users/{}/groups/roles";
 pub const ROBLOX_BADGES: &str = "https://accountinformation.roblox.com/v1/users/{}/roblox-badges";
 /// `limit` must be 10, 25 or 50.
-pub const USER_GAMES: &str =
-    "https://games.roblox.com/v2/users/{}/games?accessFilter=Public&limit=50&sortOrder=Desc";
+pub const USER_GAMES: &str = "https://games.roblox.com/v2/users/{}/games?accessFilter=Public&limit=50&sortOrder=Desc";
 
 /// `template` with its `{}` replaced by `value`.
 pub fn fill(template: &str, value: impl std::fmt::Display) -> String {
@@ -90,6 +85,5 @@ pub fn fill(template: &str, value: impl std::fmt::Display) -> String {
 }
 
 // Roblox client updates (no cookie). The installer URL is `{SETUP}{clientVersionUpload}-RobloxPlayerInstaller.exe`.
-pub const CLIENT_VERSION: &str =
-    "https://clientsettingscdn.roblox.com/v2/client-version/WindowsPlayer";
+pub const CLIENT_VERSION: &str = "https://clientsettingscdn.roblox.com/v2/client-version/WindowsPlayer";
 pub const SETUP: &str = "https://setup.rbxcdn.com/";

@@ -250,11 +250,7 @@ impl Progress {
             file,
             stored: Mutex::new(stored),
             dirty: AtomicBool::new(false),
-            server: Mutex::new(ProgressServer {
-                port: PORT,
-                running: false,
-                error: None,
-            }),
+            server: Mutex::new(ProgressServer { port: PORT, running: false, error: None }),
             images: Mutex::new(HashMap::new()),
             heads: Mutex::new(HashMap::new()),
         }
@@ -278,8 +274,7 @@ impl Progress {
             Err(e) => return log::warn!("progress: can't serialize: {e}"),
         };
         let tmp = self.file.with_extension("json.tmp");
-        if let Err(e) = std::fs::write(&tmp, text).and_then(|()| std::fs::rename(&tmp, &self.file))
-        {
+        if let Err(e) = std::fs::write(&tmp, text).and_then(|()| std::fs::rename(&tmp, &self.file)) {
             log::warn!("progress: can't save {FILE}: {e}");
             self.changed();
         }
@@ -307,11 +302,7 @@ impl Progress {
             accounts,
             catalog: s.catalog.clone(),
             auto_delete_hours: s.auto_delete_hours,
-            server: self
-                .server
-                .lock()
-                .unwrap_or_else(|e| e.into_inner())
-                .clone(),
+            server: self.server.lock().unwrap_or_else(|e| e.into_inner()).clone(),
             now: now_ms(),
             online_ms: ONLINE_MS,
             collectors: s.collectors.clone(),
@@ -363,11 +354,7 @@ fn text(v: &Value, max: usize) -> String {
         Value::Bool(b) => b.to_string(),
         _ => String::new(),
     };
-    s.trim()
-        .chars()
-        .filter(|c| !c.is_control())
-        .take(max)
-        .collect()
+    s.trim().chars().filter(|c| !c.is_control()).take(max).collect()
 }
 
 fn num(v: &Value) -> Option<f64> {
@@ -382,36 +369,18 @@ fn num(v: &Value) -> Option<f64> {
 /// The digits of a decal id ("rbxassetid://123", "123", 123); empty: none.
 fn decal(v: &Value) -> String {
     let s = text(v, 80);
-    let digits: String = s
-        .chars()
-        .skip_while(|c| !c.is_ascii_digit())
-        .take_while(char::is_ascii_digit)
-        .collect();
-    if digits.len() > 18 {
-        String::new()
-    } else {
-        digits
-    }
+    let digits: String = s.chars().skip_while(|c| !c.is_ascii_digit()).take_while(char::is_ascii_digit).collect();
+    if digits.len() > 18 { String::new() } else { digits }
 }
 
 fn list(v: &Value, max: usize) -> impl Iterator<Item = &Value> {
-    v.as_array()
-        .into_iter()
-        .flatten()
-        .filter(|x| x.is_object())
-        .take(max)
+    v.as_array().into_iter().flatten().filter(|x| x.is_object()).take(max)
 }
 
 /// A report from the script, checked and trimmed. `first_seen`: the account's earlier first report.
-fn parse_report(
-    body: &Value,
-    now: i64,
-    first_seen: impl Fn(&str) -> Option<i64>,
-) -> std::result::Result<ProgressAccount, String> {
+fn parse_report(body: &Value, now: i64, first_seen: impl Fn(&str) -> Option<i64>) -> std::result::Result<ProgressAccount, String> {
     let acc = &body["account"];
-    let user_id = num(&acc["userId"])
-        .filter(|n| *n >= 1.0 && n.fract() == 0.0)
-        .ok_or("account.userId is required")? as i64;
+    let user_id = num(&acc["userId"]).filter(|n| *n >= 1.0 && n.fract() == 0.0).ok_or("account.userId is required")? as i64;
     let game = &body["game"];
     let mut game_id = text(&game["id"], 40);
     if game_id.is_empty() || game_id == "0" {
@@ -422,24 +391,14 @@ fn parse_report(
     }
     let key = format!("{game_id}:{user_id}");
     // "values"; "currencies" from an older reporter.
-    let values = if body["values"].is_array() {
-        &body["values"]
-    } else {
-        &body["currencies"]
-    };
+    let values = if body["values"].is_array() { &body["values"] } else { &body["currencies"] };
     Ok(ProgressAccount {
         first_seen: first_seen(&key).unwrap_or(now),
         key,
-        pc: Some(text(&body["pc"], 60))
-            .filter(|s| !s.is_empty())
-            .unwrap_or_else(|| "Unnamed PC".into()),
-        game_name: Some(text(&game["name"], 80))
-            .filter(|s| !s.is_empty())
-            .unwrap_or_else(|| "Unknown game".into()),
+        pc: Some(text(&body["pc"], 60)).filter(|s| !s.is_empty()).unwrap_or_else(|| "Unnamed PC".into()),
+        game_name: Some(text(&game["name"], 80)).filter(|s| !s.is_empty()).unwrap_or_else(|| "Unknown game".into()),
         game_id,
-        place_id: num(&game["placeId"])
-            .filter(|n| *n >= 1.0 && n.fract() == 0.0)
-            .map(|n| n as i64),
+        place_id: num(&game["placeId"]).filter(|n| *n >= 1.0 && n.fract() == 0.0).map(|n| n as i64),
         user_id,
         name: text(&acc["name"], 40),
         display_name: text(&acc["displayName"], 40),
@@ -447,47 +406,27 @@ fn parse_report(
         values: list(values, 50)
             .filter_map(|c| {
                 let name = text(&c["name"], 60);
-                let key = Some(text(&c["key"], 80))
-                    .filter(|s| !s.is_empty())
-                    .unwrap_or_else(|| name.clone());
+                let key = Some(text(&c["key"], 80)).filter(|s| !s.is_empty()).unwrap_or_else(|| name.clone());
                 let amount = num(&c["amount"])?;
-                (!key.is_empty()).then(|| ProgressValue {
-                    name: if name.is_empty() { key.clone() } else { name },
-                    key,
-                    amount,
-                    image: decal(&c["image"]),
-                })
+                (!key.is_empty()).then(|| ProgressValue { name: if name.is_empty() { key.clone() } else { name }, key, amount, image: decal(&c["image"]) })
             })
             .collect(),
         stats: list(&body["stats"], 20)
             .filter_map(|s| {
                 let name = text(&s["name"], 60);
-                let key = Some(text(&s["key"], 80))
-                    .filter(|k| !k.is_empty())
-                    .unwrap_or_else(|| name.clone());
-                (!name.is_empty()).then(|| ProgressStat {
-                    key,
-                    name,
-                    value: text(&s["value"], 60),
-                    max: num(&s["max"]),
-                })
+                let key = Some(text(&s["key"], 80)).filter(|k| !k.is_empty()).unwrap_or_else(|| name.clone());
+                (!name.is_empty()).then(|| ProgressStat { key, name, value: text(&s["value"], 60), max: num(&s["max"]) })
             })
             .collect(),
         items: list(&body["items"], 5000)
             .filter_map(|it| {
-                let id = Some(text(&it["id"], 80))
-                    .filter(|s| !s.is_empty())
-                    .unwrap_or_else(|| text(&it["name"], 80));
+                let id = Some(text(&it["id"], 80)).filter(|s| !s.is_empty()).unwrap_or_else(|| text(&it["name"], 80));
                 if id.is_empty() {
                     return None;
                 }
-                let category = Some(text(&it["category"], 30))
-                    .filter(|s| !s.is_empty())
-                    .unwrap_or_else(|| text(&it["type"], 30));
+                let category = Some(text(&it["category"], 30)).filter(|s| !s.is_empty()).unwrap_or_else(|| text(&it["type"], 30));
                 Some(ProgressItem {
-                    name: Some(text(&it["name"], 80))
-                        .filter(|s| !s.is_empty())
-                        .unwrap_or_else(|| id.clone()),
+                    name: Some(text(&it["name"], 80)).filter(|s| !s.is_empty()).unwrap_or_else(|| id.clone()),
                     id,
                     rarity: text(&it["rarity"], 30),
                     category,
@@ -496,14 +435,7 @@ fn parse_report(
                 })
             })
             .collect(),
-        errors: body["errors"]
-            .as_array()
-            .into_iter()
-            .flatten()
-            .take(5)
-            .map(|e| text(e, 400))
-            .filter(|e| !e.is_empty())
-            .collect(),
+        errors: body["errors"].as_array().into_iter().flatten().take(5).map(|e| text(e, 400)).filter(|e| !e.is_empty()).collect(),
         last_seen: now,
     })
 }
@@ -518,27 +450,11 @@ pub fn spawn(handle: AppHandle) {
             Ok(l) => l,
             Err(e) => {
                 log::warn!("progress: can't listen on port {PORT}: {e}");
-                *h.state::<App>()
-                    .progress
-                    .server
-                    .lock()
-                    .unwrap_or_else(|e| e.into_inner()) = ProgressServer {
-                    port: PORT,
-                    running: false,
-                    error: Some(e.to_string()),
-                };
+                *h.state::<App>().progress.server.lock().unwrap_or_else(|e| e.into_inner()) = ProgressServer { port: PORT, running: false, error: Some(e.to_string()) };
                 return;
             }
         };
-        *h.state::<App>()
-            .progress
-            .server
-            .lock()
-            .unwrap_or_else(|e| e.into_inner()) = ProgressServer {
-            port: PORT,
-            running: true,
-            error: None,
-        };
+        *h.state::<App>().progress.server.lock().unwrap_or_else(|e| e.into_inner()) = ProgressServer { port: PORT, running: true, error: None };
         log::info!("progress: listening on 127.0.0.1:{PORT}");
         loop {
             let (stream, _) = match listener.accept().await {
@@ -551,10 +467,7 @@ pub fn spawn(handle: AppHandle) {
             };
             let h = h.clone();
             tauri::async_runtime::spawn(async move {
-                if tokio::time::timeout(Duration::from_secs(15), serve(&h, stream))
-                    .await
-                    .is_err()
-                {
+                if tokio::time::timeout(Duration::from_secs(15), serve(&h, stream)).await.is_err() {
                     log::debug!("progress: a request timed out");
                 }
             });
@@ -606,9 +519,7 @@ async fn read_request(stream: &mut TcpStream) -> Option<Request> {
     let mut length = 0usize;
     let mut host = String::new();
     for line in lines {
-        let Some((k, v)) = line.split_once(':') else {
-            continue;
-        };
+        let Some((k, v)) = line.split_once(':') else { continue };
         match k.trim().to_ascii_lowercase().as_str() {
             "content-length" => length = v.trim().parse().ok()?,
             "host" => host = v.trim().to_owned(),
@@ -631,10 +542,7 @@ async fn read_request(stream: &mut TcpStream) -> Option<Request> {
     Some(Request {
         method,
         path: url.path().to_owned(),
-        query: url
-            .query_pairs()
-            .map(|(k, v)| (k.into_owned(), v.into_owned()))
-            .collect(),
+        query: url.query_pairs().map(|(k, v)| (k.into_owned(), v.into_owned())).collect(),
         host,
         body,
     })
@@ -655,16 +563,8 @@ const JSON: &str = "application/json; charset=utf-8";
 
 /// Only what an address may hold, so it is safe inside the Luau string.
 fn clean_host(host: &str) -> String {
-    let h: String = host
-        .chars()
-        .filter(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | ':' | '-' | '[' | ']'))
-        .take(100)
-        .collect();
-    if h.is_empty() {
-        format!("localhost:{PORT}")
-    } else {
-        h
-    }
+    let h: String = host.chars().filter(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | ':' | '-' | '[' | ']')).take(100).collect();
+    if h.is_empty() { format!("localhost:{PORT}") } else { h }
 }
 
 async fn serve(handle: &AppHandle, mut stream: TcpStream) {
@@ -674,71 +574,29 @@ async fn serve(handle: &AppHandle, mut stream: TcpStream) {
     let progress = &handle.state::<App>().progress;
     match (req.method.as_str(), req.path.as_str()) {
         ("GET", "/script.luau" | "/script.lua") => {
-            let script = format!(
-                "local __PROGRESS_HOST = \"{}\"\n{REPORTER}",
-                clean_host(&req.host)
-            );
+            let script = format!("local __PROGRESS_HOST = \"{}\"\n{REPORTER}", clean_host(&req.host));
             respond(&mut stream, "200 OK", TEXT, &script).await;
         }
         ("POST", "/report") | ("GET", "/report") => {
             let parsed = if req.method == "POST" {
                 serde_json::from_slice::<Value>(&req.body).map_err(|e| e.to_string())
             } else {
-                req.query
-                    .get("d")
-                    .ok_or_else(|| "d is required".to_owned())
-                    .and_then(|d| serde_json::from_str(d).map_err(|e| e.to_string()))
+                req.query.get("d").ok_or_else(|| "d is required".to_owned()).and_then(|d| serde_json::from_str(d).map_err(|e| e.to_string()))
             };
             match parsed.and_then(|v| progress.accept(&v)) {
                 Ok(()) => respond(&mut stream, "200 OK", JSON, "{\"ok\":true}").await,
-                Err(e) => {
-                    respond(
-                        &mut stream,
-                        "400 Bad Request",
-                        JSON,
-                        &serde_json::json!({ "ok": false, "error": e }).to_string(),
-                    )
-                    .await
-                }
+                Err(e) => respond(&mut stream, "400 Bad Request", JSON, &serde_json::json!({ "ok": false, "error": e }).to_string()).await,
             }
         }
         ("GET", "/collector") => {
-            let game = req
-                .query
-                .get("game")
-                .map(String::as_str)
-                .unwrap_or_default();
-            respond(
-                &mut stream,
-                "200 OK",
-                JSON,
-                &progress.collector_for_script(game),
-            )
-            .await;
+            let game = req.query.get("game").map(String::as_str).unwrap_or_default();
+            respond(&mut stream, "200 OK", JSON, &progress.collector_for_script(game)).await;
         }
         ("GET", "/catalog") => {
-            let game = req
-                .query
-                .get("game")
-                .map(String::as_str)
-                .unwrap_or_default();
-            respond(
-                &mut stream,
-                "200 OK",
-                JSON,
-                &progress.catalog_for_script(game),
-            )
-            .await;
+            let game = req.query.get("game").map(String::as_str).unwrap_or_default();
+            respond(&mut stream, "200 OK", JSON, &progress.catalog_for_script(game)).await;
         }
-        ("GET", "/") => {
-            respond(
-                &mut stream,
-                "200 OK",
-                TEXT,
-                "MTwin Manager Progress is running. Load /script.luau from your executor.",
-            )
-            .await
-        }
+        ("GET", "/") => respond(&mut stream, "200 OK", TEXT, "MTwin Manager Progress is running. Load /script.luau from your executor.").await,
         _ => respond(&mut stream, "404 Not Found", TEXT, "not found").await,
     }
 }
@@ -765,23 +623,13 @@ pub fn progress_remove(s: State<'_, App>, keys: Vec<String>) -> usize {
 
 /// Replaces a game's Catalog. Entries without an id are dropped; ids are unique per kind.
 #[tauri::command]
-pub fn progress_catalog_save(
-    s: State<'_, App>,
-    game_id: String,
-    entries: Vec<CatalogEntry>,
-) -> Result<Vec<CatalogEntry>> {
+pub fn progress_catalog_save(s: State<'_, App>, game_id: String, entries: Vec<CatalogEntry>) -> Result<Vec<CatalogEntry>> {
     let game_id = game_id.trim().to_owned();
     if game_id.is_empty() || game_id.len() > 40 {
         return Err(AppError::Invalid("Not a game id.".into()));
     }
     let mut seen = HashSet::new();
-    let cut = |s: &str, n: usize| {
-        s.trim()
-            .chars()
-            .filter(|c| !c.is_control())
-            .take(n)
-            .collect::<String>()
-    };
+    let cut = |s: &str, n: usize| s.trim().chars().filter(|c| !c.is_control()).take(n).collect::<String>();
     let clean: Vec<CatalogEntry> = entries
         .into_iter()
         .take(1000)
@@ -816,15 +664,11 @@ pub fn progress_collector_save(s: State<'_, App>, game_id: String, source: Strin
         return Err(AppError::Invalid("Not a game id.".into()));
     }
     if source.len() > MAX_SCRIPT {
-        return Err(AppError::Invalid(
-            "The script is too long (200 KB at most).".into(),
-        ));
+        return Err(AppError::Invalid("The script is too long (200 KB at most).".into()));
     }
     let source = source.replace("\r\n", "\n");
     let mut st = s.progress.stored();
-    if (source.trim().is_empty() && game_id != ALL)
-        || (game_id == ALL && source.trim() == DEFAULT_ALL.trim())
-    {
+    if (source.trim().is_empty() && game_id != ALL) || (game_id == ALL && source.trim() == DEFAULT_ALL.trim()) {
         st.collectors.remove(&game_id);
     } else {
         st.collectors.insert(game_id, source);
@@ -845,11 +689,7 @@ pub fn progress_auto_delete(s: State<'_, App>, hours: u32) {
 /// The place id in a game link (`roblox.com/games/<id>/...`, `?placeId=<id>`), or the number typed.
 fn game_number(input: &str) -> Option<i64> {
     let s = input.trim();
-    let digits = |t: &str| {
-        t.chars()
-            .take_while(char::is_ascii_digit)
-            .collect::<String>()
-    };
+    let digits = |t: &str| t.chars().take_while(char::is_ascii_digit).collect::<String>();
     let n = if let Some(i) = s.find("/games/") {
         digits(&s[i + 7..])
     } else if let Some(i) = s.find("placeId=") {
@@ -866,9 +706,7 @@ fn game_number(input: &str) -> Option<i64> {
 /// isn't one (the UI says so).
 #[tauri::command]
 pub async fn progress_game_add(s: State<'_, App>, input: String) -> Result<Option<String>> {
-    let Some(n) = game_number(&input) else {
-        return Ok(None);
-    };
+    let Some(n) = game_number(&input) else { return Ok(None) };
     // A place id is the usual case (links carry one); a number Roblox knows no place for is taken
     // as a universe id if Roblox knows that game.
     let universe = match s.api.place_universe(n).await {
@@ -900,20 +738,10 @@ pub fn progress_game_remove(s: State<'_, App>, game_id: String) {
 /// without one are missing.
 #[tauri::command]
 pub async fn progress_images(s: State<'_, App>, ids: Vec<i64>) -> Result<HashMap<i64, String>> {
-    let wanted: Vec<i64> = ids
-        .into_iter()
-        .filter(|id| *id > 0)
-        .collect::<HashSet<_>>()
-        .into_iter()
-        .take(500)
-        .collect();
+    let wanted: Vec<i64> = ids.into_iter().filter(|id| *id > 0).collect::<HashSet<_>>().into_iter().take(500).collect();
     let missing: Vec<i64> = {
         let cache = s.progress.images.lock().unwrap_or_else(|e| e.into_inner());
-        wanted
-            .iter()
-            .copied()
-            .filter(|id| !cache.contains_key(id))
-            .collect()
+        wanted.iter().copied().filter(|id| !cache.contains_key(id)).collect()
     };
     if !missing.is_empty() {
         let (found, complete) = s.api.asset_icons(&missing).await;
@@ -932,79 +760,37 @@ pub async fn progress_images(s: State<'_, App>, ids: Vec<i64>) -> Result<HashMap
         }
     }
     let cache = s.progress.images.lock().unwrap_or_else(|e| e.into_inner());
-    Ok(wanted
-        .into_iter()
-        .filter_map(|id| cache.get(&id).cloned().flatten().map(|u| (id, u)))
-        .collect())
+    Ok(wanted.into_iter().filter_map(|id| cache.get(&id).cloned().flatten().map(|u| (id, u))).collect())
 }
 
 /// Roblox headshots of the reporting accounts, by user id; ones Roblox has no picture for yet are
 /// missing (asked again next time).
 #[tauri::command]
-pub async fn progress_headshots(
-    s: State<'_, App>,
-    user_ids: Vec<i64>,
-) -> Result<HashMap<i64, String>> {
-    let wanted: Vec<i64> = user_ids
-        .into_iter()
-        .filter(|id| *id > 0)
-        .collect::<HashSet<_>>()
-        .into_iter()
-        .take(500)
-        .collect();
+pub async fn progress_headshots(s: State<'_, App>, user_ids: Vec<i64>) -> Result<HashMap<i64, String>> {
+    let wanted: Vec<i64> = user_ids.into_iter().filter(|id| *id > 0).collect::<HashSet<_>>().into_iter().take(500).collect();
     let missing: Vec<i64> = {
         let heads = s.progress.heads.lock().unwrap_or_else(|e| e.into_inner());
-        wanted
-            .iter()
-            .copied()
-            .filter(|id| !heads.contains_key(id))
-            .collect()
+        wanted.iter().copied().filter(|id| !heads.contains_key(id)).collect()
     };
     if !missing.is_empty() {
         match s.api.headshots(&missing).await {
-            Ok(found) => s
-                .progress
-                .heads
-                .lock()
-                .unwrap_or_else(|e| e.into_inner())
-                .extend(found),
+            Ok(found) => s.progress.heads.lock().unwrap_or_else(|e| e.into_inner()).extend(found),
             Err(e) => log::debug!("progress: headshots: {e}"),
         }
     }
     let heads = s.progress.heads.lock().unwrap_or_else(|e| e.into_inner());
-    Ok(wanted
-        .into_iter()
-        .filter_map(|id| heads.get(&id).map(|u| (id, u.clone())))
-        .collect())
+    Ok(wanted.into_iter().filter_map(|id| heads.get(&id).map(|u| (id, u.clone()))).collect())
 }
 
 /// Names, icons and players now of these universes; ones Roblox doesn't answer for are missing.
 #[tauri::command]
-pub async fn progress_games(
-    s: State<'_, App>,
-    universe_ids: Vec<i64>,
-) -> Result<Vec<ProgressGame>> {
-    let ids: Vec<i64> = universe_ids
-        .into_iter()
-        .filter(|id| *id > 0)
-        .take(100)
-        .collect();
-    let games = s
-        .api
-        .games(&ids)
-        .await
-        .inspect_err(|e| log::debug!("progress: games: {e}"))
-        .unwrap_or_default();
+pub async fn progress_games(s: State<'_, App>, universe_ids: Vec<i64>) -> Result<Vec<ProgressGame>> {
+    let ids: Vec<i64> = universe_ids.into_iter().filter(|id| *id > 0).take(100).collect();
+    let games = s.api.games(&ids).await.inspect_err(|e| log::debug!("progress: games: {e}")).unwrap_or_default();
     let (icons, _) = s.api.game_icons(&ids).await;
     Ok(games
         .into_iter()
-        .map(|g| ProgressGame {
-            icon_url: icons.get(&g.universe_id).cloned(),
-            universe_id: g.universe_id,
-            root_place_id: g.root_place_id,
-            name: g.name,
-            playing: g.playing,
-        })
+        .map(|g| ProgressGame { icon_url: icons.get(&g.universe_id).cloned(), universe_id: g.universe_id, root_place_id: g.root_place_id, name: g.name, playing: g.playing })
         .collect())
 }
 
@@ -1029,26 +815,10 @@ mod tests {
         assert_eq!(a.place_id, Some(142823291));
         assert_eq!((a.first_seen, a.last_seen), (1, 5));
         assert_eq!(a.level, Some(53.0));
-        assert_eq!(
-            a.values,
-            vec![ProgressValue {
-                key: "Candy".into(),
-                name: "Halloween Candy".into(),
-                amount: 235.0,
-                image: "123".into()
-            }]
-        );
+        assert_eq!(a.values, vec![ProgressValue { key: "Candy".into(), name: "Halloween Candy".into(), amount: 235.0, image: "123".into() }]);
         assert_eq!(a.stats[0].max, Some(30.0));
         assert_eq!(a.items.len(), 1);
-        assert_eq!(
-            (
-                a.items[0].name.as_str(),
-                a.items[0].category.as_str(),
-                a.items[0].count,
-                a.items[0].image.as_str()
-            ),
-            ("Embergun", "Weapons", 3.0, "456")
-        );
+        assert_eq!((a.items[0].name.as_str(), a.items[0].category.as_str(), a.items[0].count, a.items[0].image.as_str()), ("Embergun", "Weapons", 3.0, "456"));
     }
 
     #[test]
@@ -1064,14 +834,8 @@ mod tests {
 
     #[test]
     fn game_numbers() {
-        assert_eq!(
-            game_number("https://www.roblox.com/games/142823291/Murder-Mystery-2"),
-            Some(142823291)
-        );
-        assert_eq!(
-            game_number("roblox://experiences/start?placeId=920587237&launchData=x"),
-            Some(920587237)
-        );
+        assert_eq!(game_number("https://www.roblox.com/games/142823291/Murder-Mystery-2"), Some(142823291));
+        assert_eq!(game_number("roblox://experiences/start?placeId=920587237&launchData=x"), Some(920587237));
         assert_eq!(game_number(" 66654135 "), Some(66654135));
         assert_eq!(game_number("Murder Mystery"), None);
         assert_eq!(game_number("0"), None);
@@ -1084,9 +848,6 @@ mod tests {
         assert_eq!(decal(&json!(42)), "42");
         assert_eq!(decal(&json!("none")), "");
         // The quote that would end the Luau string goes; what an address may hold stays.
-        assert_eq!(
-            clean_host("localhost:16390\"); os.exit()--"),
-            "localhost:16390os.exit--"
-        );
+        assert_eq!(clean_host("localhost:16390\"); os.exit()--"), "localhost:16390os.exit--");
     }
 }

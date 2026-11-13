@@ -25,18 +25,14 @@ pub const OPEN_MARK: &str = ".roalt-open";
 
 /// Every AAD now starts `mtwin.`; it started `roalt.` before. The old form of `aad`, if it has one.
 pub fn aad(aad: &[u8]) -> Option<Vec<u8>> {
-    aad.strip_prefix(b"mtwin.")
-        .map(|rest| [b"roalt.".as_slice(), rest].concat())
+    aad.strip_prefix(b"mtwin.").map(|rest| [b"roalt.".as_slice(), rest].concat())
 }
 
 #[cfg(test)]
 mod tests {
     #[test]
     fn aad_maps_the_prefix_only() {
-        assert_eq!(
-            super::aad(b"mtwin.cookie:1").as_deref(),
-            Some(b"roalt.cookie:1".as_slice())
-        );
+        assert_eq!(super::aad(b"mtwin.cookie:1").as_deref(), Some(b"roalt.cookie:1".as_slice()));
         assert_eq!(super::aad(b"other"), None);
     }
 }

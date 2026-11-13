@@ -11,9 +11,7 @@ use std::time::Duration;
 use windows::Win32::Foundation::{ERROR_CANCELLED, WAIT_OBJECT_0};
 use windows::Win32::System::SystemInformation::GetTickCount64;
 use windows::Win32::System::Threading::{GetExitCodeProcess, WaitForSingleObject};
-use windows::Win32::UI::Shell::{
-    SEE_MASK_NOASYNC, SEE_MASK_NOCLOSEPROCESS, SHELLEXECUTEINFOW, ShellExecuteExW,
-};
+use windows::Win32::UI::Shell::{SEE_MASK_NOASYNC, SEE_MASK_NOCLOSEPROCESS, SHELLEXECUTEINFOW, ShellExecuteExW};
 use windows::Win32::UI::WindowsAndMessaging::SW_HIDE;
 use windows::core::{Owned, PCWSTR, w};
 
@@ -37,11 +35,7 @@ pub fn script(kbps: u32) -> Result<String> {
         return Ok(format!("{remove}; exit 0"));
     }
     if !(MIN_KBPS..=MAX_KBPS).contains(&kbps) {
-        return Err(AppError::Invalid(tr!(
-            "The bandwidth limit must be 0 (none) or {min} to {max} kbit/s.",
-            min = MIN_KBPS,
-            max = MAX_KBPS
-        )));
+        return Err(AppError::Invalid(tr!("The bandwidth limit must be 0 (none) or {min} to {max} kbit/s.", min = MIN_KBPS, max = MAX_KBPS)));
     }
     let bits = u64::from(kbps) * 1000;
     Ok(format!(
@@ -71,9 +65,7 @@ pub fn apply(kbps: u32) -> Result<()> {
     // SAFETY: `info` is a local with its size set; the strings it points at outlive the call.
     if let Err(e) = unsafe { ShellExecuteExW(&mut info) } {
         return Err(if e.code() == ERROR_CANCELLED.to_hresult() {
-            AppError::Invalid(tr!(
-                "The bandwidth limit needs admin rights; the prompt was declined."
-            ))
+            AppError::Invalid(tr!("The bandwidth limit needs admin rights; the prompt was declined."))
         } else {
             AppError::Internal(tr!("Could not start PowerShell: {why}", why = e.message()))
         });
@@ -87,17 +79,14 @@ pub fn apply(kbps: u32) -> Result<()> {
     // SAFETY: `h` is a live process handle; `code` is a local.
     unsafe {
         if WaitForSingleObject(*h, TIMEOUT.as_millis() as u32) != WAIT_OBJECT_0 {
-            return Err(AppError::Internal(tr!(
-                "Windows didn't answer in time; the limit may or may not be set. Apply again to be sure."
-            )));
+            return Err(AppError::Internal(
+                tr!("Windows didn't answer in time; the limit may or may not be set. Apply again to be sure."),
+            ));
         }
         GetExitCodeProcess(*h, &mut code).map_err(|e| AppError::Internal(e.message()))?;
     }
     if code != 0 {
-        return Err(AppError::Internal(tr!(
-            "Windows refused the bandwidth limit (PowerShell exit code {code}).",
-            code = code
-        )));
+        return Err(AppError::Internal(tr!("Windows refused the bandwidth limit (PowerShell exit code {code}).", code = code)));
     }
     log::info!("bandwidth limit set to {kbps} kbit/s");
     Ok(())
@@ -122,38 +111,17 @@ mod tests {
     #[test]
     fn the_script_has_only_a_checked_rate_in_it() {
         let s = script(1_000).unwrap();
-        assert!(
-            s.contains("-ThrottleRateActionBitsPerSecond 1000000 -PolicyStore ActiveStore"),
-            "{s}"
-        );
-        assert!(
-            s.starts_with(
-                "$ErrorActionPreference = 'Stop'; Remove-NetQosPolicy -Name 'MTwin-Roblox'"
-            ),
-            "{s}"
-        );
-        assert!(
-            s.contains(&format!(
-                "Remove-NetQosPolicy -Name '{}'",
-                crate::legacy::QOS_POLICY
-            )),
-            "the old one goes too: {s}"
-        );
+        assert!(s.contains("-ThrottleRateActionBitsPerSecond 1000000 -PolicyStore ActiveStore"), "{s}");
+        assert!(s.starts_with("$ErrorActionPreference = 'Stop'; Remove-NetQosPolicy -Name 'MTwin-Roblox'"), "{s}");
+        assert!(s.contains(&format!("Remove-NetQosPolicy -Name '{}'", crate::legacy::QOS_POLICY)), "the old one goes too: {s}");
         assert!(!s.contains('"'), "it goes inside -Command \"...\"");
         let off = script(0).unwrap();
-        assert!(
-            off.starts_with("Remove-NetQosPolicy") && !off.contains("New-NetQosPolicy"),
-            "{off}"
-        );
+        assert!(off.starts_with("Remove-NetQosPolicy") && !off.contains("New-NetQosPolicy"), "{off}");
         for bad in [1, MIN_KBPS - 1, MAX_KBPS + 1, u32::MAX] {
             assert!(matches!(script(bad), Err(AppError::Invalid(_))), "{bad}");
         }
         assert!(script(MIN_KBPS).is_ok() && script(MAX_KBPS).is_ok());
-        assert!(
-            script(MAX_KBPS)
-                .unwrap()
-                .contains(&format!("{}", u64::from(MAX_KBPS) * 1000))
-        );
+        assert!(script(MAX_KBPS).unwrap().contains(&format!("{}", u64::from(MAX_KBPS) * 1000)));
     }
 
     #[test]
@@ -162,10 +130,7 @@ mod tests {
         let boot = boot_ms(now);
         assert!(boot <= now);
         assert!(applied_this_boot(boot + 30, boot));
-        assert!(
-            !applied_this_boot(boot - 3_600_000, boot),
-            "applied before a restart"
-        );
+        assert!(!applied_this_boot(boot - 3_600_000, boot), "applied before a restart");
         assert!(!applied_this_boot(0, boot), "never applied");
     }
 }

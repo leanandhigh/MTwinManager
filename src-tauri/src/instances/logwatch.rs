@@ -48,15 +48,7 @@ const HEAD_BYTES: u64 = 256 * 1024;
 
 const JOINING: &str = "! Joining game '";
 /// A log line holding one of these (lowercase) is never reported or shared.
-pub const SENSITIVE: [&str; 7] = [
-    "gameinfo",
-    "ticket",
-    "placelauncher",
-    "roblosecurity",
-    "cookie",
-    "accesscode",
-    "linkcode",
-];
+pub const SENSITIVE: [&str; 7] = ["gameinfo", "ticket", "placelauncher", "roblosecurity", "cookie", "accesscode", "linkcode"];
 /// As Bloxstrap reads it (`ActivityWatcher.cs`); not captured from a log here. If Roblox stops
 /// logging it, a teleport looks like a disconnect again, nothing worse.
 const TELEPORT: &str = "UgcExperienceController: doTeleport";
@@ -78,16 +70,8 @@ const AUTH_FAILED: [&str; 2] = ["encountered during authentication", "Error Code
 /// that session). Only the message counts, not the timestamp/thread prefix before " [".
 fn client_initiated(line: &str) -> bool {
     let msg = line.find(" [").map_or(line, |i| &line[i..]);
-    [
-        "DisconnectClientInitiated",
-        "Same account launched",
-        "DuplicateLogin",
-    ]
-    .iter()
-    .any(|m| msg.contains(m))
-        || msg
-            .split(|c: char| !c.is_ascii_digit())
-            .any(|n| n == "285" || n == "273")
+    ["DisconnectClientInitiated", "Same account launched", "DuplicateLogin"].iter().any(|m| msg.contains(m))
+        || msg.split(|c: char| !c.is_ascii_digit()).any(|n| n == "285" || n == "273")
 }
 
 /// `%LOCALAPPDATA%\Roblox\logs`.
@@ -120,10 +104,7 @@ pub fn find_log(dir: &Path, browser_tracker_id: i64, since: SystemTime) -> Optio
         })
         .collect();
     candidates.sort_by_key(|c| std::cmp::Reverse(c.0));
-    candidates
-        .into_iter()
-        .map(|(_, p)| p)
-        .find(|p| names_tracker(p, browser_tracker_id))
+    candidates.into_iter().map(|(_, p)| p).find(|p| names_tracker(p, browser_tracker_id))
 }
 
 /// `clean` deletes logs last written over a day ago ...
@@ -133,22 +114,11 @@ const CLEAN_BYTES: u64 = 50 << 20;
 
 /// Which of `files` (path, size, last written) `clean` deletes (pure): `.log` files written over
 /// 24 h before `now` or over 50 MB, never one in `keep` (a live client's).
-pub fn stale(
-    files: Vec<(PathBuf, u64, SystemTime)>,
-    now: SystemTime,
-    keep: &[PathBuf],
-) -> Vec<(PathBuf, u64)> {
+pub fn stale(files: Vec<(PathBuf, u64, SystemTime)>, now: SystemTime, keep: &[PathBuf]) -> Vec<(PathBuf, u64)> {
     files
         .into_iter()
-        .filter(|(p, _, _)| {
-            p.extension().is_some_and(|e| e.eq_ignore_ascii_case("log")) && !keep.contains(p)
-        })
-        .filter(|&(_, len, modified)| {
-            len > CLEAN_BYTES
-                || now
-                    .duration_since(modified)
-                    .is_ok_and(|age| age > CLEAN_AGE)
-        })
+        .filter(|(p, _, _)| p.extension().is_some_and(|e| e.eq_ignore_ascii_case("log")) && !keep.contains(p))
+        .filter(|&(_, len, modified)| len > CLEAN_BYTES || now.duration_since(modified).is_ok_and(|age| age > CLEAN_AGE))
         .map(|(p, len, _)| (p, len))
         .collect()
 }
@@ -184,39 +154,23 @@ pub fn clean(dir: &Path, keep: &[PathBuf]) -> crate::model::LogsCleaned {
 
 fn names_tracker(path: &Path, browser_tracker_id: i64) -> bool {
     let mut head = Vec::new();
-    if open_shared(path)
-        .and_then(|f| f.take(HEAD_BYTES).read_to_end(&mut head))
-        .is_err()
-    {
+    if open_shared(path).and_then(|f| f.take(HEAD_BYTES).read_to_end(&mut head)).is_err() {
         return false;
     }
-    String::from_utf8_lossy(&head)
-        .lines()
-        .any(|l| tracker_id(l) == Some(browser_tracker_id))
+    String::from_utf8_lossy(&head).lines().any(|l| tracker_id(l) == Some(browser_tracker_id))
 }
 
 /// Reads lines appended since `offset` (opened shared, so Roblox keeps writing), updates
 /// `facts`, returns the new offset. A partial last line is left for the next read. The client's
 /// own errors and warnings (`problem_of`) go to `on_problem`, repeats within one read counted.
-pub fn read_new(
-    path: &Path,
-    offset: u64,
-    facts: &mut LogFacts,
-    mut on_problem: impl FnMut(&str, usize),
-) -> std::io::Result<u64> {
+pub fn read_new(path: &Path, offset: u64, facts: &mut LogFacts, mut on_problem: impl FnMut(&str, usize)) -> std::io::Result<u64> {
     let mut f = open_shared(path)?;
     // Shorter than what was read: a new file under the same name, start over.
-    let offset = if f.metadata()?.len() < offset {
-        0
-    } else {
-        offset
-    };
+    let offset = if f.metadata()?.len() < offset { 0 } else { offset };
     f.seek(SeekFrom::Start(offset))?;
     let mut buf = Vec::new();
     f.read_to_end(&mut buf)?;
-    let Some(end) = buf.iter().rposition(|&b| b == b'\n') else {
-        return Ok(offset);
-    };
+    let Some(end) = buf.iter().rposition(|&b| b == b'\n') else { return Ok(offset) };
     let mut problems: Vec<(String, usize)> = Vec::new();
     let mut seen: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
     for line in buf[..end].split(|&b| b == b'\n') {
@@ -261,11 +215,7 @@ pub fn problem_of(line: &str) -> Option<&str> {
 /// The client's channel and update decision from its tag on, worth a line in MTwin Manager's log: a
 /// foreground update closes every client. Never a URL (pure).
 fn update_line(line: &str) -> Option<&str> {
-    const MARKS: [&str; 3] = [
-        "RobloxChannel has been set to ",
-        "Update check thread: updateRequired ",
-        "Update mode is chosen as ",
-    ];
+    const MARKS: [&str; 3] = ["RobloxChannel has been set to ", "Update check thread: updateRequired ", "Update mode is chosen as "];
     if !MARKS.iter().any(|m| line.contains(m)) {
         return None;
     }
@@ -277,9 +227,7 @@ pub fn parse_line(line: &str, facts: &mut LogFacts) {
     // A game's scripts write print, warn and error lines: nothing in them is an event. The real
     // join line is an Output line too, so it only counts while no game is running.
     let tag = first_tag(line);
-    let joining = line
-        .find(JOINING)
-        .filter(|_| matches!(tag, None | Some("FLog::Output")));
+    let joining = line.find(JOINING).filter(|_| matches!(tag, None | Some("FLog::Output")));
     // Whatever its tag: no game's script runs before the game.
     if !facts.in_game && AUTH_FAILED.iter().any(|m| line.contains(m)) {
         facts.auth_failed = true;
@@ -306,9 +254,7 @@ pub fn parse_line(line: &str, facts: &mut LogFacts) {
             facts.auth_failed = false;
             facts.reason = None;
         }
-    } else if line.contains("[FLog::Network] Replicator created")
-        || line.contains("[FLog::Network] serverId:")
-    {
+    } else if line.contains("[FLog::Network] Replicator created") || line.contains("[FLog::Network] serverId:") {
         facts.in_game = true;
     } else if facts.in_game && line.contains(TELEPORT) {
         facts.teleporting = true;
@@ -343,9 +289,7 @@ fn first_tag(line: &str) -> Option<&str> {
 /// on `gameinfo:` lines, which are no disconnect lines.
 fn reason_of(line: &str, marker: &str) -> Option<String> {
     let rest = &line[line.find(marker)?..];
-    let end = rest
-        .find(|c: char| !(c.is_ascii_alphanumeric() || " .,:;()_-".contains(c)))
-        .unwrap_or(rest.len());
+    let end = rest.find(|c: char| !(c.is_ascii_alphanumeric() || " .,:;()_-".contains(c))).unwrap_or(rest.len());
     let text: String = rest[..end].trim_end().chars().take(160).collect();
     (!text.is_empty()).then_some(text)
 }
@@ -361,9 +305,7 @@ fn tracker_id(line: &str) -> Option<i64> {
 /// The digits right after `marker`.
 fn number_after(line: &str, marker: &str) -> Option<i64> {
     let rest = &line[line.find(marker)? + marker.len()..];
-    let end = rest
-        .find(|c: char| !c.is_ascii_digit())
-        .unwrap_or(rest.len());
+    let end = rest.find(|c: char| !c.is_ascii_digit()).unwrap_or(rest.len());
     rest[..end].parse().ok()
 }
 
@@ -375,10 +317,7 @@ fn open_shared(path: &Path) -> std::io::Result<File> {
     use std::os::windows::fs::OpenOptionsExt;
     // FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE: Roblox keeps writing (and may
     // delete) the file while it is open here.
-    std::fs::OpenOptions::new()
-        .read(true)
-        .share_mode(0x1 | 0x2 | 0x4)
-        .open(path)
+    std::fs::OpenOptions::new().read(true).share_mode(0x1 | 0x2 | 0x4).open(path)
 }
 
 #[cfg(test)]
@@ -394,12 +333,8 @@ mod tests {
 
     /// The fixture's marker lines with their placeholders filled in.
     fn samples() -> HashMap<String, String> {
-        let path = format!(
-            "{}/../docs/research/fixtures/multiinstance-log-line-samples.json",
-            env!("CARGO_MANIFEST_DIR")
-        );
-        let json: serde_json::Value =
-            serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+        let path = format!("{}/../docs/research/fixtures/multiinstance-log-line-samples.json", env!("CARGO_MANIFEST_DIR"));
+        let json: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
         json["markers"]
             .as_object()
             .unwrap()
@@ -441,12 +376,7 @@ mod tests {
     #[test]
     fn a_games_own_lines_are_no_events() {
         let guid = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
-        let mut f = parsed(&[
-            &line(&format!(
-                "[FLog::Output] ! Joining game '{guid}' place 1 at 1.1.1.1"
-            )),
-            &line("[FLog::Network] Replicator created: 1"),
-        ]);
+        let mut f = parsed(&[&line(&format!("[FLog::Output] ! Joining game '{guid}' place 1 at 1.1.1.1")), &line("[FLog::Network] Replicator created: 1")]);
         assert!(f.in_game);
         for tag in ["FLog::Output", "FLog::Warning", "FLog::Error"] {
             for text in [
@@ -455,48 +385,27 @@ mod tests {
                 "reason: challengedByGcs".to_owned(),
                 "UgcExperienceController: doTeleport".to_owned(),
                 "[FLog::GameJoinLoadTime] Report game_join_loadtime: userid:5".to_owned(),
-                "! Joining game 'ffffffff-bbbb-cccc-dddd-eeeeeeeeeeee' place 666 at 1.1.1.1"
-                    .to_owned(),
+                "! Joining game 'ffffffff-bbbb-cccc-dddd-eeeeeeeeeeee' place 666 at 1.1.1.1".to_owned(),
             ] {
                 parse_line(&line(&format!("[{tag}] {text}")), &mut f);
             }
         }
         assert!(f.in_game && !f.disconnected && !f.left && !f.challenged && !f.teleporting);
-        assert_eq!(
-            (f.job_id.as_deref(), f.place_id, f.user_id),
-            (Some(guid), Some(1), None)
-        );
+        assert_eq!((f.job_id.as_deref(), f.place_id, f.user_id), (Some(guid), Some(1), None));
     }
 
     #[test]
     fn client_problems_are_kept_without_secrets() {
         let l = "2024-05-01T12:00:00.123Z,1.2,1a2c,6 [FLog::Error] Texture failed to load";
         assert_eq!(problem_of(l), Some("[FLog::Error] Texture failed to load"));
-        assert_eq!(
-            problem_of("x,6 [DFLog::RenderError] boom"),
-            Some("[DFLog::RenderError] boom")
-        );
+        assert_eq!(problem_of("x,6 [DFLog::RenderError] boom"), Some("[DFLog::RenderError] boom"));
         assert_eq!(problem_of("x,6 [FLog::Warning] gameinfo:abc"), None);
-        assert_eq!(
-            problem_of("x,6 [FLog::Error] bad https://roblox.com/x?ticket=1"),
-            None
-        );
+        assert_eq!(problem_of("x,6 [FLog::Error] bad https://roblox.com/x?ticket=1"), None);
         assert_eq!(problem_of("x,6 [FLog::Output] fine"), None);
         assert_eq!(problem_of("no tag"), None);
-        assert_eq!(
-            update_line(
-                "x,6,Info [FLog::UpdateController] Update check thread: updateRequired TRUE"
-            ),
-            Some("[FLog::UpdateController] Update check thread: updateRequired TRUE")
-        );
-        assert_eq!(
-            update_line("x,6 [FLog::Output] RobloxChannel has been set to zaflag"),
-            Some("[FLog::Output] RobloxChannel has been set to zaflag")
-        );
-        assert_eq!(
-            update_line("x,6,Info [FLog::UpdateController] versionQueryUrl: https://x"),
-            None
-        );
+        assert_eq!(update_line("x,6,Info [FLog::UpdateController] Update check thread: updateRequired TRUE"), Some("[FLog::UpdateController] Update check thread: updateRequired TRUE"));
+        assert_eq!(update_line("x,6 [FLog::Output] RobloxChannel has been set to zaflag"), Some("[FLog::Output] RobloxChannel has been set to zaflag"));
+        assert_eq!(update_line("x,6,Info [FLog::UpdateController] versionQueryUrl: https://x"), None);
     }
 
     #[test]
@@ -514,10 +423,7 @@ mod tests {
             f(r"L:\future.log", 10, now + Duration::from_secs(3600)),
             (live.clone(), CLEAN_BYTES + 1, hours(48)),
         ];
-        let picked: Vec<_> = stale(files, now, &[live])
-            .into_iter()
-            .map(|(p, _)| p.display().to_string())
-            .collect();
+        let picked: Vec<_> = stale(files, now, &[live]).into_iter().map(|(p, _)| p.display().to_string()).collect();
         assert_eq!(picked, [r"L:\old_Player_last.log", r"L:\huge.LOG"]);
     }
 
@@ -528,44 +434,22 @@ mod tests {
         std::fs::write(dir.join("small.log"), b"x").unwrap();
         std::fs::write(dir.join("live.log"), vec![b'x'; CLEAN_BYTES as usize + 1]).unwrap();
         let done = clean(&dir, &[dir.join("live.log")]);
-        assert_eq!(
-            done,
-            crate::model::LogsCleaned {
-                files: 1,
-                bytes: CLEAN_BYTES + 1
-            }
-        );
-        assert!(
-            !dir.join("big.log").exists()
-                && dir.join("small.log").exists()
-                && dir.join("live.log").exists()
-        );
+        assert_eq!(done, crate::model::LogsCleaned { files: 1, bytes: CLEAN_BYTES + 1 });
+        assert!(!dir.join("big.log").exists() && dir.join("small.log").exists() && dir.join("live.log").exists());
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]
     fn a_teleport_isnt_a_disconnect_until_it_fails() {
         let mut f = LogFacts::default();
-        parse_line(
-            "x [FLog::UgcExperienceController] UgcExperienceController: doTeleport: joinScriptUrl = ...",
-            &mut f,
-        );
+        parse_line("x [FLog::UgcExperienceController] UgcExperienceController: doTeleport: joinScriptUrl = ...", &mut f);
         assert!(!f.teleporting, "only from inside a game");
         f.in_game = true;
-        parse_line(
-            "x [FLog::UgcExperienceController] UgcExperienceController: doTeleport: joinScriptUrl = ...",
-            &mut f,
-        );
+        parse_line("x [FLog::UgcExperienceController] UgcExperienceController: doTeleport: joinScriptUrl = ...", &mut f);
         assert!(f.teleporting);
-        parse_line(
-            "x [FLog::Network] Time to disconnect replication data: 0.1",
-            &mut f,
-        );
+        parse_line("x [FLog::Network] Time to disconnect replication data: 0.1", &mut f);
         assert!(f.teleporting && f.disconnected && !f.left);
-        parse_line(
-            "x [FLog::Output] ! Joining game '0d6c3f4e-5b2a-4c1d-9e8f-7a6b5c4d3e2f' place 1818 at 1.2.3.4",
-            &mut f,
-        );
+        parse_line("x [FLog::Output] ! Joining game '0d6c3f4e-5b2a-4c1d-9e8f-7a6b5c4d3e2f' place 1818 at 1.2.3.4", &mut f);
         assert!(!f.teleporting && !f.disconnected);
     }
 
@@ -583,26 +467,16 @@ mod tests {
                 }
                 "join_loadtime" => want.user_id = Some(USER),
                 "replicator_created" => want.in_game = true,
-                "time_to_disconnect"
-                | "lost_connection"
-                | "server_closed_reason"
-                | "disconnection_notification" => want.disconnected = true,
+                "time_to_disconnect" | "lost_connection" | "server_closed_reason" | "disconnection_notification" => {
+                    want.disconnected = true
+                }
                 // Player: 285 (DisconnectClientInitiated): the player left.
                 "client_disconnect_reason" => (want.disconnected, want.left) = (true, true),
                 "singleton_event_signalled" => want.signalled = true,
                 // Alone, a close request is the user's tray Exit.
-                "close_main_window_request"
-                | "update_required"
-                | "tray_treatment"
-                | "singleton_mutex_wait"
-                | "singleton_mutex_loop"
-                | "update_mode"
-                | "udmux"
-                | "client_disconnect"
-                | "shutdown"
-                | "leave_ugc"
-                | "tray_user_exit"
-                | "tray_spawned" => {}
+                "close_main_window_request" | "update_required" | "tray_treatment" | "singleton_mutex_wait"
+                | "singleton_mutex_loop" | "update_mode" | "udmux" | "client_disconnect" | "shutdown" | "leave_ugc"
+                | "tray_user_exit" | "tray_spawned" => {}
                 other => panic!("new fixture sample {other}: say here what it means"),
             }
             let mut got = parsed(&[l]);
@@ -615,59 +489,32 @@ mod tests {
 
     #[test]
     fn other_documented_lines() {
-        let f = parsed(&[&line(&format!(
-            "[FLog::AppRemoteCheckStarterModule] BTID is overriden to {BTID}."
-        ))]);
+        let f = parsed(&[&line(&format!("[FLog::AppRemoteCheckStarterModule] BTID is overriden to {BTID}."))]);
         assert_eq!(f.browser_tracker_id, Some(BTID));
-        assert!(
-            parsed(&[&line("[FLog::Network] Sending disconnect with reason: 267")]).disconnected
-        );
+        assert!(parsed(&[&line("[FLog::Network] Sending disconnect with reason: 267")]).disconnected);
         assert!(parsed(&[&line("[FLog::Network] serverId: 10.9.2.90|51492")]).in_game);
         assert!(parsed(&[&line("[FLog::Something] reason: challengedByGcs")]).challenged);
         // Not a GUID: ignored.
-        assert_eq!(
-            parsed(&[&line(
-                "[FLog::Output] ! Joining game 'nope' place 1 at 1.2.3.4"
-            )]),
-            LogFacts::default()
-        );
+        assert_eq!(parsed(&[&line("[FLog::Output] ! Joining game 'nope' place 1 at 1.2.3.4")]), LogFacts::default());
     }
 
     #[test]
     fn a_refused_sign_in_counts_only_before_the_game() {
-        for l in [
-            "[FLog::Error] An error was encountered during authentication",
-            "[FLog::Output] Error Code: 403",
-        ] {
+        for l in ["[FLog::Error] An error was encountered during authentication", "[FLog::Output] Error Code: 403"] {
             assert!(parsed(&[&line(l)]).auth_failed, "{l}");
         }
-        let mut f = LogFacts {
-            in_game: true,
-            ..LogFacts::default()
-        };
+        let mut f = LogFacts { in_game: true, ..LogFacts::default() };
         parse_line(&line("[FLog::Output] Error Code: 403"), &mut f);
         assert!(!f.auth_failed, "a game's script can print anything");
-        let mut f = LogFacts {
-            auth_failed: true,
-            ..LogFacts::default()
-        };
-        parse_line(
-            &line(
-                "[FLog::Output] ! Joining game 'ffffffff-bbbb-cccc-dddd-eeeeeeeeeeee' place 666 at 1.1.1.1",
-            ),
-            &mut f,
-        );
+        let mut f = LogFacts { auth_failed: true, ..LogFacts::default() };
+        parse_line(&line("[FLog::Output] ! Joining game 'ffffffff-bbbb-cccc-dddd-eeeeeeeeeeee' place 666 at 1.1.1.1"), &mut f);
         assert!(!f.auth_failed, "a new join starts over");
     }
 
     #[test]
     fn a_new_join_resets_the_session() {
         let s = samples();
-        let mut f = parsed(&[
-            &s["joining_game"],
-            &s["replicator_created"],
-            &s["lost_connection"],
-        ]);
+        let mut f = parsed(&[&s["joining_game"], &s["replicator_created"], &s["lost_connection"]]);
         assert!(f.in_game && f.disconnected);
         parse_line(&s["joining_game"], &mut f);
         assert!(!f.in_game && !f.disconnected);
@@ -677,10 +524,7 @@ mod tests {
     #[test]
     fn replacement_vs_tray_exit() {
         let s = samples();
-        let (event, close) = (
-            s["singleton_event_signalled"].as_str(),
-            s["close_main_window_request"].as_str(),
-        );
+        let (event, close) = (s["singleton_event_signalled"].as_str(), s["close_main_window_request"].as_str());
         assert!(parsed(&[event, close]).replaced);
         let tray_exit = line("[FLog::Systray] Systray menu item Exit is clicked");
         assert!(!parsed(&[&tray_exit, close, event]).replaced);
@@ -696,52 +540,23 @@ mod tests {
             let p = dir.join(name);
             let body = format!(
                 "{}{}",
-                line(
-                    "[FLog::UpdateController] Update mode is chosen as BACKGROUND. Telemetry sent"
-                ),
-                line(&format!(
-                    "[FLog::LogWin32BTId] LogWin32BTId, App, web launch, websiteBTId is {btid}"
-                )),
+                line("[FLog::UpdateController] Update mode is chosen as BACKGROUND. Telemetry sent"),
+                line(&format!("[FLog::LogWin32BTId] LogWin32BTId, App, web launch, websiteBTId is {btid}")),
             );
             std::fs::write(&p, body).unwrap();
-            File::options()
-                .write(true)
-                .open(&p)
-                .unwrap()
-                .set_modified(now - age)
-                .unwrap();
+            File::options().write(true).open(&p).unwrap().set_modified(now - age).unwrap();
             p
         };
         let since = now - Duration::from_secs(60);
-        write(
-            "0.743.0.7431134_20261023T220008Z_Player_0A5C5_CrashHandler_last.log",
-            BTID,
-            Duration::ZERO,
-        );
-        write(
-            "0.743.0.7431134_20261023T210008Z_Player_11111_last.log",
-            BTID,
-            Duration::from_secs(3600),
-        );
-        write(
-            "0.743.0.7431134_20261023T220009Z_Player_22222_last.log",
-            BTID + 1,
-            Duration::ZERO,
-        );
+        write("0.743.0.7431134_20261023T220008Z_Player_0A5C5_CrashHandler_last.log", BTID, Duration::ZERO);
+        write("0.743.0.7431134_20261023T210008Z_Player_11111_last.log", BTID, Duration::from_secs(3600));
+        write("0.743.0.7431134_20261023T220009Z_Player_22222_last.log", BTID + 1, Duration::ZERO);
         write("RobloxPlayerInstaller_EA24F.log", BTID, Duration::ZERO);
         assert_eq!(find_log(&dir, BTID, since), None);
 
-        let older = write(
-            "0.743.0.7431134_20261023T220010Z_Player_33333_last.log",
-            BTID,
-            Duration::from_secs(30),
-        );
+        let older = write("0.743.0.7431134_20261023T220010Z_Player_33333_last.log", BTID, Duration::from_secs(30));
         assert_eq!(find_log(&dir, BTID, since), Some(older));
-        let newer = write(
-            "0.743.0.7431134_20261023T220011Z_Player_44444_last.log",
-            BTID,
-            Duration::from_secs(2),
-        );
+        let newer = write("0.743.0.7431134_20261023T220011Z_Player_44444_last.log", BTID, Duration::from_secs(2));
         assert_eq!(find_log(&dir, BTID, since), Some(newer));
         // Modified a little before `since`: within the slack.
         assert!(find_log(&dir, BTID + 1, now + Duration::from_secs(3)).is_some());
@@ -754,25 +569,16 @@ mod tests {
         let dir = temp_dir();
         let p = dir.join("0.743.0.7431134_20261023T220008Z_Player_8C675_last.log");
         let len = |p: &Path| std::fs::metadata(p).unwrap().len();
-        std::fs::write(
-            &p,
-            line(&format!(
-                "[FLog::LogWin32BTId] LogWin32BTId, App, web launch, websiteBTId is {BTID}"
-            )),
-        )
-        .unwrap();
+        std::fs::write(&p, line(&format!("[FLog::LogWin32BTId] LogWin32BTId, App, web launch, websiteBTId is {BTID}"))).unwrap();
         let mut f = LogFacts::default();
         let o1 = read_new(&p, 0, &mut f, |_, _| {}).unwrap();
         assert_eq!((o1, f.browser_tracker_id), (len(&p), Some(BTID)));
 
-        let join = line(&format!(
-            "[FLog::Output] ! Joining game '{JOB}' place {PLACE} at 10.9.2.90"
-        ));
+        let join = line(&format!("[FLog::Output] ! Joining game '{JOB}' place {PLACE} at 10.9.2.90"));
         let (head, tail) = join.split_at(70);
         let mut w = File::options().append(true).open(&p).unwrap();
         // A whole line with an invalid UTF-8 byte, then half of the next one.
-        w.write_all(b"2026-10-19T09:08:04.000Z,1.0,0a50,6 \xff noise\n")
-            .unwrap();
+        w.write_all(b"2026-10-19T09:08:04.000Z,1.0,0a50,6 \xff noise\n").unwrap();
         w.write_all(head.as_bytes()).unwrap();
         let o2 = read_new(&p, o1, &mut f, |_, _| {}).unwrap();
         assert_eq!(o2, len(&p) - head.len() as u64);
@@ -780,24 +586,14 @@ mod tests {
         assert_eq!(read_new(&p, o2, &mut f, |_, _| {}).unwrap(), o2);
 
         w.write_all(tail.as_bytes()).unwrap();
-        w.write_all(line("[FLog::Network] Replicator created: 000000007A26CF00").as_bytes())
-            .unwrap();
+        w.write_all(line("[FLog::Network] Replicator created: 000000007A26CF00").as_bytes()).unwrap();
         let o3 = read_new(&p, o2, &mut f, |_, _| {}).unwrap();
         assert_eq!(o3, len(&p));
-        assert_eq!(
-            (f.job_id.as_deref(), f.place_id, f.in_game),
-            (Some(JOB), Some(PLACE), true)
-        );
+        assert_eq!((f.job_id.as_deref(), f.place_id, f.in_game), (Some(JOB), Some(PLACE), true));
         drop(w);
 
         // Replaced by a shorter file: read from the start.
-        std::fs::write(
-            &p,
-            line(
-                "[FLog::Network] Lost connection with reason : You have been kicked from the game",
-            ),
-        )
-        .unwrap();
+        std::fs::write(&p, line("[FLog::Network] Lost connection with reason : You have been kicked from the game")).unwrap();
         let o4 = read_new(&p, o3, &mut f, |_, _| {}).unwrap();
         assert_eq!(o4, len(&p));
         assert!(f.disconnected);
@@ -808,31 +604,17 @@ mod tests {
     fn a_disconnect_the_player_started_is_told_apart() {
         let kicked = parsed(&[&line("[FLog::Network] Sending disconnect with reason: 267")]);
         assert!(kicked.disconnected && !kicked.left);
-        let shutdown = parsed(&[&line(
-            "[FLog::Network] Connection closed by server for reason: RCC: 288 (DisconnectServerShutdown)",
-        )]);
+        let shutdown = parsed(&[&line("[FLog::Network] Connection closed by server for reason: RCC: 288 (DisconnectServerShutdown)")]);
         assert!(shutdown.disconnected && !shutdown.left);
-        for l in [
-            "[FLog::Network] Disconnection Notification. Reason: 285",
-            "Disconnected from server for reason: Player: 285 (DisconnectClientInitiated)",
-        ] {
+        for l in ["[FLog::Network] Disconnection Notification. Reason: 285", "Disconnected from server for reason: Player: 285 (DisconnectClientInitiated)"] {
             let left = parsed(&[&line(l)]);
             assert!(left.disconnected && left.left, "{l}");
         }
-        assert!(
-            !parsed(&[&line(
-                "[FLog::Network] Disconnection Notification. Reason: 2851"
-            )])
-            .left
-        );
-        let elsewhere = parsed(&[&line(
-            "[FLog::Network] Disconnection Notification. Reason: 273",
-        )]);
+        assert!(!parsed(&[&line("[FLog::Network] Disconnection Notification. Reason: 2851")]).left);
+        let elsewhere = parsed(&[&line("[FLog::Network] Disconnection Notification. Reason: 273")]);
         assert!(elsewhere.disconnected && elsewhere.left);
         // A 285 in the timestamp, seconds or thread id is not the reason.
-        let prefixed = parsed(&[
-            "2026-10-17T18:16:31.285Z,285.100000,a285,6,Info [FLog::Network] Sending disconnect with reason: 267",
-        ]);
+        let prefixed = parsed(&["2026-10-17T18:16:31.285Z,285.100000,a285,6,Info [FLog::Network] Sending disconnect with reason: 267"]);
         assert!(prefixed.disconnected && !prefixed.left);
     }
 
@@ -843,46 +625,21 @@ mod tests {
             lines.iter().for_each(|l| parse_line(&line(l), &mut f));
             f.reason
         };
-        assert_eq!(
-            reason(&["[FLog::Network] Sending disconnect with reason: 267"]).as_deref(),
-            Some("Sending disconnect with reason: 267")
-        );
+        assert_eq!(reason(&["[FLog::Network] Sending disconnect with reason: 267"]).as_deref(), Some("Sending disconnect with reason: 267"));
         // A line naming no reason gives way to one that does, not the other way round.
-        let both = [
-            "[FLog::Network] Time to disconnect replication data: 0.01",
-            "[FLog::Network] Disconnection Notification. Reason: 277",
-        ];
-        assert_eq!(
-            reason(&both).as_deref(),
-            Some("Disconnection Notification. Reason: 277")
-        );
+        let both = ["[FLog::Network] Time to disconnect replication data: 0.01", "[FLog::Network] Disconnection Notification. Reason: 277"];
+        assert_eq!(reason(&both).as_deref(), Some("Disconnection Notification. Reason: 277"));
         let shutdown = "[FLog::Network] Connection closed by server for reason: RCC: 288 (DisconnectServerShutdown)";
-        assert_eq!(
-            reason(&[shutdown, both[0]]).as_deref(),
-            Some("Connection closed by server for reason: RCC: 288 (DisconnectServerShutdown)")
-        );
+        assert_eq!(reason(&[shutdown, both[0]]).as_deref(), Some("Connection closed by server for reason: RCC: 288 (DisconnectServerShutdown)"));
         // Anything unusual ends it, and it is capped.
-        let odd = format!(
-            "[FLog::Network] Lost connection with reason : kicked \"x\" {}",
-            "y".repeat(400)
-        );
-        assert_eq!(
-            reason(&[&odd]).as_deref(),
-            Some("Lost connection with reason : kicked")
-        );
-        let long = format!(
-            "[FLog::Network] Lost connection with reason : {}",
-            "y".repeat(400)
-        );
+        let odd = format!("[FLog::Network] Lost connection with reason : kicked \"x\" {}", "y".repeat(400));
+        assert_eq!(reason(&[&odd]).as_deref(), Some("Lost connection with reason : kicked"));
+        let long = format!("[FLog::Network] Lost connection with reason : {}", "y".repeat(400));
         assert_eq!(reason(&[&long]).unwrap().len(), 160);
         // A new join forgets it.
         let mut f = parsed(&[&line("[FLog::Network] Sending disconnect with reason: 267")]);
-        parse_line(
-            &line(&format!(
-                "[FLog::Output] ! Joining game '{JOB}' place {PLACE} at 10.9.2.90"
-            )),
-            &mut f,
-        );
+        parse_line(&line(&format!("[FLog::Output] ! Joining game '{JOB}' place {PLACE} at 10.9.2.90")), &mut f);
         assert_eq!(f.reason, None);
     }
 }
+

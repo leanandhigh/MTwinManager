@@ -38,9 +38,7 @@ pub const INSTALL_TIMEOUT: Duration = Duration::from_secs(10 * 60);
 /// Win32 `FILE_SHARE_READ`: others may read (and run) the file, never write or delete it.
 pub(crate) const FILE_SHARE_READ: u32 = 0x1;
 fn bootstrapper() -> String {
-    tr!(
-        "A bootstrapper (e.g. Bloxstrap) manages this Roblox install and keeps it up to date; MTwin Manager leaves it alone."
-    )
+    tr!("A bootstrapper (e.g. Bloxstrap) manages this Roblox install and keeps it up to date; MTwin Manager leaves it alone.")
 }
 
 #[derive(Default)]
@@ -84,9 +82,7 @@ impl Updater {
 
     /// `live` is known not to be rolled out to this PC (within `NOT_HERE_FOR`).
     fn not_here(&self, live: &str) -> bool {
-        lock(&self.not_here)
-            .as_ref()
-            .is_some_and(|(v, at)| v == live && unix_now().saturating_sub(*at) < NOT_HERE_FOR)
+        lock(&self.not_here).as_ref().is_some_and(|(v, at)| v == live && unix_now().saturating_sub(*at) < NOT_HERE_FOR)
     }
 
     /// The installer runs (or is being downloaded): launches are refused.
@@ -112,11 +108,7 @@ impl Drop for Installing<'_> {
 
 /// `version-` and 16 lowercase hex digits: the only thing that goes into the installer URL.
 pub fn is_version(s: &str) -> bool {
-    s.strip_prefix("version-").is_some_and(|h| {
-        h.len() == 16
-            && h.bytes()
-                .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
-    })
+    s.strip_prefix("version-").is_some_and(|h| h.len() == 16 && h.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)))
 }
 
 /// The installed version of a client at `...\Versions\version-xxxx\RobloxPlayerBeta.exe`.
@@ -136,12 +128,7 @@ pub fn outdated(version: Option<&str>, latest: Option<&str>) -> bool {
 
 /// Auto-update runs only when turned on, Roblox's own client is installed and outdated, no
 /// Roblox client runs and nothing (launch, batch, auto-rejoin, another install) is busy.
-pub fn may_auto_update(
-    enabled: bool,
-    c: &RobloxClient,
-    clients_running: usize,
-    busy: bool,
-) -> bool {
+pub fn may_auto_update(enabled: bool, c: &RobloxClient, clients_running: usize, busy: bool) -> bool {
     enabled && c.outdated && c.path.is_some() && !c.bootstrapper && clients_running == 0 && !busy
 }
 
@@ -158,11 +145,7 @@ pub fn installer_url(version: &str) -> Option<String> {
 /// Nothing known doesn't hold it up.
 // shortcut: Bloxstrap's optional background updates don't close clients, but only under conditions
 // it decides at launch; such a user is asked to close clients too. Read its settings if they mind.
-fn bootstrapper_would_close(
-    installed: Option<&str>,
-    live: &[Option<&str>],
-    running: usize,
-) -> bool {
+fn bootstrapper_would_close(installed: Option<&str>, live: &[Option<&str>], running: usize) -> bool {
     let mut known = live.iter().flatten().peekable();
     running > 0 && known.peek().is_some() && known.all(|l| outdated(installed, Some(l)))
 }
@@ -171,16 +154,8 @@ fn bootstrapper_would_close(
 /// (`seen`, when this app first saw it): it launches without updating (pinned to an executor's
 /// build, or its updates turned off), so it won't close anything (pure). `running`: each
 /// running client's build and start time.
-fn bootstrapper_stays(
-    installed: &str,
-    seen: Option<u64>,
-    running: &[(Option<String>, u64)],
-) -> bool {
-    seen.is_some_and(|at| {
-        running
-            .iter()
-            .any(|(v, started)| v.as_deref() == Some(installed) && *started >= at)
-    })
+fn bootstrapper_stays(installed: &str, seen: Option<u64>, running: &[(Option<String>, u64)]) -> bool {
+    seen.is_some_and(|at| running.iter().any(|(v, started)| v.as_deref() == Some(installed) && *started >= at))
 }
 
 /// The registry channel's live version (None on production, or when Roblox can't be asked).
@@ -189,9 +164,7 @@ async fn channel_version(s: &App) -> Option<String> {
     s.api
         .client_version_on(&channel)
         .await
-        .inspect_err(|e| {
-            log::info!("bootstrapper check: version of channel {channel} unknown: {e}")
-        })
+        .inspect_err(|e| log::info!("bootstrapper check: version of channel {channel} unknown: {e}"))
         .ok()
 }
 
@@ -201,9 +174,7 @@ async fn channel_version(s: &App) -> Option<String> {
 /// it, which don't count as running.
 pub async fn update_hold(s: &App, closing: usize) -> Option<String> {
     let exe = client::find().ok()?;
-    let running = crate::instances::process::roblox_processes()
-        .len()
-        .saturating_sub(closing);
+    let running = crate::instances::process::roblox_processes().len().saturating_sub(closing);
     if running == 0 {
         return None;
     }
@@ -211,43 +182,23 @@ pub async fn update_hold(s: &App, closing: usize) -> Option<String> {
         let (production, channel) = (production_version(s).await, channel_version(s).await);
         // The chosen executor's build counts as up to date: bootstrappers like ExploitStrap pin to it.
         let executor = executor_version(s).await;
-        if !bootstrapper_would_close(
-            Some(&installed),
-            &[
-                production.as_deref(),
-                channel.as_deref(),
-                executor.as_deref(),
-            ],
-            running,
-        ) {
+        if !bootstrapper_would_close(Some(&installed), &[production.as_deref(), channel.as_deref(), executor.as_deref()], running) {
             return None;
         }
-        let seen = lock(&s.update.latest_seen)
-            .as_ref()
-            .filter(|(v, _)| Some(v) == production.as_ref())
-            .map(|(_, at)| *at);
+        let seen = lock(&s.update.latest_seen).as_ref().filter(|(v, _)| Some(v) == production.as_ref()).map(|(_, at)| *at);
         let clients: Vec<_> = crate::instances::process::roblox_processes()
             .into_iter()
-            .map(|p| {
-                (
-                    crate::instances::process::exe_path(p.pid).and_then(|e| installed_version(&e)),
-                    p.start_time,
-                )
-            })
+            .map(|p| (crate::instances::process::exe_path(p.pid).and_then(|e| installed_version(&e)), p.start_time))
             .collect();
         if bootstrapper_stays(&installed, seen, &clients) {
-            log::info!(
-                "launch not held: the bootstrapper already started {installed} after {production:?} was out, so it doesn't update"
-            );
+            log::info!("launch not held: the bootstrapper already started {installed} after {production:?} was out, so it doesn't update");
             return None;
         }
         log::info!(
             "launch held: the bootstrapper has {installed}, Roblox's live is {production:?} (production) and {channel:?} (channel {:?}), {running} client(s) running",
             client::channel()
         );
-        return Some(tr!(
-            "Roblox has an update, and your bootstrapper (e.g. Bloxstrap) would close every running client to install it. Close your clients first, then launch."
-        ));
+        return Some(tr!("Roblox has an update, and your bootstrapper (e.g. Bloxstrap) would close every running client to install it. Close your clients first, then launch."));
     }
     if client::managed_by_bootstrapper(&exe) {
         return None;
@@ -256,18 +207,14 @@ pub async fn update_hold(s: &App, closing: usize) -> Option<String> {
     if client::installed_build(&live).is_some() || not_here(s, &live) {
         return None;
     }
-    Some(tr!(
-        "Roblox has an update, and installing it would close every running client. Close your clients first, then launch."
-    ))
+    Some(tr!("Roblox has an update, and installing it would close every running client. Close your clients first, then launch."))
 }
 
 /// A client `launcher::launch` just started (`production`: asked for Roblox's live version). When
 /// that version isn't installed, the client is a test of whether Roblox updates this PC
 /// (`not_rolled_out`).
 pub fn note_started(s: &App, exe: &client::ClientExe, production: bool, pid: u32, started: u64) {
-    let Some(live) = lock(&s.update.latest).clone() else {
-        return;
-    };
+    let Some(live) = lock(&s.update.latest).clone() else { return };
     if !production || exe.bootstrapper || pid == 0 || client::installed_build(&live).is_some() {
         return;
     }
@@ -285,9 +232,7 @@ fn not_here(s: &App, live: &str) -> bool {
     if crate::instances::process::installer_running() || !not_rolled_out(live, &probe_results(s)) {
         return false;
     }
-    log::info!(
-        "Roblox lists {live} as live, but a client MTwin Manager started asking for it got into a game on an older build: not rolled out to this PC yet, launches go on"
-    );
+    log::info!("Roblox lists {live} as live, but a client MTwin Manager started asking for it got into a game on an older build: not rolled out to this PC yet, launches go on");
     *lock(&s.update.not_here) = Some((live.to_owned(), unix_now()));
     true
 }
@@ -299,15 +244,10 @@ fn probe_results(s: &App) -> Vec<(String, Option<String>, bool)> {
     let now = unix_now();
     probes
         .into_iter()
-        .filter(|(pid, t, _, noted)| {
-            now.saturating_sub(*noted) < NOT_HERE_FOR
-                && crate::instances::process::start_time(*pid) == Some(*t)
-        })
+        .filter(|(pid, t, _, noted)| now.saturating_sub(*noted) < NOT_HERE_FOR && crate::instances::process::start_time(*pid) == Some(*t))
         .map(|(pid, _, asked, _)| {
             let now = crate::instances::process::exe_path(pid).and_then(|e| installed_version(&e));
-            let in_game = list
-                .iter()
-                .any(|i| i.pid == pid && i.state == crate::model::InstanceState::InGame);
+            let in_game = list.iter().any(|i| i.pid == pid && i.state == crate::model::InstanceState::InGame);
             (asked, now, in_game)
         })
         .collect()
@@ -318,28 +258,18 @@ fn probe_results(s: &App) -> Vec<(String, Option<String>, bool)> {
 /// by Roblox: `live` isn't this PC's update yet (pure). In a game, so it is past Roblox's update
 /// step. `probes`: (asked for, runs now, in a game).
 fn not_rolled_out(live: &str, probes: &[(String, Option<String>, bool)]) -> bool {
-    probes.iter().any(|(asked, now, in_game)| {
-        asked == live && *in_game && now.as_deref().is_some_and(|v| v != live)
-    })
+    probes.iter().any(|(asked, now, in_game)| asked == live && *in_game && now.as_deref().is_some_and(|v| v != live))
 }
 
 fn unix_now() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0, |d| d.as_secs())
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs())
 }
 
 /// The chosen executor's Roblox build (`Settings.executor`, from WEAO); None without one, or when
 /// WEAO doesn't list one for it.
 pub async fn executor_version(s: &App) -> Option<String> {
-    let name =
-        s.db.settings()
-            .ok()
-            .map(|v| v.executor)
-            .filter(|e| !e.trim().is_empty())?;
-    let v = crate::weao::executor_rbx_version(&name)
-        .await
-        .filter(|v| is_version(v));
+    let name = s.db.settings().ok().map(|v| v.executor).filter(|e| !e.trim().is_empty())?;
+    let v = crate::weao::executor_rbx_version(&name).await.filter(|v| is_version(v));
     if v.is_none() {
         log::info!("executor {name}: no Roblox version known; following Roblox's live one");
     }
@@ -385,28 +315,12 @@ pub async fn launch_client(s: &App) -> Result<(client::ClientExe, bool)> {
         if let Some(path) = client::installed_build(&want) {
             let live = production_version(s).await;
             let production = live.as_deref() == Some(want.as_str());
-            log::info!(
-                "launching the executor's Roblox build {want} at {} (production's: {live:?})",
-                path.display()
-            );
-            return Ok((
-                client::ClientExe {
-                    path,
-                    bootstrapper: false,
-                    ..Default::default()
-                },
-                production,
-            ));
+            log::info!("launching the executor's Roblox build {want} at {} (production's: {live:?})", path.display());
+            return Ok((client::ClientExe { path, bootstrapper: false, ..Default::default() }, production));
         }
-        log::warn!(
-            "the executor's Roblox build {want} isn't installed; launching the usual client (Update Roblox installs it)"
-        );
+        log::warn!("the executor's Roblox build {want} isn't installed; launching the usual client (Update Roblox installs it)");
     }
-    let live = if managed {
-        None
-    } else {
-        production_version(s).await
-    };
+    let live = if managed { None } else { production_version(s).await };
     let chosen = launch_choice(exe, managed, live.as_deref(), client::installed_build);
     log::info!(
         "launching {} (production: {}, bootstrapper manages this install: {managed}, Roblox's live version: {live:?}, channel: {:?}, roblox-player handler: {:?})",
@@ -416,37 +330,17 @@ pub async fn launch_client(s: &App) -> Result<(client::ClientExe, bool)> {
         client::handler(),
     );
     // Asked for production without having it: this client updates itself into a new folder.
-    if chosen.1
-        && live
-            .as_deref()
-            .is_some_and(|v| client::installed_build(v).is_none())
-    {
-        log::warn!(
-            "Roblox's live version isn't installed: the updated client won't have this launch's graphics flags, which go in the old version's folder"
-        );
+    if chosen.1 && live.as_deref().is_some_and(|v| client::installed_build(v).is_none()) {
+        log::warn!("Roblox's live version isn't installed: the updated client won't have this launch's graphics flags, which go in the old version's folder");
     }
     Ok(chosen)
 }
 
 /// `launch_client`'s choice (pure but for `installed`).
-fn launch_choice(
-    exe: client::ClientExe,
-    managed: bool,
-    live: Option<&str>,
-    installed: impl FnOnce(&str) -> Option<PathBuf>,
-) -> (client::ClientExe, bool) {
-    let Some(live) = live.filter(|_| !managed) else {
-        return (exe, false);
-    };
+fn launch_choice(exe: client::ClientExe, managed: bool, live: Option<&str>, installed: impl FnOnce(&str) -> Option<PathBuf>) -> (client::ClientExe, bool) {
+    let Some(live) = live.filter(|_| !managed) else { return (exe, false) };
     match installed(live) {
-        Some(path) => (
-            client::ClientExe {
-                path,
-                bootstrapper: false,
-                ..Default::default()
-            },
-            true,
-        ),
+        Some(path) => (client::ClientExe { path, bootstrapper: false, ..Default::default() }, true),
         None => (exe, true),
     }
 }
@@ -455,16 +349,11 @@ fn launch_choice(
 pub fn client(s: &App) -> RobloxClient {
     let exe = client::find().ok();
     let bootstrapper = exe.as_ref().is_some_and(client::managed_by_bootstrapper);
-    let version = exe
-        .as_ref()
-        .filter(|_| !bootstrapper)
-        .and_then(|e| installed_version(&e.path));
+    let version = exe.as_ref().filter(|_| !bootstrapper).and_then(|e| installed_version(&e.path));
     let latest = lock(&s.update.latest).clone();
     // Production's build installed anywhere (Roblox may point at another channel's), or Roblox
     // hasn't rolled it out here: not out of date.
-    let stale = latest
-        .as_deref()
-        .is_some_and(|l| client::installed_build(l).is_none() && !not_here(s, l));
+    let stale = latest.as_deref().is_some_and(|l| client::installed_build(l).is_none() && !not_here(s, l));
     RobloxClient {
         path: exe.map(|e| e.path.display().to_string()),
         bootstrapper,
@@ -510,17 +399,9 @@ async fn check(app: &AppHandle) {
         Err(e) => log::info!("Roblox version check failed: {e}"),
     }
     let c = publish(app);
-    let enabled =
-        s.db.settings()
-            .inspect_err(|e| log::warn!("auto-update: settings unreadable, skipped: {e}"))
-            .is_ok_and(|v| v.auto_update);
+    let enabled = s.db.settings().inspect_err(|e| log::warn!("auto-update: settings unreadable, skipped: {e}")).is_ok_and(|v| v.auto_update);
     let running = crate::instances::process::roblox_processes().len();
-    if !may_auto_update(
-        enabled,
-        &c,
-        running,
-        s.bulk.any_busy() || s.update.installing() || s.self_update.installing(),
-    ) {
+    if !may_auto_update(enabled, &c, running, s.bulk.any_busy() || s.update.installing() || s.self_update.installing()) {
         return;
     }
     {
@@ -540,11 +421,7 @@ async fn check(app: &AppHandle) {
                 None => tr!("Roblox was updated to the latest version."),
             },
         ),
-        Err(e) => crate::commands::notice(
-            app,
-            true,
-            tr!("Roblox couldn't be updated: {why}", why = e.message()),
-        ),
+        Err(e) => crate::commands::notice(app, true, tr!("Roblox couldn't be updated: {why}", why = e.message())),
     }
 }
 
@@ -559,9 +436,7 @@ pub async fn install(app: &AppHandle) -> Result<RobloxClient> {
         INSTALL_EVENT,
         match &result {
             Ok(()) => InstallProgress::Done,
-            Err(e) => InstallProgress::Error {
-                message: e.message(),
-            },
+            Err(e) => InstallProgress::Error { message: e.message() },
         },
     );
     if let Err(e) = &result {
@@ -573,14 +448,10 @@ pub async fn install(app: &AppHandle) -> Result<RobloxClient> {
 async fn run_install(app: &AppHandle, s: &App) -> Result<()> {
     // `installing` is set first: a launch from now on is refused, one already going is seen here.
     if s.bulk.any_busy() {
-        return Err(AppError::Invalid(tr!(
-            "Wait for the running launch, batch or auto-rejoin to finish, then install Roblox."
-        )));
+        return Err(AppError::Invalid(tr!("Wait for the running launch, batch or auto-rejoin to finish, then install Roblox.")));
     }
     if !crate::instances::process::roblox_processes().is_empty() {
-        return Err(AppError::Invalid(tr!(
-            "Close every Roblox client first: installing Roblox ends them."
-        )));
+        return Err(AppError::Invalid(tr!("Close every Roblox client first: installing Roblox ends them.")));
     }
     if client::find().is_ok_and(|e| client::managed_by_bootstrapper(&e)) {
         return Err(AppError::Invalid(bootstrapper()));
@@ -591,8 +462,7 @@ async fn run_install(app: &AppHandle, s: &App) -> Result<()> {
     emit(InstallProgress::Downloading { percent: 0 });
     let version = target_version(s).await?;
     *lock(&s.update.latest) = Some(version.clone());
-    let url = installer_url(&version)
-        .ok_or_else(|| AppError::Roblox("unexpected version name".into()))?;
+    let url = installer_url(&version).ok_or_else(|| AppError::Roblox("unexpected version name".into()))?;
 
     let dir = TempDir::new("mtwin-install-")?;
     let mut shown = 0;
@@ -610,10 +480,7 @@ async fn run_install(app: &AppHandle, s: &App) -> Result<()> {
     File::create_new(&exe)?.write_all(&bytes)?;
     drop(bytes);
     // Nothing can change the file between the check and the run: no write sharing until it ends.
-    let pinned = OpenOptions::new()
-        .read(true)
-        .share_mode(FILE_SHARE_READ)
-        .open(&exe)?;
+    let pinned = OpenOptions::new().read(true).share_mode(FILE_SHARE_READ).open(&exe)?;
 
     emit(InstallProgress::Verifying);
     let checked = exe.clone();
@@ -633,37 +500,26 @@ async fn run_install(app: &AppHandle, s: &App) -> Result<()> {
             let installed = installed_version(&e.path);
             if installed.as_deref() != Some(version.as_str()) {
                 return Err(AppError::Internal(match installed.as_deref() {
-                    Some(v) => tr!(
-                        "Roblox's installer finished, but Roblox is still on {version}.",
-                        version = v
-                    ),
-                    None => tr!(
-                        "Roblox's installer finished, but Roblox is still on an unknown version."
-                    ),
+                    Some(v) => tr!("Roblox's installer finished, but Roblox is still on {version}.", version = v),
+                    None => tr!("Roblox's installer finished, but Roblox is still on an unknown version."),
                 }));
             }
             Ok(())
         }
-        Err(_) => Err(AppError::Internal(tr!(
-            "Roblox's installer finished, but Roblox wasn't found. Install it from roblox.com."
-        ))),
+        Err(_) => Err(AppError::Internal(tr!("Roblox's installer finished, but Roblox wasn't found. Install it from roblox.com."))),
     }
 }
 
 /// Runs `exe` in its folder and waits for it, at most `timeout` (then it is ended and Err).
 fn run(exe: &Path, timeout: Duration) -> Result<Option<i32>> {
-    let dir = exe
-        .parent()
-        .ok_or_else(|| AppError::Internal("installer folder unknown".into()))?;
+    let dir = exe.parent().ok_or_else(|| AppError::Internal("installer folder unknown".into()))?;
     let mut child = Command::new(exe)
         .current_dir(dir)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
-        .map_err(|e| {
-            AppError::Internal(tr!("Could not start Roblox's installer: {why}", why = e))
-        })?;
+        .map_err(|e| AppError::Internal(tr!("Could not start Roblox's installer: {why}", why = e)))?;
     let deadline = Instant::now() + timeout;
     loop {
         if let Some(status) = child.try_wait()? {
@@ -675,25 +531,16 @@ fn run(exe: &Path, timeout: Duration) -> Result<Option<i32>> {
                 log::warn!("could not end Roblox's installer (pid {}): {e}", child.id());
             }
             if let Err(e) = child.wait() {
-                log::warn!(
-                    "could not wait for Roblox's installer (pid {}): {e}",
-                    child.id()
-                );
+                log::warn!("could not wait for Roblox's installer (pid {}): {e}", child.id());
             }
-            return Err(AppError::Internal(tr!(
-                "Roblox's installer took over 10 minutes and was stopped. Try again, or install Roblox from roblox.com."
-            )));
+            return Err(AppError::Internal(tr!("Roblox's installer took over 10 minutes and was stopped. Try again, or install Roblox from roblox.com.")));
         }
         std::thread::sleep(Duration::from_millis(250));
     }
 }
 
-pub(crate) async fn blocking<T: Send + 'static>(
-    f: impl FnOnce() -> Result<T> + Send + 'static,
-) -> Result<T> {
-    tauri::async_runtime::spawn_blocking(f)
-        .await
-        .map_err(|e| AppError::Internal(e.to_string()))?
+pub(crate) async fn blocking<T: Send + 'static>(f: impl FnOnce() -> Result<T> + Send + 'static) -> Result<T> {
+    tauri::async_runtime::spawn_blocking(f).await.map_err(|e| AppError::Internal(e.to_string()))?
 }
 
 /// A fresh, uniquely named folder in %TEMP% (`prefix` + a UUID), deleted with everything in it on drop.
@@ -751,22 +598,10 @@ mod tests {
         let v = |p: &str| installed_version(Path::new(p));
         let own = r"C:\Users\you\AppData\Local\Roblox\Versions\version-9ac8595712b447a7\RobloxPlayerBeta.exe";
         assert_eq!(v(own).as_deref(), Some("version-9ac8595712b447a7"));
-        assert_eq!(
-            v(r"D:\R\VERSIONS\Version-9AC8595712B447A7\RobloxPlayerBeta.exe").as_deref(),
-            Some("version-9ac8595712b447a7")
-        );
-        assert_eq!(
-            v(r"C:\Users\you\AppData\Local\Bloxstrap\Bloxstrap.exe"),
-            None
-        );
-        assert_eq!(
-            v(r"C:\Roblox\Other\version-9ac8595712b447a7\RobloxPlayerBeta.exe"),
-            None
-        );
-        assert_eq!(
-            v(r"C:\Roblox\Versions\version-xyz\RobloxPlayerBeta.exe"),
-            None
-        );
+        assert_eq!(v(r"D:\R\VERSIONS\Version-9AC8595712B447A7\RobloxPlayerBeta.exe").as_deref(), Some("version-9ac8595712b447a7"));
+        assert_eq!(v(r"C:\Users\you\AppData\Local\Bloxstrap\Bloxstrap.exe"), None);
+        assert_eq!(v(r"C:\Roblox\Other\version-9ac8595712b447a7\RobloxPlayerBeta.exe"), None);
+        assert_eq!(v(r"C:\Roblox\Versions\version-xyz\RobloxPlayerBeta.exe"), None);
         assert_eq!(v("RobloxPlayerBeta.exe"), None);
     }
 
@@ -782,30 +617,14 @@ mod tests {
 
     #[test]
     fn launches_production_unless_a_bootstrapper_manages_it_or_the_version_is_unknown() {
-        let found = client::ClientExe {
-            path: PathBuf::from(r"C:\R\version-test\RobloxPlayerBeta.exe"),
-            bootstrapper: false,
-            ..Default::default()
-        };
+        let found = client::ClientExe { path: PathBuf::from(r"C:\R\version-test\RobloxPlayerBeta.exe"), bootstrapper: false, ..Default::default() };
         let prod = PathBuf::from(r"C:\R\version-live\RobloxPlayerBeta.exe");
         let there = |v: &str| (v == "version-live").then(|| prod.clone());
         let (exe, production) = launch_choice(found.clone(), false, Some("version-live"), there);
         assert_eq!((exe.path, production), (prod.clone(), true));
-        assert_eq!(
-            launch_choice(found.clone(), false, Some("version-new"), there),
-            (found.clone(), true),
-            "missing: the client updates itself"
-        );
-        assert_eq!(
-            launch_choice(found.clone(), false, None, there),
-            (found.clone(), false),
-            "unknown: as before"
-        );
-        assert_eq!(
-            launch_choice(found.clone(), true, Some("version-live"), there),
-            (found, false),
-            "a bootstrapper's own"
-        );
+        assert_eq!(launch_choice(found.clone(), false, Some("version-new"), there), (found.clone(), true), "missing: the client updates itself");
+        assert_eq!(launch_choice(found.clone(), false, None, there), (found.clone(), false), "unknown: as before");
+        assert_eq!(launch_choice(found.clone(), true, Some("version-live"), there), (found, false), "a bootstrapper's own");
     }
 
     #[test]
@@ -813,91 +632,36 @@ mod tests {
         let (a, b) = ("version-aaaaaaaaaaaaaaaa", "version-bbbbbbbbbbbbbbbb");
         let c = "version-cccccccccccccccc";
         assert!(bootstrapper_would_close(Some(a), &[Some(b), None], 1));
-        assert!(
-            !bootstrapper_would_close(Some(a), &[Some(b), None], 0),
-            "nothing to close"
-        );
-        assert!(
-            !bootstrapper_would_close(Some(a), &[Some(a), None], 3),
-            "up to date"
-        );
-        assert!(
-            !bootstrapper_would_close(None, &[Some(b), None], 3),
-            "unknown"
-        );
-        assert!(
-            !bootstrapper_would_close(Some(a), &[None, None], 3),
-            "unknown"
-        );
+        assert!(!bootstrapper_would_close(Some(a), &[Some(b), None], 0), "nothing to close");
+        assert!(!bootstrapper_would_close(Some(a), &[Some(a), None], 3), "up to date");
+        assert!(!bootstrapper_would_close(None, &[Some(b), None], 3), "unknown");
+        assert!(!bootstrapper_would_close(Some(a), &[None, None], 3), "unknown");
         // Roblox put this PC on a test channel; the bootstrapper keeps to production (or the other way round).
-        assert!(
-            !bootstrapper_would_close(Some(a), &[Some(a), Some(c)], 3),
-            "up to date on production"
-        );
-        assert!(
-            !bootstrapper_would_close(Some(c), &[Some(a), Some(c)], 3),
-            "up to date on the channel"
-        );
-        assert!(
-            bootstrapper_would_close(Some(b), &[Some(a), Some(c)], 3),
-            "behind both"
-        );
-        assert!(
-            !bootstrapper_would_close(Some(b), &[Some(a), Some(c), Some(b)], 3),
-            "on the executor's build"
-        );
+        assert!(!bootstrapper_would_close(Some(a), &[Some(a), Some(c)], 3), "up to date on production");
+        assert!(!bootstrapper_would_close(Some(c), &[Some(a), Some(c)], 3), "up to date on the channel");
+        assert!(bootstrapper_would_close(Some(b), &[Some(a), Some(c)], 3), "behind both");
+        assert!(!bootstrapper_would_close(Some(b), &[Some(a), Some(c), Some(b)], 3), "on the executor's build");
     }
 
     /// The false "Roblox has an update" hold: Roblox lists a version it hasn't rolled out here.
     #[test]
     fn a_probe_in_a_game_on_an_old_build_means_not_rolled_out() {
-        let (old, live) = (
-            Some("version-aaaaaaaaaaaaaaaa".to_owned()),
-            "version-bbbbbbbbbbbbbbbb",
-        );
+        let (old, live) = (Some("version-aaaaaaaaaaaaaaaa".to_owned()), "version-bbbbbbbbbbbbbbbb");
         let probe = |asked: &str, now: Option<String>, in_game| (asked.to_owned(), now, in_game);
-        assert!(
-            not_rolled_out(live, &[probe(live, old.clone(), true)]),
-            "asked for it, got into a game, not updated"
-        );
-        assert!(
-            !not_rolled_out(live, &[probe(live, old.clone(), false)]),
-            "not in a game yet: may still be updating"
-        );
-        assert!(
-            !not_rolled_out(
-                live,
-                &[probe("version-cccccccccccccccc", old.clone(), true)]
-            ),
-            "asked for another live version"
-        );
-        assert!(
-            !not_rolled_out(live, &[probe(live, None, true)]),
-            "version unknown"
-        );
-        assert!(
-            !not_rolled_out(live, &[probe(live, Some(live.to_owned()), true)]),
-            "it did update"
-        );
+        assert!(not_rolled_out(live, &[probe(live, old.clone(), true)]), "asked for it, got into a game, not updated");
+        assert!(!not_rolled_out(live, &[probe(live, old.clone(), false)]), "not in a game yet: may still be updating");
+        assert!(!not_rolled_out(live, &[probe("version-cccccccccccccccc", old.clone(), true)]), "asked for another live version");
+        assert!(!not_rolled_out(live, &[probe(live, None, true)]), "version unknown");
+        assert!(!not_rolled_out(live, &[probe(live, Some(live.to_owned()), true)]), "it did update");
         assert!(!not_rolled_out(live, &[]));
-        assert!(
-            not_rolled_out(live, &[probe(live, None, true), probe(live, old, true)]),
-            "any one is enough"
-        );
+        assert!(not_rolled_out(live, &[probe(live, None, true), probe(live, old, true)]), "any one is enough");
     }
 
     #[test]
     fn a_custom_install_folder_counts() {
-        let exe =
-            Path::new(r"D:\Games\Roblox\Versions\version-aaaaaaaaaaaaaaaa\RobloxPlayerBeta.exe");
-        assert_eq!(
-            client::versions_dir_of(exe),
-            Some(PathBuf::from(r"D:\Games\Roblox\Versions"))
-        );
-        assert_eq!(
-            client::versions_dir_of(Path::new(r"C:\Bloxstrap\Bloxstrap.exe")),
-            None
-        );
+        let exe = Path::new(r"D:\Games\Roblox\Versions\version-aaaaaaaaaaaaaaaa\RobloxPlayerBeta.exe");
+        assert_eq!(client::versions_dir_of(exe), Some(PathBuf::from(r"D:\Games\Roblox\Versions")));
+        assert_eq!(client::versions_dir_of(Path::new(r"C:\Bloxstrap\Bloxstrap.exe")), None);
     }
 
     #[test]
@@ -912,50 +676,22 @@ mod tests {
         assert!(may_auto_update(true, &old, 0, false));
         assert!(!may_auto_update(false, &old, 0, false), "off");
         assert!(!may_auto_update(true, &old, 1, false), "a client runs");
-        assert!(
-            !may_auto_update(true, &old, 0, true),
-            "a launch, batch or install runs"
-        );
-        assert!(
-            !may_auto_update(true, &roblox(Some(a), Some(a), false), 0, false),
-            "up to date"
-        );
-        assert!(
-            !may_auto_update(
-                true,
-                &RobloxClient {
-                    bootstrapper: true,
-                    ..old.clone()
-                },
-                0,
-                false
-            ),
-            "bootstrapper"
-        );
-        assert!(
-            !may_auto_update(true, &RobloxClient { path: None, ..old }, 0, false),
-            "not installed"
-        );
+        assert!(!may_auto_update(true, &old, 0, true), "a launch, batch or install runs");
+        assert!(!may_auto_update(true, &roblox(Some(a), Some(a), false), 0, false), "up to date");
+        assert!(!may_auto_update(true, &RobloxClient { bootstrapper: true, ..old.clone() }, 0, false), "bootstrapper");
+        assert!(!may_auto_update(true, &RobloxClient { path: None, ..old }, 0, false), "not installed");
     }
 
     /// `run` on a copy of PING.EXE (never Roblox's installer) in a temp folder, write-locked
     /// as the installer is: it starts, is waited for, and the folder is deleted afterwards.
     #[test]
     fn run_waits_for_a_write_locked_program() {
-        let system = std::env::var_os("SystemRoot")
-            .map_or_else(|| PathBuf::from(r"C:\Windows"), PathBuf::from);
+        let system = std::env::var_os("SystemRoot").map_or_else(|| PathBuf::from(r"C:\Windows"), PathBuf::from);
         let dir = TempDir::new("mtwin-install-").unwrap();
         let exe = dir.0.join("ping-copy.exe");
         std::fs::copy(system.join(r"System32\PING.EXE"), &exe).unwrap();
-        let pinned = OpenOptions::new()
-            .read(true)
-            .share_mode(FILE_SHARE_READ)
-            .open(&exe)
-            .unwrap();
-        assert!(
-            OpenOptions::new().write(true).open(&exe).is_err(),
-            "no writer while pinned"
-        );
+        let pinned = OpenOptions::new().read(true).share_mode(FILE_SHARE_READ).open(&exe).unwrap();
+        assert!(OpenOptions::new().write(true).open(&exe).is_err(), "no writer while pinned");
         // PING without arguments prints its usage and exits 1.
         assert_eq!(run(&exe, Duration::from_secs(30)).unwrap(), Some(1));
         drop(pinned);
@@ -969,22 +705,9 @@ mod tests {
     fn a_bootstrapper_that_launched_its_old_build_since_the_update_stays() {
         let old = "version-aaaaaaaaaaaaaaaa";
         let other = Some("version-bbbbbbbbbbbbbbbb".to_owned());
-        assert!(bootstrapper_stays(
-            old,
-            Some(100),
-            &[(Some(old.to_owned()), 150)]
-        ));
-        assert!(
-            !bootstrapper_stays(old, Some(100), &[(Some(old.to_owned()), 50)]),
-            "started before the update was seen"
-        );
-        assert!(
-            !bootstrapper_stays(old, Some(100), &[(other, 150)]),
-            "another build"
-        );
-        assert!(
-            !bootstrapper_stays(old, None, &[(Some(old.to_owned()), 150)]),
-            "update time unknown"
-        );
+        assert!(bootstrapper_stays(old, Some(100), &[(Some(old.to_owned()), 150)]));
+        assert!(!bootstrapper_stays(old, Some(100), &[(Some(old.to_owned()), 50)]), "started before the update was seen");
+        assert!(!bootstrapper_stays(old, Some(100), &[(other, 150)]), "another build");
+        assert!(!bootstrapper_stays(old, None, &[(Some(old.to_owned()), 150)]), "update time unknown");
     }
 }
