@@ -114,8 +114,13 @@
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   const nf = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 });
-  const compact = new Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 1 });
-  const num = (n) => (Math.abs(n) >= 100000 ? compact.format(n) : nf.format(n));
+  // Big values as games show them: "4.2M", "74.3Td".
+  const SUFFIXES = ["", "K", "M", "B", "T", "Qa", "Qn", "Sx", "Sp", "Oc", "No", "Dc", "Ud", "Dd", "Td", "Qad", "Qid", "Sxd", "Spd", "Ocd", "Nod", "Vg"];
+  const num = (n) => {
+    if (Math.abs(n) < 1e6) return nf.format(n);
+    const tier = Math.min(SUFFIXES.length - 1, Math.floor(Math.log10(Math.abs(n)) / 3));
+    return nf.format(Math.round((n / 10 ** (tier * 3)) * 100) / 100) + SUFFIXES[tier];
+  };
   const ago = (ms) => {
     const s = Math.max(0, Math.round(ms / 1000));
     if (s < 60) return s + "s ago";

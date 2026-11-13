@@ -10,7 +10,6 @@ import { toast, toastError } from "../../ui/Toast";
 import { useStored } from "../../ui/stored";
 import { accountName, Avatar } from "../../features/accounts/shared";
 import { isRunning, STATES, uptime, useNow } from "../../features/launch/Running";
-import { KillAllButton } from "../KillAll";
 
 /** Every running client, always in view: a column at the window's right edge. Each row shows the
  * account, where it is and for how long, and brings its window up or ends it. It folds to a strip. */
@@ -150,7 +149,6 @@ export function LiveDock({ accounts }: { accounts: AccountSummary[] }) {
               <Button size="md" variant="danger" icon="stop" block busy={killing} disabled={!chosen.length} onClick={kill}>
                 {chosen.length ? t("app.killSelectedN", { n: chosen.length }) : t("accounts.killSelected")}
               </Button>
-              <KillAllButton />
             </footer>
           )}
         </>

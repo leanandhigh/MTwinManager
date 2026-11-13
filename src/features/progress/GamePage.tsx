@@ -17,7 +17,7 @@ import { useStored } from "../../ui/stored";
 import { Avatar } from "../accounts/shared";
 import { CatalogTab } from "./CatalogTab";
 import { ScriptTab } from "./ScriptTab";
-import { ago, Decal, isOnline, itemTotals, RarityBadge, rarityColor, rarityRank, useDecals, useHeadshots, valueTotals, withCatalog, type ItemTotal } from "./shared";
+import { ago, Decal, fmtAmount, isOnline, itemTotals, RarityBadge, rarityColor, rarityRank, useDecals, useHeadshots, valueTotals, withCatalog, type ItemTotal } from "./shared";
 
 type Tab = "items" | "accounts" | "machines" | "catalog" | "script";
 type ItemSort = "rarity" | "amount" | "name";
@@ -129,7 +129,7 @@ export function GamePage({ s, gameId, accounts, onBack }: { s: ProgressState; ga
             <Decal url={decals[v.image]} name={v.name} size={30} />
             <span className="min-w-0">
               <span className="pg-tile-k block truncate">{v.name}</span>
-              <span className="pg-tile-v">{fmtNum(v.amount)}</span>
+              <span className="pg-tile-v">{fmtAmount(v.amount)}</span>
             </span>
           </div>
         ))}
@@ -381,7 +381,7 @@ function AccountsTab({ s, list, mine: own, decals }: { s: ProgressState; list: P
                     if (c.key === "level") return <td key={c.key} className="tabular-nums">{a.level === null ? "—" : <span className="pg-lvl"><Icon name="star" size={11} />{fmtNum(a.level)}</span>}</td>;
                     if (c.key.startsWith("v:")) {
                       const v = a.values.find((x) => x.key === c.key.slice(2));
-                      return <td key={c.key} className="tabular-nums">{v ? <span className="pg-val">{v.image && <Decal url={decals[v.image]} name={v.name} size={18} />}{fmtNum(v.amount)}</span> : "—"}</td>;
+                      return <td key={c.key} className="tabular-nums">{v ? <span className="pg-val">{v.image && <Decal url={decals[v.image]} name={v.name} size={18} />}{fmtAmount(v.amount)}</span> : "—"}</td>;
                     }
                     const st = a.stats.find((x) => x.key === c.key.slice(2));
                     return <td key={c.key} className="tabular-nums">{st ? `${st.value}${st.max !== null ? ` / ${fmtNum(st.max)}` : ""}` : "—"}</td>;
@@ -432,7 +432,7 @@ function AccountDialog({ s, account: a, mine, head, decals, onClose }: { s: Prog
               {a.values.map((v) => (
                 <div key={v.key} className="pg-tile panel">
                   <Decal url={decals[v.image]} name={v.name} size={26} />
-                  <span className="min-w-0"><span className="pg-tile-k block truncate">{v.name}</span><span className="pg-tile-v">{fmtNum(v.amount)}</span></span>
+                  <span className="min-w-0"><span className="pg-tile-k block truncate">{v.name}</span><span className="pg-tile-v">{fmtAmount(v.amount)}</span></span>
                 </div>
               ))}
               {a.stats.map((x) => (

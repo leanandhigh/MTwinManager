@@ -443,10 +443,44 @@ fn text(v: &Value, max: usize) -> String {
 fn num(v: &Value) -> Option<f64> {
     match v {
         Value::Number(n) => n.as_f64(),
-        Value::String(s) => s.trim().replace(',', "").parse().ok(),
+        Value::String(s) => suffixed(s),
         _ => None,
     }
     .filter(|n: &f64| n.is_finite())
+}
+
+/// The scale of a number suffix games show ("K", "Qd", "Td"...), any case; as `progress.luau`'s.
+fn suffix_scale(suffix: &str) -> Option<f64> {
+    const NAMES: [(f64, &[&str]); 21] = [
+        (1e3, &["k"]), (1e6, &["m", "mil"]), (1e9, &["b", "bil"]), (1e12, &["t", "tr", "tril"]),
+        (1e15, &["qa", "qd", "q"]), (1e18, &["qn", "qi", "qt"]), (1e21, &["sx"]), (1e24, &["sp"]),
+        (1e27, &["oc", "o"]), (1e30, &["no", "n"]), (1e33, &["dc", "d", "de"]), (1e36, &["ud", "un"]),
+        (1e39, &["dd", "duo"]), (1e42, &["td", "tdd"]), (1e45, &["qad", "qtd"]), (1e48, &["qid", "qnd"]),
+        (1e51, &["sxd"]), (1e54, &["spd"]), (1e57, &["ocd", "od"]), (1e60, &["nod", "nvd"]), (1e63, &["vg", "v"]),
+    ];
+    let s = suffix.to_ascii_lowercase();
+    NAMES.iter().find(|(_, names)| names.contains(&s.as_str())).map(|(scale, _)| *scale)
+}
+
+/// A number as text: plain ("1,234.5"), scientific ("1.2e+15") or with a game's suffix ("$74.3Td",
+/// "1.5K", "412 No"); currency signs and spaces around it are ignored (pure).
+fn suffixed(text: &str) -> Option<f64> {
+    let t = text.trim().replace(',', "");
+    // A currency sign or other symbol may lead ("$74.3Td"); a word may not ("Human V4" is text).
+    let t = t.trim_start_matches(|c: char| !(c.is_alphanumeric() || c == '-' || c == '.' || c.is_whitespace())).trim_start();
+    if let Ok(n) = t.parse::<f64>() {
+        return Some(n);
+    }
+    let end = t.find(|c: char| !(c.is_ascii_digit() || c == '.' || c == '-')).unwrap_or(t.len());
+    let n: f64 = t[..end].parse().ok()?;
+    let rest = t[end..].trim_start();
+    let suffix: String = rest.chars().take_while(|c| c.is_ascii_alphabetic()).collect();
+    if suffix.is_empty() {
+        return rest.is_empty().then_some(n);
+    }
+    // Only the suffix may follow ("12 Coins" is a stat, not a number).
+    let after = rest[suffix.len()..].trim();
+    (after.is_empty() || after == "+").then_some(()).and(suffix_scale(&suffix)).map(|scale| n * scale)
 }
 
 /// The digits of a decal id ("rbxassetid://123", "123", 123); empty: none.
@@ -985,6 +1019,20 @@ pub async fn progress_games(s: State<'_, App>, universe_ids: Vec<i64>) -> Result
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn numbers_with_game_suffixes_read() {
+        let close = |a: Option<f64>, b: f64| a.is_some_and(|a| ((a - b) / b).abs() < 1e-9);
+        assert_eq!(suffixed("1,234.5"), Some(1234.5));
+        assert!(close(suffixed("1.5K"), 1500.0));
+        assert!(close(suffixed("$74.3Td"), 74.3e42));
+        assert!(close(suffixed("$483.0Qd"), 483e15));
+        assert!(close(suffixed("412 No"), 412e30));
+        assert!(close(suffixed("1.2e+15"), 1.2e15));
+        assert!(close(suffixed("9.9m"), 9.9e6));
+        assert_eq!(suffixed("12 Coins"), None);
+        assert_eq!(suffixed("Human V4"), None);
+    }
     use serde_json::json;
 
     #[test]

@@ -258,14 +258,22 @@ fn main_window(app: &TauriApp, data_dir: &Path, skip_splash: bool) -> tauri::Res
     splash::start(app.handle(), &w, skip_splash)
 }
 
-/// Debug builds only: DevTools protocol for automated UI checks on a hidden desktop. Every window
-/// on the UI's WebView2 profile passes the same (WebView2 refuses a second set of options).
+/// The UI's WebView2 arguments (see inside); in debug builds also the DevTools protocol for automated
+/// UI checks. Every window on the UI's WebView2 profile passes the same (WebView2 refuses a second set
+/// of options).
 pub(crate) fn cdp_args() -> Option<String> {
+    // Tauri's own defaults (passing any arguments replaces them), and no slowing down while the
+    // window is minimized, hidden in the tray or covered: launches, batches and the live views are
+    // driven from the page and must keep their pace then.
+    let mut args = String::from(
+        "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection,CalculateNativeWinOcclusion \
+         --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows",
+    );
     #[cfg(debug_assertions)]
     if let Ok(port) = std::env::var("MTWIN_CDP_PORT") {
-        return Some(format!("--remote-debugging-port={port} --disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection"));
+        args.push_str(&format!(" --remote-debugging-port={port}"));
     }
-    None
+    Some(args)
 }
 
 /// Only the MTwin Manager window: pages in Roblox windows are never to reach a command, whatever origin

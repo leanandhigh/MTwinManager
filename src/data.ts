@@ -85,7 +85,7 @@ export const useMultiStatus = () =>
     queryKey: qk.multi,
     queryFn: api.multiInstanceStatus,
     refetchInterval: (q) => (q.state.status === "error" || (q.state.data?.enabled && !q.state.data.active) ? 5000 : false),
-    refetchIntervalInBackground: false,
+    refetchIntervalInBackground: true,
   });
 
 /** Whether a Public network is connected; app://network replaces it. */
@@ -142,7 +142,8 @@ export const usePresence = (ids: number[]) =>
     enabled: ids.length > 0,
     staleTime: 60_000,
     refetchInterval: 60_000,
-    refetchIntervalInBackground: false,
+    // Live and the farm's view of who is in game keep up while the window is minimized.
+    refetchIntervalInBackground: true,
     placeholderData: (prev) => prev,
   });
 

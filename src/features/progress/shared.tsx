@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api, type CatalogEntry, type ProgressAccount, type ProgressItem, type ProgressState, type ProgressValue } from "../../api";
 import { qk } from "../../data";
-import { t } from "../../i18n";
+import { fmtNum, t } from "../../i18n";
 
 export const PORT_HOST = (s?: ProgressState) => `localhost:${s?.server.port ?? 16390}`;
 
@@ -158,3 +158,17 @@ export function itemTotals(accounts: ProgressAccount[]): ItemTotal[] {
     }
   return [...out.values()];
 }
+
+/** Short-scale suffixes, as games show big numbers (1e3 K … 1e63 Vg). */
+const SUFFIXES = ["", "K", "M", "B", "T", "Qa", "Qn", "Sx", "Sp", "Oc", "No", "Dc", "Ud", "Dd", "Td", "Qad", "Qid", "Sxd", "Spd", "Ocd", "Nod", "Vg"];
+
+/** A value as games show it: plain up to a million ("12,345"), then with a suffix ("4.2M",
+ * "74.3Td"). Exact on hover through `title`, where the caller adds it. */
+export function fmtAmount(n: number) {
+  const abs = Math.abs(n);
+  if (abs < 1e6) return fmtNum(Math.round(n * 100) / 100);
+  const tier = Math.min(SUFFIXES.length - 1, Math.floor(Math.log10(abs) / 3));
+  const scaled = n / 10 ** (tier * 3);
+  return `${fmtNum(Math.round(scaled * 100) / 100)}${SUFFIXES[tier]}`;
+}
+

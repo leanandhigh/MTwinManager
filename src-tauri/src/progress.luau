@@ -61,13 +61,37 @@ local function decal(image)
 	return tostring(image):match("(%d+)") or ""
 end
 
+-- Number suffixes games use ("1.5K", "74.3Td"), lowercase -> scale. Longer names first where two
+-- games disagree is not possible to tell; these are the common short-scale ones.
+local SUFFIX = {}
+do
+	local names = {
+		{ 1e3, "k" }, { 1e6, "m", "mil" }, { 1e9, "b", "bil" }, { 1e12, "t", "tr", "tril" },
+		{ 1e15, "qa", "qd", "q" }, { 1e18, "qn", "qi", "qt" }, { 1e21, "sx" }, { 1e24, "sp" },
+		{ 1e27, "oc", "o" }, { 1e30, "no", "n" }, { 1e33, "dc", "d", "de" }, { 1e36, "ud", "un" },
+		{ 1e39, "dd", "duo" }, { 1e42, "td", "tdd" }, { 1e45, "qad", "qtd", "qd2" }, { 1e48, "qid", "qnd" },
+		{ 1e51, "sxd" }, { 1e54, "spd" }, { 1e57, "ocd", "od" }, { 1e60, "nod", "nvd" }, { 1e63, "vg", "v" },
+	}
+	for _, row in ipairs(names) do
+		for i = 2, #row do SUFFIX[row[i]] = row[1] end
+	end
+end
+
 local function number(v)
 	if type(v) == "number" then return v end
 	if type(v) == "boolean" then return v and 1 or 0 end
 	if type(v) == "string" then
-		-- "1,234", "x12", "Candy: 235"
-		local s = v:gsub(",", ""):match("%-?%d+%.?%d*")
-		return tonumber(s)
+		-- "1,234", "x12", "Candy: 235", "$74.3Td", "1.5K", "412 No", "1.2e+15"
+		local text = v:gsub(",", "")
+		local sci = text:match("%-?%d+%.?%d*[eE][%+%-]?%d+")
+		if sci then return tonumber(sci) end
+		local digits, suffix = text:match("(%-?%d+%.?%d*)%s*(%a*)")
+		local n = tonumber(digits)
+		if n and suffix and suffix ~= "" then
+			local scale = SUFFIX[suffix:lower()]
+			if scale then n = n * scale end
+		end
+		return n
 	end
 	if typeof(v) == "Instance" then
 		if v:IsA("ValueBase") then return number(v.Value) end
