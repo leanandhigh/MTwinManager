@@ -599,3 +599,46 @@
     }
   }
 }
+
+/* Client cards: even padding all round, the picture inset like the rest, CPU and memory as two
+   equal columns whose bars fill them, and Performance's own settings as quieter tags. */
+@layer brand {
+  .home-card {
+    padding: 10px;
+    gap: 12px;
+  }
+  .home-card-compact {
+    padding: 8px;
+    gap: 8px;
+  }
+  .home-pic {
+    border-radius: 6px;
+  }
+  .home-info {
+    gap: 10px;
+    padding: 0 2px 2px;
+  }
+  .home-usage {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px 14px;
+  }
+  .home-usage .home-mini {
+    display: flex;
+    min-width: 0;
+  }
+  .home-usage .home-mini-bar.meter {
+    flex: 1;
+    width: auto;
+    min-width: 24px;
+  }
+  .home-usage .home-mini > :last-child {
+    min-width: 0;
+    text-align: end;
+  }
+  .home-info .tag[data-from] {
+    color: var(--fg-2);
+    background: transparent;
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+}

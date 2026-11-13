@@ -1,9 +1,11 @@
-import { useId, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useId, useState, type Dispatch, type SetStateAction } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import type { AccountSummary } from "../../api";
+import { api, type AccountSummary, type LaunchTarget } from "../../api";
 import { publicBlock, useBulk, useInstances, useMultiStatus, useNetwork, useRobloxClient, useSettings } from "../../data";
 import { t } from "../../i18n";
 import { Icon } from "../../ui/Icon";
+import { Input } from "../../ui/Field";
+import { IconButton } from "../../ui/Button";
 import { Collapse, Morph, SPRING, Swap, TWEEN } from "../../ui/motion";
 import { MenuLabel, MenuRadioItem, MenuSeparator, Popover, useAnchor } from "../../ui/Popover";
 import { accountName } from "../accounts/shared";
@@ -32,7 +34,37 @@ export function ServersView({ accounts, picked, setPicked, place, setPlace }: {
   const settings = useSettings().data;
   const [choice, setChoice] = useState<ServerChoice>(() => ({ target: null, free: null, summary: t("servers.noServerPicked"), restricted: false }));
   const [asId, setAsId] = useState<number | null>(null);
-  const { target, free, summary, restricted } = choice;
+  // A private server link pasted in the Join panel: joined instead of the server picked above.
+  const [linkText, setLinkText] = useState("");
+  const [linked, setLinked] = useState<LaunchTarget | null>(null);
+  const [linkError, setLinkError] = useState<string | null>(null);
+  useEffect(() => {
+    const text = linkText.trim();
+    if (!text) {
+      setLinked(null);
+      setLinkError(null);
+      return;
+    }
+    let live = true;
+    const timer = setTimeout(() => {
+      api.targetParse(text).then(
+        (p) => {
+          if (!live) return;
+          const tgt = p.kind === "target" && (p.target.kind === "privateLink" || p.target.kind === "privateAccess" || p.target.kind === "shareLink" || p.target.kind === "shareLinkV2") ? p.target : null;
+          setLinked(tgt);
+          setLinkError(tgt ? null : p.kind === "invalid" || p.kind === "unsupported" ? p.reason : t("servers.linkNotPrivate"));
+        },
+        () => live && setLinkError(t("servers.linkNotPrivate")),
+      );
+    }, 250);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [linkText]);
+  const { free, restricted } = linked ? { free: null, restricted: false } : choice;
+  const target = linked ?? choice.target;
+  const summary = linked ? t("servers.linkedPrivate") : choice.summary;
 
   const has = new Set(picked);
   const live = new Set(instances.filter(isLive).map((i) => i.accountId));
@@ -119,6 +151,19 @@ export function ServersView({ accounts, picked, setPicked, place, setPlace }: {
             </div>
             <LaunchButton label={!n ? t("play.pickFirst") : !target ? t("servers.pickServerFirst") : t("servers.joinWith", { count: n })} disabled={blocked} reason={reason} noted={noted} shortcut onLaunch={join} className="srv-send-go" />
           </div>
+          <label className="srv-link">
+            <span className="srv-link-k">{t("servers.linkLabel")}</span>
+            <Input
+              value={linkText}
+              onChange={(e) => setLinkText(e.target.value)}
+              placeholder={t("servers.linkPlaceholder")}
+              invalid={!!linkError}
+              aria-label={t("servers.linkLabel")}
+              leading="link"
+            />
+            {linkText && <IconButton size="sm" icon="x" label={t("servers.linkClear")} onClick={() => setLinkText("")} />}
+          </label>
+          {linkError && <p className="alert pt-2 text-[13px]">{linkError}</p>}
           <div aria-live="polite">
             {warnings.map((w, i) => (
               <Collapse key={i} open={!!w}>

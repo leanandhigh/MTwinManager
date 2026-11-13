@@ -21,7 +21,7 @@ import { useThumbnail } from "./useThumbnail";
 
 export type GripProps = ReturnType<ReturnType<typeof useGridDrag>["grip"]>;
 type Pill = { tone: Tone; label: string; pulse?: boolean; tip?: string };
-type Tag = { label: string; tip?: string; tone?: "attention" };
+type Tag = { label: string; tip?: string; tone?: "attention" | "inherited" };
 
 const capitalized = (s: string) => s.charAt(0).toLocaleUpperCase() + s.slice(1);
 
@@ -68,7 +68,8 @@ function tagsOf(i: Instance, a: AccountSummary | undefined, afkOn: boolean, defa
     on.affinity !== null && own.affinity === null && capitalized(t("launch.limits.coresItem")),
     !i.fpsCap && !a?.fpsCap && !!defaultFps && t("dashboard.fpsCap", { fps: defaultFps }),
   ].filter((s): s is string => !!s);
-  if (inherited.length) tags.push({ label: t("dashboard.fromSettingsCount", { count: inherited.length }), tip: `${t("dashboard.fromSettings")}: ${inherited.join(" · ")}` });
+  // Each one shown as itself (not folded into a count); the tip says where it comes from.
+  for (const label of inherited) tags.push({ label, tip: t("dashboard.fromSettings"), tone: "inherited" });
   return tags;
 }
 
@@ -303,7 +304,7 @@ export function ClientCard({ inst: i, account: a, detailed, width, menuOpen, onS
             <div className="flex flex-wrap gap-1">
               {/* A tip is also there for the keyboard (focus shows it) and screen readers. */}
               {tags.map((g) => (
-                <span key={g.label} className={`tag ${g.tone ? "text-attention" : ""}`} data-tip={g.tip} tabIndex={g.tip ? tab : undefined}>
+                <span key={g.label} className={`tag ${g.tone === "attention" ? "text-attention" : ""}`} data-from={g.tone === "inherited" || undefined} data-tip={g.tip} tabIndex={g.tip ? tab : undefined}>
                   {g.label}
                   {g.tip && <span className="sr-only"> {g.tip}</span>}
                 </span>

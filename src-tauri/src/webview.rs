@@ -7,7 +7,7 @@
 
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
 use tauri::webview::{Cookie, PlatformWebview};
@@ -46,6 +46,26 @@ const WEBVIEW2_VARS: [&str; 6] = [
 ];
 
 static LOGIN_ACTIVE: AtomicBool = AtomicBool::new(false);
+/// Bulk sign-in windows being set up or open (`signing_in`).
+static LOGINS: AtomicUsize = AtomicUsize::new(0);
+/// Where the next bulk sign-in window goes (cascaded).
+static CASCADE: AtomicU32 = AtomicU32::new(0);
+
+/// Counts one bulk sign-in while it lives.
+struct LoginCount;
+
+impl LoginCount {
+    fn new() -> Self {
+        LOGINS.fetch_add(1, Ordering::AcqRel);
+        Self
+    }
+}
+
+impl Drop for LoginCount {
+    fn drop(&mut self) {
+        LOGINS.fetch_sub(1, Ordering::AcqRel);
+    }
+}
 
 /// A sign-in to fill in for the user (a bulk import's `user:pass` line). Only ever put into the
 /// login page's fields; never stored.
@@ -54,9 +74,10 @@ pub struct LoginFill {
     pub password: Secret,
 }
 
-/// What fills Roblox's login form (pure): on www.roblox.com's top frame only, once its fields
-/// show (up to 20 s), each one still empty; the input events tell its React state. Never presses
-/// Log In: the user does, after any captcha. Values are JSON-escaped.
+/// What fills Roblox's login form and presses Log In (pure): on www.roblox.com's top frame only,
+/// once its fields show (up to 30 s), each one still empty; the input events tell its React state.
+/// A form that asks for the username first ("Next", then the password) is followed through. Log In
+/// is pressed once per page (a captcha after it is the user's); values are JSON-escaped.
 fn fill_script(username: &str, password: &str) -> Zeroizing<String> {
     const BODY: &str = r#"if (location.hostname !== "www.roblox.com" || window.top !== window) return;
 const set = (el, v) => {
@@ -64,15 +85,42 @@ const set = (el, v) => {
   el.dispatchEvent(new Event("input", { bubbles: true }));
   el.dispatchEvent(new Event("change", { bubbles: true }));
 };
-let tries = 0;
+const shown = (el) => el && el.offsetParent !== null && !el.disabled;
+const userField = () => [...document.querySelectorAll('#login-username, input[name="username"], input[autocomplete="username"], input[autocomplete="email"]')].find(shown);
+const passField = () => [...document.querySelectorAll('#login-password, input[type="password"]')].find(shown);
+// The Log In (or Next) button: Roblox's id, the form's submit, or the button around a
+// "foundation-web-state-layer" whose text is a sign-in word.
+const WORDS = /^(log ?in|sign ?in|next|continue|เข้าสู่ระบบ|ถัดไป|ดำเนินการต่อ)$/i;
+const button = (field) => {
+  const byId = document.getElementById("login-button");
+  if (shown(byId)) return byId;
+  const form = field && field.form;
+  const submit = form && [...form.querySelectorAll('button[type="submit"], button:not([type])')].find(shown);
+  if (submit) return submit;
+  const layered = [...document.querySelectorAll('[data-testid="foundation-web-state-layer"]')].map((l) => l.closest("button")).filter(shown);
+  return layered.find((b) => WORDS.test(b.textContent.trim())) || [...document.querySelectorAll("button")].filter(shown).find((b) => WORDS.test(b.textContent.trim()));
+};
+const press = (field) => setTimeout(() => {
+  const b = button(field);
+  if (b) b.click();
+}, 450);
+let tries = 0, nexted = false, pressed = false;
 const timer = setInterval(() => {
-  const u = document.getElementById("login-username"), p = document.getElementById("login-password");
-  if (u && p) {
-    clearInterval(timer);
-    if (!u.value) set(u, user);
+  const u = userField(), p = passField();
+  if (p) {
+    if (u && !u.value) set(u, user);
     if (!p.value) set(p, pass);
-    p.focus();
-  } else if (++tries >= 100) clearInterval(timer);
+    if (!pressed) {
+      pressed = true;
+      clearInterval(timer);
+      press(p);
+    }
+  } else if (u && !nexted) {
+    // Username first, then the password on the next step.
+    if (!u.value) set(u, user);
+    nexted = true;
+    press(u);
+  } else if (++tries >= 150) clearInterval(timer);
 }, 200);"#;
     let json = |s: &str| Zeroizing::new(serde_json::to_string(s).unwrap_or_else(|_| "\"\"".into()));
     Zeroizing::new(format!("(() => {{\nconst user = {}, pass = {};\n{BODY}\n}})();", *json(username), *json(password)))
@@ -85,17 +133,29 @@ const timer = setInterval(() => {
 /// A worker thread polls `cookies()` every ~700 ms until a non-empty
 /// `.ROBLOSECURITY` appears, deletes it from the profile, closes the window and waits for its
 /// browser process to exit. Closing the window first → `AppError::Cancelled`.
+///
+/// With `fill` (a bulk import) several windows open at once, each on its own throwaway profile in
+/// `tmp-webview`, deleted once its browser has exited; they cascade so each one shows.
 pub async fn capture_login(app: &AppHandle, data_dir: &Path, fill: Option<&LoginFill>) -> Result<Secret> {
-    let slot = LoginSlot::take(app)?;
+    let parallel = fill.is_some();
+    let slot = if parallel { None } else { Some(LoginSlot::take(app)?) };
     let login = parse_url(endpoints::LOGIN_PAGE)?;
-    let label = format!("login-{}", uuid::Uuid::new_v4());
-    let profile = login_profile(data_dir);
+    let id = uuid::Uuid::new_v4();
+    let label = format!("login-{id}");
+    let profile = if parallel { data_dir.join(TMP_DIR).join(format!("login-{id}")) } else { login_profile(data_dir) };
     mark_open(&profile);
+    let _counted = parallel.then(LoginCount::new);
     // Blank first: the old cookie goes before anything loads from Roblox.
-    let window = WebviewWindowBuilder::new(app, &label, WebviewUrl::External(parse_url("about:blank")?))
+    let builder = WebviewWindowBuilder::new(app, &label, WebviewUrl::External(parse_url("about:blank")?))
         .title(tr!("Sign in to Roblox — MTwin Manager"))
-        .inner_size(480.0, 760.0)
-        .center()
+        .inner_size(480.0, 760.0);
+    let builder = if parallel {
+        let k = f64::from(CASCADE.fetch_add(1, Ordering::Relaxed) % 6);
+        builder.position(80.0 + 44.0 * k, 40.0 + 30.0 * k)
+    } else {
+        builder.center()
+    };
+    let window = builder
         .data_directory(profile.clone())
         .incognito(false)
         .devtools(cfg!(debug_assertions))
@@ -124,7 +184,7 @@ pub async fn capture_login(app: &AppHandle, data_dir: &Path, fill: Option<&Login
         if let Some(pid) = pid {
             wait_for_exit(pid);
         }
-        if !cleared {
+        if !cleared || parallel {
             remove_profile(&profile);
         }
     })
@@ -203,7 +263,7 @@ pub fn browsing(app: &AppHandle) -> bool {
 /// The sign-in window is open: the cookie it captures is encrypted as it closes, which needs the
 /// vault open (auto-lock waits for it).
 pub fn signing_in(app: &AppHandle) -> bool {
-    LOGIN_ACTIVE.load(Ordering::Acquire) || app.webview_windows().keys().any(|l| l.starts_with("login-"))
+    LOGIN_ACTIVE.load(Ordering::Acquire) || LOGINS.load(Ordering::Acquire) > 0 || app.webview_windows().keys().any(|l| l.starts_with("login-"))
 }
 
 /// The folders in `webview-sessions` (none if it is missing).
@@ -724,7 +784,7 @@ mod tests {
         let s = fill_script("bob", "p\"a\\s</script>\n'x");
         assert!(s.contains(r#"const user = "bob", pass = "p\"a\\s</script>\n'x";"#), "{}", *s);
         assert!(s.contains(r#"location.hostname !== "www.roblox.com""#) && s.contains("window.top !== window"));
-        assert!(!s.contains("login-button"), "never presses Log In");
+        assert!(s.contains("login-button") && s.contains("foundation-web-state-layer"), "presses Log In");
     }
 
     #[test]

@@ -35,6 +35,8 @@ export function parseLogins(text: string): Login[] {
 }
 
 const TABS: Tab[] = ["login", "cookie", "many"];
+/** Sign-in windows a bulk import keeps open at once. */
+const PARALLEL = 3;
 const RAM_FILTER = [{ name: "Roblox Account Manager", extensions: ["json"] }];
 
 /** One step of a DialogSteps flow. It puts the focus on its own [data-first] control (else its first
@@ -188,33 +190,50 @@ export function AddAccountDialog({ open, startOn = "login", onClose, onAdded }: 
     });
   }
 
-  /** One Roblox sign-in window after another, each filled in from its line; the user finishes each
-   * (captcha, Log In) or closes it to skip. Stop ends it after the open one. */
+  /** Roblox sign-in windows, `PARALLEL` at a time, each filled in from its line and Log In pressed;
+   * the user finishes any captcha, or closes a window to skip it. Stop closes the open ones. */
   async function signInEach(logins: Login[], r: ImportReport) {
     const had = new Set((qc.getQueryData<AccountSummary[]>(qk.accounts) ?? []).map((a) => a.id));
     let refused: string | null = null;
+    let locked: unknown = null;
     stop.current = false;
-    try {
-      for (const [i, fill] of logins.entries()) {
-        if (stop.current) break;
-        setQueue({ n: i + 1, total: logins.length, name: fill.username });
+    let next = 0;
+    let finished = 0;
+    const open = new Set<string>();
+    const show = () => setQueue({ n: Math.min(finished + open.size, logins.length), total: logins.length, name: [...open].join(", ") });
+    const worker = async () => {
+      while (!stop.current && locked === null && next < logins.length) {
+        const fill = logins[next++];
+        open.add(fill.username);
+        show();
         try {
           const a = await api.accountAddLogin(fill);
           if (had.has(a.id)) r.updated++;
-          else r.added++;
+          else {
+            r.added++;
+            had.add(a.id);
+          }
         } catch (e) {
           const err = asError(e);
-          if (err.kind === "locked") throw e;
-          if (err.kind !== "cancelled") {
+          if (err.kind === "locked") locked = e;
+          else if (err.kind !== "cancelled") {
             r.failed++;
             refused = friendly(err);
           }
+        } finally {
+          open.delete(fill.username);
+          finished++;
+          show();
         }
       }
+    };
+    try {
+      await Promise.all(Array.from({ length: Math.min(PARALLEL, logins.length) }, (_, i) => new Promise((go) => setTimeout(go, i * 900)).then(worker)));
     } finally {
       stop.current = true;
       setQueue(null);
     }
+    if (locked !== null) throw locked;
     if (refused) toast(refused, "error");
     return r;
   }

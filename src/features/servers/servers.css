@@ -207,3 +207,25 @@
     }
   }
 }
+
+/* The Join panel's private server link: pasted, it is joined instead of the server picked above. */
+@layer brand {
+  .srv-link {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 6px 8px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--line);
+  }
+  .srv-link-k {
+    grid-column: 1 / -1;
+    color: var(--fg-2);
+    font-size: 13px;
+    font-weight: 550;
+  }
+  .srv-link > :nth-child(2) {
+    min-width: 0;
+  }
+}
