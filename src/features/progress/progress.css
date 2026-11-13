@@ -647,3 +647,20 @@
     margin: 0;
   }
 }
+
+/* The games bar: the filter chips, then the tools taking the rest of the row (the search grows into
+   it), so there is no gap whether it fits on one row or wraps. */
+@layer brand {
+  .pg-bar > .pg-bar-tools {
+    flex: 1 1 420px;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    min-width: 0;
+  }
+  .pg-bar-tools .pg-search {
+    flex: 1 1 160px;
+    width: auto;
+    max-width: none;
+    min-width: 0;
+  }
+}

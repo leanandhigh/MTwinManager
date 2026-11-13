@@ -103,7 +103,7 @@ function WebsiteDialog({ open, onClose }: { open: boolean; onClose: () => void }
   const copy = (url: string) => writeText(url).then(() => toast(t("progress.webCopied")), toastError);
   return (
     <Dialog open={open} onClose={onClose} title={t("progress.web")} width={560}>
-      <div className="pg-web">
+      <div className="pg-web dlg-body">
         <p className="text-fg-2">{t("progress.webIntro")}</p>
         <div className="pg-web-row">
           <div className="min-w-0 flex-1">
