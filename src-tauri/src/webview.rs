@@ -154,7 +154,6 @@ pub(crate) fn mark_open(profile: &Path) {
 
 /// After a normal close, once the cookies were deleted.
 pub(crate) fn mark_closed(profile: &Path) {
-    let _ = std::fs::remove_file(profile.join(crate::legacy::OPEN_MARK));
     match std::fs::remove_file(profile.join(OPEN_MARK)) {
         Err(e) if e.kind() != ErrorKind::NotFound => log::warn!("could not unmark browser profile {}: {e}", profile.display()),
         _ => {}
@@ -165,7 +164,7 @@ pub(crate) fn mark_closed(profile: &Path) {
 /// they may still hold a `.ROBLOSECURITY` or a Google / Apple sign-in. At start-up and exit.
 pub fn sweep_dirty_profiles(data_dir: &Path) {
     for p in std::iter::once(login_profile(data_dir)).chain(profile_dirs(data_dir)) {
-        if p.join(OPEN_MARK).exists() || p.join(crate::legacy::OPEN_MARK).exists() {
+        if p.join(OPEN_MARK).exists() {
             log::info!("browser profile {} was left open: deleted", p.display());
             remove_profile(&p);
         }

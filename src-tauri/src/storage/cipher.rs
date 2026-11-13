@@ -21,7 +21,7 @@ use zeroize::Zeroizing;
 use crate::discord::hex;
 use crate::error::{AppError, Result};
 use crate::vault::master::random_bytes;
-use crate::vault::{protect_with, unprotect_any};
+use crate::vault::{protect_with, unprotect_with};
 
 const ENTROPY: &[u8] = b"MTwin/db/v1";
 
@@ -52,7 +52,7 @@ pub fn unlock(conn: &Connection, key: &[u8]) -> Result<()> {
 /// The raw key from `<db>.key`.
 pub fn read_key(db: &Path) -> Result<Zeroizing<Vec<u8>>> {
     let blob = std::fs::read(beside(db, ".key"))?;
-    let key = unprotect_any(&blob, &[ENTROPY, crate::legacy::DB_ENTROPY])?;
+    let key = unprotect_with(&blob, ENTROPY)?;
     if key.len() != 32 {
         log::error!("database key file holds {} bytes, not 32", key.len());
         return Err(AppError::Crypto);

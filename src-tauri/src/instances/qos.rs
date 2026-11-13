@@ -27,7 +27,7 @@ const TIMEOUT: Duration = Duration::from_secs(60);
 /// `MIN_KBPS..=MAX_KBPS`) adds it again; 0 only removes it. Nothing but the checked integer is
 /// put into it.
 pub fn script(kbps: u32) -> Result<String> {
-    let remove = [POLICY, crate::legacy::QOS_POLICY]
+    let remove = [POLICY]
         .map(|name| format!("Remove-NetQosPolicy -Name '{name}' -PolicyStore ActiveStore -Confirm:$false -ErrorAction SilentlyContinue"))
         .join("; ");
     if kbps == 0 {
@@ -113,7 +113,6 @@ mod tests {
         let s = script(1_000).unwrap();
         assert!(s.contains("-ThrottleRateActionBitsPerSecond 1000000 -PolicyStore ActiveStore"), "{s}");
         assert!(s.starts_with("$ErrorActionPreference = 'Stop'; Remove-NetQosPolicy -Name 'MTwin-Roblox'"), "{s}");
-        assert!(s.contains(&format!("Remove-NetQosPolicy -Name '{}'", crate::legacy::QOS_POLICY)), "the old one goes too: {s}");
         assert!(!s.contains('"'), "it goes inside -Command \"...\"");
         let off = script(0).unwrap();
         assert!(off.starts_with("Remove-NetQosPolicy") && !off.contains("New-NetQosPolicy"), "{off}");

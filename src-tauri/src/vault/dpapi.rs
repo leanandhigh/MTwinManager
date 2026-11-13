@@ -30,32 +30,20 @@ pub fn protect_with(data: &[u8], entropy: &[u8]) -> Result<Vec<u8>> {
     Ok(take(out).to_vec())
 }
 
-/// Also opens a blob protected before the rename (`legacy::VAULT_ENTROPY`).
 pub fn unprotect(blob_in: &[u8]) -> Result<Zeroizing<Vec<u8>>> {
-    unprotect_any(blob_in, &[ENTROPY, crate::legacy::VAULT_ENTROPY])
+    unprotect_with(blob_in, ENTROPY)
 }
 
 /// `unprotect` with another app's entropy (an import from it).
 pub fn unprotect_with(blob_in: &[u8], entropy: &[u8]) -> Result<Zeroizing<Vec<u8>>> {
-    quiet_unprotect(blob_in, entropy).map_err(|e| {
-        log::error!("DPAPI unprotect failed: {e}");
-        AppError::Crypto
-    })
-}
-
-/// `unprotect_with` for `entropies` in turn: the first that opens it (the failures before it
-/// aren't logged, only the last one).
-pub fn unprotect_any(blob_in: &[u8], entropies: &[&[u8]]) -> Result<Zeroizing<Vec<u8>>> {
-    let (last, rest) = entropies.split_last().ok_or(AppError::Crypto)?;
-    rest.iter().find_map(|e| quiet_unprotect(blob_in, e).ok()).map_or_else(|| unprotect_with(blob_in, last), Ok)
-}
-
-fn quiet_unprotect(blob_in: &[u8], entropy: &[u8]) -> std::result::Result<Zeroizing<Vec<u8>>, String> {
-    let (input, entropy) = (blob(blob_in).map_err(|e| e.to_string())?, blob(entropy).map_err(|e| e.to_string())?);
+    let (input, entropy) = (blob(blob_in)?, blob(entropy)?);
     let mut out = CRYPT_INTEGER_BLOB::default();
     // SAFETY: as in `protect`.
     unsafe { CryptUnprotectData(&input, None, Some(&entropy), None, None, CRYPTPROTECT_UI_FORBIDDEN, &mut out) }
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| {
+            log::error!("DPAPI unprotect failed: {e}");
+            AppError::Crypto
+        })?;
     Ok(take(out))
 }
 

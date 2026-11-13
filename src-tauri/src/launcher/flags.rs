@@ -139,12 +139,6 @@ const SAVED: &str = "ClientAppSettings.json.mtwin-before";
 /// when it is still there.
 fn put_back_at(file: &Path) -> bool {
     let saved = file.with_file_name(SAVED);
-    // One kept by a version from before the rename (`legacy::FLAGS_SAVED`) is put back the same way.
-    let old = file.with_file_name(crate::legacy::FLAGS_SAVED);
-    if !saved.exists() && old.exists() && let Err(e) = std::fs::rename(&old, &saved) {
-        log::warn!("can't rename {}: {e}", old.display());
-        return false;
-    }
     let Ok(kept) = std::fs::read(&saved) else { return true };
     let done = match kept.split_first() {
         Some((b'1', bytes)) => write(file, bytes),

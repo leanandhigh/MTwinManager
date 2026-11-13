@@ -50,12 +50,12 @@ fn local_now() -> (u16, u16, u16, u16, u16, u16) {
     (t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond)
 }
 
-/// An export file MTwin Manager names (`MTwin-cookies-*.txt`, or `legacy::COOKIE_EXPORT_PREFIX`), or a `.txt.tmp` left by a write that crashed
+/// An export file MTwin Manager names (`MTwin-cookies-*.txt`), or a `.txt.tmp` left by a write that crashed
 /// before the atomic rename (`vault::backup::write_atomic`) (pure).
 fn is_export(path: &Path) -> bool {
     path.file_name()
         .and_then(|n| n.to_str())
-        .is_some_and(|n| (n.starts_with(PREFIX) || n.starts_with(crate::legacy::COOKIE_EXPORT_PREFIX)) && (n.ends_with(".txt") || n.ends_with(".txt.tmp")))
+        .is_some_and(|n| (n.starts_with(PREFIX)) && (n.ends_with(".txt") || n.ends_with(".txt.tmp")))
 }
 
 /// Writes `text` to a new export file and remembers it; returns its path.

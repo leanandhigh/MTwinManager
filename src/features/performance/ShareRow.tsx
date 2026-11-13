@@ -1,4 +1,3 @@
-import { LEGACY } from "../../legacy";
 import { useRef, useState, type FormEvent } from "react";
 import { open as openFile, save as saveFile } from "@tauri-apps/plugin-dialog";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
@@ -26,7 +25,7 @@ function toCode(json: string) {
 /** The profile's JSON in a share code; null when it isn't one. */
 function fromCode(code: string): string | null {
   const body = code.trim();
-  const prefix = [CODE, LEGACY.perfCode].find((p) => body.startsWith(p));
+  const prefix = [CODE].find((p) => body.startsWith(p));
   if (!prefix) return null;
   try {
     const b64 = body.slice(prefix.length).replace(/\s+/g, "").replace(/-/g, "+").replace(/_/g, "/");

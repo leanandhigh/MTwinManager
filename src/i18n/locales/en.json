@@ -447,7 +447,7 @@
   "accounts.add.how": "How to add",
   "accounts.add.tabLogin": "Sign in with Roblox",
   "accounts.add.tabCookie": "Paste a cookie",
-  "accounts.add.tabMany": "Add many at once",
+  "accounts.add.tabMany": "Bulk import",
   "accounts.add.loginPrivate": "The window uses a fresh private browser profile that is deleted afterwards. Close it to cancel.",
   "accounts.add.waiting": "Waiting for you to finish signing in…",
   "accounts.add.openSignIn": "Open Roblox sign-in",

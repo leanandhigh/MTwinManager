@@ -148,7 +148,7 @@ pub fn parse(text: &str, current: &Settings) -> Result<Profile> {
         return Err(not_a_profile());
     }
     let file: File = serde_json::from_str(text.trim_start_matches('\u{feff}')).map_err(|_| not_a_profile())?;
-    if file.format != FORMAT && file.format != crate::legacy::PERFORMANCE_FORMAT {
+    if file.format != FORMAT {
         return Err(not_a_profile());
     }
     if file.version > VERSION {

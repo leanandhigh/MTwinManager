@@ -10,7 +10,6 @@ mod discord;
 mod error;
 mod instances;
 mod launcher;
-mod legacy;
 mod model;
 mod network;
 mod performance;
@@ -119,49 +118,11 @@ pub fn data_dir_overridden() -> bool {
 /// drops `movedFrom`. Err: the moved folder isn't available (a message for `fatal`).
 fn data_dir() -> std::result::Result<(PathBuf, Option<PathBuf>), String> {
     if let Some(d) = std::env::var_os("MTWIN_DATA_DIR") {
-        let d = PathBuf::from(d);
-        migrate_names(&d);
-        return Ok((d, None));
+        return Ok((PathBuf::from(d), None));
     }
     let default = default_dir();
-    migrate_folder(&default);
-    migrate_names(&default);
     let json = std::fs::read_to_string(default.join(LOCATION)).ok();
-    // A moved folder (and the one it left) still holds the old names until this start.
-    if let Some(l) = json.as_deref().and_then(|j| serde_json::from_str::<Location>(j).ok()) {
-        migrate_names(&l.data_dir);
-        if let Some(from) = &l.moved_from {
-            migrate_names(from);
-        }
-    }
     chosen_dir(default, json.as_deref())
-}
-
-/// Before the rename the data folder was `legacy::DIR`: moved to `default` once, when
-/// `default` doesn't exist yet. A failed move leaves both as they are (logged); the next start
-/// tries again.
-fn migrate_folder(default: &Path) {
-    let Some(old) = default.parent().map(|p| p.join(legacy::DIR)) else { return };
-    if default.exists() || !old.is_dir() {
-        return;
-    }
-    match std::fs::rename(&old, default) {
-        Ok(()) => eprintln!("data folder moved from {} to {}", old.display(), default.display()),
-        Err(e) => eprintln!("could not move the data folder {} to {}: {e}", old.display(), default.display()),
-    }
-}
-
-/// The database files' old names (`legacy::DB_FILES`) to the new ones (`DB_FILES`), in `dir`, each only
-/// when the new one isn't there. Run before the database opens, so nothing holds them.
-fn migrate_names(dir: &Path) {
-    for (old, new) in legacy::DB_FILES.iter().zip(DB_FILES) {
-        let (from, to) = (dir.join(old), dir.join(new));
-        if from.is_file() && !to.exists()
-            && let Err(e) = std::fs::rename(&from, &to)
-        {
-            eprintln!("could not rename {} to {}: {e}", from.display(), to.display());
-        }
-    }
 }
 
 /// The folder location.json points at, with `movedFrom`: its `dataDir` when that is a full

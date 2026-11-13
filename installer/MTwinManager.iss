@@ -5,8 +5,6 @@
 #if Ver < EncodeVer(6,6,0)
   #error Inno Setup 6.6 or newer is needed (WizardStyle dynamic windows11)
 #endif
-#include "legacy.iss"
-
 #ifndef AppVersion
   #error Pass /DAppVersion=x.y.z, or build with scripts\build-installer.ps1
 #endif
@@ -27,9 +25,6 @@ AppPublisherURL=https://github.com/leanandhigh/MTwinManager
 VersionInfoVersion={#AppNumVersion}
 ; Per-user: {autopf} is %LOCALAPPDATA%\Programs.
 DefaultDirName={autopf}\MTwin Manager
-; Installs made before the rename were elsewhere (legacy.iss): this one goes to the new folder and the
-; old one is removed ([InstallDelete]); the data folder is the app's own and it moves that itself.
-UsePreviousAppDir=no
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
@@ -53,14 +48,6 @@ Name: desktopicon; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm
 [Files]
 Source: "{#AppExe}"; DestDir: "{app}"; DestName: "MTwin Manager.exe"; Flags: ignoreversion
 
-[InstallDelete]
-; The program folder and shortcuts under earlier names (legacy.iss, then MTwin Hub).
-Type: filesandordirs; Name: "{#LegacyProgramDir}"
-Type: files; Name: "{autoprograms}\{#LegacyShortcut}"
-Type: files; Name: "{autodesktop}\{#LegacyShortcut}"
-Type: files; Name: "{autoprograms}\MTwin Hub.lnk"
-Type: files; Name: "{autodesktop}\MTwin Hub.lnk"
-
 [Icons]
 Name: "{autoprograms}\MTwin Manager"; Filename: "{app}\MTwin Manager.exe"
 Name: "{autodesktop}\MTwin Manager"; Filename: "{app}\MTwin Manager.exe"; Tasks: desktopicon
@@ -75,9 +62,8 @@ const
   WebView2Key = 'Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}';
   { Microsoft's Evergreen Bootstrapper: Setup only opens the link, it downloads nothing itself. }
   WebView2Download = 'https://go.microsoft.com/fwlink/p/?LinkId=2124703';
-  { tauri-plugin-single-instance holds <identifier>-sim while MTwin Manager runs (the second: a
-    version from before the rename). }
-  RunningMutex = 'com.mtwin.manager-sim,{#LegacyMutex}';
+  { tauri-plugin-single-instance holds <identifier>-sim while MTwin Manager runs. }
+  RunningMutex = 'com.mtwin.manager-sim';
 
 function HasWebView2(Root: Integer): Boolean;
 var
@@ -140,8 +126,5 @@ begin
     DelTree(Data, True, True, True);
     { The window position tauri-plugin-window-state keeps. }
     DelTree(ExpandConstant('{userappdata}\com.mtwin.manager'), True, True, True);
-    { What a version from before the rename left, if the app never started since to move it. }
-    DelTree(ExpandConstant('{#LegacyDataDir}'), True, True, True);
-    DelTree(ExpandConstant('{#LegacyWindowState}'), True, True, True);
   end;
 end;

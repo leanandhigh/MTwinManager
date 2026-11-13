@@ -24,7 +24,7 @@ use zeroize::Zeroizing;
 use crate::error::{AppError, Result};
 use crate::model::VaultMode;
 
-pub use dpapi::{protect_with, unprotect_any, unprotect_with};
+pub use dpapi::{protect_with, unprotect_with};
 pub use hello::{hello_available, windows_hello};
 
 /// A secret string (cookie, password). Zeroed on drop, never printed.
@@ -209,7 +209,7 @@ impl Vault {
     /// `Locked` when locked, `Crypto` when the blob or AAD does not match.
     pub fn decrypt(&self, aad: &[u8], blob: &[u8]) -> Result<Zeroizing<Vec<u8>>> {
         let key = self.key()?;
-        open(&key, aad, blob)
+        master::open(&key, aad, blob)
     }
 
     pub fn decrypt_secret(&self, aad: &[u8], blob: &[u8]) -> Result<Secret> {
@@ -239,7 +239,7 @@ pub fn recover(rec: &RecoveryRecord, code: &str, new_password: &str) -> Result<(
     let code = master::normalize_code(code).ok_or(AppError::WrongPassword)?;
     let sealed = dpapi::unprotect(&rec.wrapped_key)?;
     let kek = master::derive_key(code.expose(), &rec.kdf)?;
-    let key = to_key(&open(&kek, RECOVERY_AAD, &sealed).map_err(|_| AppError::WrongPassword)?)?;
+    let key = to_key(&master::open(&kek, RECOVERY_AAD, &sealed).map_err(|_| AppError::WrongPassword)?)?;
     let vault = wrap_master(&key, new_password)?;
     let (new_code, recovery) = wrap_recovery(&key)?;
     Ok((vault, new_code, recovery))
@@ -282,15 +282,7 @@ fn unwrap_master(rec: &VaultRecord, password: &str) -> Result<Key> {
     })?;
     let sealed = dpapi::unprotect(&rec.wrapped_key)?;
     let kek = master::derive_key(password, kdf)?;
-    to_key(&open(&kek, KEY_AAD, &sealed).map_err(|_| AppError::WrongPassword)?)
-}
-
-/// `master::open`, then with the AAD data sealed before the rename had (`legacy::aad`).
-fn open(key: &[u8; 32], aad: &[u8], blob: &[u8]) -> Result<Zeroizing<Vec<u8>>> {
-    master::open(key, aad, blob).or_else(|e| match crate::legacy::aad(aad) {
-        Some(old) => master::open(key, &old, blob),
-        None => Err(e),
-    })
+    to_key(&master::open(&kek, KEY_AAD, &sealed).map_err(|_| AppError::WrongPassword)?)
 }
 
 fn to_key(bytes: &[u8]) -> Result<Key> {

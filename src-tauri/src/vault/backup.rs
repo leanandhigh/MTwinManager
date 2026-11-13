@@ -1,5 +1,4 @@
-//! Password-protected `.mtwin` backup files (portable: no DPAPI); ones from before the rename
-//! (`legacy::BACKUP_MAGIC`) open too.
+//! Password-protected `.mtwin` backup files (portable: no DPAPI).
 //!
 //! Layout: `b"MTWINBK1" | m_kib u32le | t u32le | p u32le | salt[16] | seal(key, header, json)`
 //! where `header` is every byte before the sealed part and `key = Argon2id(password, salt)`.
@@ -113,7 +112,7 @@ pub fn read(path: &Path, password: &str) -> Result<BackupPayload> {
         return Err(not_backup());
     }
     let bytes = fs::read(path)?;
-    if bytes.len() < HEADER_LEN + SEAL_OVERHEAD || !(bytes.starts_with(MAGIC) || bytes.starts_with(crate::legacy::BACKUP_MAGIC)) {
+    if bytes.len() < HEADER_LEN + SEAL_OVERHEAD || !bytes.starts_with(MAGIC) {
         log::debug!("not a backup: bad magic or truncated ({} bytes)", bytes.len());
         return Err(not_backup());
     }
