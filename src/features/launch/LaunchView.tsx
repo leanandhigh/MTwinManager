@@ -87,7 +87,7 @@ function Option({ id, label, hint, more, children, below }: { id: string; label:
 type Chip = { key: string; text: string; edit?: string };
 
 /** Play: who plays (left), where and the launch (right). Two columns when there is room, else stacked. */
-export function LaunchView({ accounts, picked, setPicked, sameServer, setSameServer, draft, setDraft, onAdd, onPickFavourite }: {
+export function LaunchView({ accounts, picked, setPicked, sameServer, setSameServer, draft, setDraft, onAdd, onPickFavourite, onClose }: {
   accounts: AccountSummary[];
   picked: number[];
   setPicked: Dispatch<SetStateAction<number[]>>;
@@ -97,6 +97,8 @@ export function LaunchView({ accounts, picked, setPicked, sameServer, setSameSer
   setDraft: Dispatch<SetStateAction<Draft>>;
   onAdd: () => void;
   onPickFavourite: (f: Favourite) => void;
+  /** Play opens as a panel: this closes it. */
+  onClose?: () => void;
 }) {
   const favourites = useFavourites();
   const multi = useMultiStatus().data;
@@ -253,8 +255,11 @@ export function LaunchView({ accounts, picked, setPicked, sameServer, setSameSer
     <main className="scroll flex-1 min-w-0 page pb-0">
       <div ref={root} className="play" data-wide={wide || undefined}>
         <header className="mb-5">
-          <h1 className="page-title">{t("app.nav.launch")}</h1>
-          <p className="page-sub">{t("play.sub")}</p>
+          <div className="min-w-0">
+            <h1 id="play-title" className="page-title">{t("app.nav.launch")}</h1>
+            <p className="page-sub">{t("play.sub")}</p>
+          </div>
+          {onClose && <IconButton icon="x" label={t("common.close")} shortcut="Esc" onClick={onClose} />}
         </header>
         <div className="play-grid">
           <section aria-labelledby="play-who" className="panel play-col play-who">

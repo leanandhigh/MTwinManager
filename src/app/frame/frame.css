@@ -21,14 +21,15 @@
     border-bottom: 1px solid var(--line);
     background: var(--ground);
   }
+  .tn {
+    container: tn / inline-size;
+  }
   .tn-tabs {
     flex: 1;
     min-width: 0;
     display: flex;
     align-items: center;
     gap: 2px;
-    overflow-x: auto;
-    scrollbar-width: none;
   }
   .tn-tab {
     position: relative;
@@ -93,6 +94,22 @@
   }
   .tn-settings {
     margin-inline-start: auto;
+  }
+  /* Never a scrolling bar: when the tabs don't fit, they drop their words (the name stays the
+     tooltip), first Settings' and More's, then every tab's. */
+  @container tn (max-width: 980px) {
+    .tn-settings > span,
+    .tn-tab[popovertarget] > span {
+      display: none;
+    }
+  }
+  @container tn (max-width: 760px) {
+    .tn-tab > span:not(.tn-count, .tn-badge) {
+      display: none;
+    }
+    .tn-tab {
+      padding: 0 10px;
+    }
   }
 
   /* The page now starts under the tabs: its bar sits at the stage's top. */
