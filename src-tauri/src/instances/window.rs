@@ -414,11 +414,25 @@ fn saved() -> MutexGuard<'static, Vec<(String, u32, WINDOWPLACEMENT)>> {
 }
 
 /// Minimizes the client without taking the focus (Minimize on launch); nothing if it has no window
-/// or is minimized already.
+/// or is minimized already. Roblox often shows its window again as the game finishes loading, so it
+/// is minimized again if it came back within the next ~10 s (a background thread).
 pub fn hide_on_launch(pid: u32) {
     if let Some((hwnd, false)) = process::main_window(pid) {
         hide(hwnd);
     }
+    std::thread::spawn(move || {
+        for wait in [1_500, 3_000, 6_000] {
+            std::thread::sleep(std::time::Duration::from_millis(wait));
+            match process::main_window(pid) {
+                Some((hwnd, false)) => {
+                    log::debug!("client {pid}: came back up after minimize on launch; minimized again");
+                    hide(hwnd);
+                }
+                Some(_) => {}
+                None => return,
+            }
+        }
+    });
 }
 
 /// The client's main window, for changing it: an error while it has none or doesn't respond

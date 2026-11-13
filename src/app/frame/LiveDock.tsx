@@ -92,7 +92,11 @@ export function LiveDock({ accounts }: { accounts: AccountSummary[] }) {
             </label>
             <label className="ld-toggle">
               <span>{t("live.autoMinimize")}</span>
-              <Switch label={t("live.autoMinimize")} checked={!!settings?.minimizeOnLaunch} onChange={(on) => set.mutate({ minimizeOnLaunch: on })} />
+              <Switch label={t("live.autoMinimize")} checked={!!settings?.minimizeOnLaunch} onChange={(on) => {
+                  set.mutate({ minimizeOnLaunch: on });
+                  // On: the clients already running go down too, not only the next ones.
+                  if (on && running.length) api.instancesShowAll("minimize").catch(toastError);
+                }} />
             </label>
           </div>
           <ul className="ld-list">

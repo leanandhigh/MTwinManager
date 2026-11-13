@@ -36,6 +36,8 @@ pub const PORT: u16 = 16390;
 /// The progress website on the network (`web_share` on): read-only, and every request needs the key.
 pub const WEB_PORT: u16 = 16391;
 const WEB_PAGE: &str = include_str!("progress_web.html");
+/// The website's logo and tab icon: the app's own icon.
+const WEB_LOGO: &[u8] = include_bytes!("../icons/128x128.png");
 /// An account is online while it reported within this (the script reports every 10 s).
 const ONLINE_MS: i64 = 30_000;
 const MAX_HEAD: usize = 16 * 1024;
@@ -631,13 +633,21 @@ async fn read_request(stream: &mut TcpStream) -> Option<Request> {
 }
 
 async fn respond(stream: &mut TcpStream, status: &str, kind: &str, body: &str) {
+    respond_bytes(stream, status, kind, body.as_bytes(), "no-store").await;
+}
+
+async fn respond_bytes(stream: &mut TcpStream, status: &str, kind: &str, body: &[u8], cache: &str) {
     let head = format!(
-        "HTTP/1.1 {status}\r\nContent-Type: {kind}\r\nContent-Length: {}\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n",
+        "HTTP/1.1 {status}\r\nContent-Type: {kind}\r\nContent-Length: {}\r\nCache-Control: {cache}\r\nConnection: close\r\n\r\n",
         body.len()
     );
     let _ = stream.write_all(head.as_bytes()).await;
-    let _ = stream.write_all(body.as_bytes()).await;
+    let _ = stream.write_all(body).await;
     let _ = stream.shutdown().await;
+}
+
+async fn logo(stream: &mut TcpStream) {
+    respond_bytes(stream, "200 OK", "image/png", WEB_LOGO, "max-age=86400").await;
 }
 
 const TEXT: &str = "text/plain; charset=utf-8";
@@ -686,6 +696,7 @@ async fn serve(handle: &AppHandle, mut stream: TcpStream) {
         }
         ("GET", "/" | "/index.html") => respond(&mut stream, "200 OK", HTML, WEB_PAGE).await,
         ("GET", "/api/progress") => web_api(handle, &mut stream).await,
+        ("GET", "/logo.png" | "/favicon.ico") => logo(&mut stream).await,
         _ => respond(&mut stream, "404 Not Found", TEXT, "not found").await,
     }
 }
@@ -708,6 +719,10 @@ async fn serve_web(handle: &AppHandle, mut stream: TcpStream) {
     let Some(req) = read_request(&mut stream).await else {
         return respond(&mut stream, "400 Bad Request", TEXT, "bad request").await;
     };
+    // The logo is the app's public icon: no key, so the tab icon loads too.
+    if req.method == "GET" && matches!(req.path.as_str(), "/logo.png" | "/favicon.ico") {
+        return logo(&mut stream).await;
+    }
     let Some(key) = handle.state::<App>().progress.web_key() else {
         return respond(&mut stream, "403 Forbidden", TEXT, "sharing is off").await;
     };

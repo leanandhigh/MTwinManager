@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark light">
 <title>MTwin Progress</title>
+<link rel="icon" type="image/png" href="/logo.png">
 <style>
   :root {
     --bg: #0d0d0f; --s1: #151518; --s2: #1c1c20; --line: #2a2a30; --fg: #f2f2f4; --fg2: #a6a6ae; --fg3: #6e6e78;
@@ -19,8 +20,7 @@
   .wrap { max-width: 1280px; margin: 0 auto; padding: 20px 16px 48px; }
   header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
   .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }
-  .mark { width: 28px; height: 28px; border-radius: 7px; background: #000; display: grid; place-items: center; }
-  .mark::after { content: ""; width: 12px; height: 12px; border-radius: 3px; background: var(--accent); }
+  .mark { width: 30px; height: 30px; border-radius: 8px; background: #000; display: block; object-fit: cover; flex: none; }
   .live { display: inline-flex; align-items: center; gap: 6px; color: var(--fg2); font-size: 12.5px; margin-left: auto; }
   .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--fg3); flex: none; }
   .dot.on { background: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 22%, transparent); }
@@ -35,7 +35,16 @@
   .chips { display: flex; gap: 6px; flex-wrap: wrap; }
   .chip { height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--s1); color: var(--fg2); font: inherit; font-size: 13px; cursor: pointer; }
   .chip[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
-  select.chip { padding-right: 8px; }
+  select.chip {
+    -webkit-appearance: none; appearance: none;
+    height: 32px; padding: 0 34px 0 14px;
+    background-color: var(--s1);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 16 16' fill='none' stroke='%23a6a6ae' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 12px center; background-size: 12px;
+    color: var(--fg); cursor: pointer;
+  }
+  select.chip:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent); outline-offset: 1px; }
+  select.chip option { background: var(--s1); color: var(--fg); }
   .totals { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
   .total { background: var(--s2); border-radius: 6px; padding: 4px 10px; font-size: 12.5px; color: var(--fg2); }
   .total b { color: var(--fg); font-weight: 600; }
@@ -76,7 +85,7 @@
 <body>
 <div class="wrap">
   <header>
-    <div class="brand"><span class="mark" aria-hidden="true"></span><span>MTwin Progress</span></div>
+    <div class="brand"><img class="mark" src="/logo.png" alt="" width="30" height="30"><span>MTwin Progress</span></div>
     <span class="live"><span id="dot" class="dot"></span><span id="status">Connecting…</span></span>
     <button class="theme" id="theme" type="button" title="Light / dark" aria-label="Light / dark"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 2a6 6 0 0 1 0 12z" fill="currentColor"/></svg></button>
   </header>

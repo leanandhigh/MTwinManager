@@ -100,10 +100,27 @@ const button = (field) => {
   const layered = [...document.querySelectorAll('[data-testid="foundation-web-state-layer"]')].map((l) => l.closest("button")).filter(shown);
   return layered.find((b) => WORDS.test(b.textContent.trim())) || [...document.querySelectorAll("button")].filter(shown).find((b) => WORDS.test(b.textContent.trim()));
 };
-const press = (field) => setTimeout(() => {
-  const b = button(field);
-  if (b) b.click();
-}, 450);
+// Presses it once it is there and enabled (Roblox enables it only after its state has the values),
+// trying every 300 ms for up to 10 s; then the form is submitted, or Enter pressed in the field.
+const press = (field, done) => {
+  let n = 0;
+  const t = setInterval(() => {
+    const b = button(field);
+    if (b && !b.disabled && b.getAttribute("aria-disabled") !== "true") {
+      clearInterval(t);
+      b.click();
+      if (done) done();
+      return;
+    }
+    if (++n >= 34) {
+      clearInterval(t);
+      const form = field.form;
+      if (form && form.requestSubmit) form.requestSubmit();
+      else for (const type of ["keydown", "keypress", "keyup"]) field.dispatchEvent(new KeyboardEvent(type, { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true }));
+      if (done) done();
+    }
+  }, 300);
+};
 let tries = 0, nexted = false, pressed = false;
 const timer = setInterval(() => {
   const u = userField(), p = passField();
@@ -113,6 +130,8 @@ const timer = setInterval(() => {
     if (!pressed) {
       pressed = true;
       clearInterval(timer);
+      // React sees the blur too.
+      p.dispatchEvent(new Event("blur", { bubbles: true }));
       press(p);
     }
   } else if (u && !nexted) {
