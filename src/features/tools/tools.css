@@ -1,0 +1,116 @@
+/* Tools: the accounts to run on down the left, the tools and their run on the right. */
+@layer views {
+  .tl-page {
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr);
+    grid-template-areas: "head head" "pick main";
+    gap: 16px;
+    align-items: start;
+  }
+  @media (max-width: 860px) {
+    .tl-page {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-areas: "head" "main" "pick";
+    }
+  }
+  .tl-head { grid-area: head; }
+  .tl-pick {
+    grid-area: pick;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+    max-height: calc(100vh - 210px);
+    min-height: 260px;
+  }
+  .tl-pick-head { display: flex; align-items: center; }
+  .tl-all { display: flex; align-items: center; gap: 8px; font-size: var(--fs-small); color: var(--fg-2); }
+  .tl-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 0 -4px;
+    padding: 0 4px;
+  }
+  .tl-acc {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .tl-acc:hover { background: var(--hover); }
+  .tl-acc[data-on] { background: color-mix(in srgb, var(--accent) 9%, transparent); }
+  .tl-acc img, .tl-acc .avatar { border-radius: 50%; }
+  .tl-acc-name { display: block; font-weight: 550; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tl-acc-sub { display: block; font-size: 11.5px; color: var(--fg-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tl-warn { color: #e8a33d; flex: none; }
+  .tl-none { padding: 18px 8px; color: var(--fg-3); text-align: center; font-size: 13px; }
+
+  .tl-main { grid-area: main; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+  .tl-tools {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 10px;
+  }
+  .tl-tool {
+    --tone: var(--fg-2);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: var(--surface-1, var(--hover));
+    box-shadow: inset 0 0 0 1px var(--line);
+    text-align: start;
+    transition: box-shadow var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
+  }
+  .tl-tool:hover { background: var(--hover); }
+  .tl-tool[aria-checked="true"] { box-shadow: inset 0 0 0 1.5px var(--tone); }
+  .tl-tool[data-tone="ok"] { --tone: #2fbf71; }
+  .tl-tool[data-tone="gold"] { --tone: #e8a33d; }
+  .tl-tool[data-tone="info"] { --tone: #3b8eea; }
+  .tl-tool[data-tone="violet"] { --tone: #a77bf3; }
+  .tl-tool[data-tone="danger"] { --tone: #e5484d; }
+  .tl-tool[data-tone="muted"] { --tone: #8a8a94; }
+  .tl-tool-icon {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 9px;
+    color: var(--tone);
+    background: color-mix(in srgb, var(--tone) 14%, transparent);
+  }
+  .tl-tool-name { display: block; font-weight: 600; }
+  .tl-tool-hint { display: block; font-size: 12px; color: var(--fg-3); line-height: 1.35; }
+
+  .tl-run { display: flex; flex-direction: column; gap: 10px; padding: 14px; }
+  .tl-run > .btn { align-self: flex-start; }
+  .tl-run-title { display: flex; align-items: center; gap: 8px; }
+  .tl-note { margin: 0; font-size: 12px; color: var(--fg-3); }
+
+  .tl-results { padding: 12px 14px; }
+  .tl-results-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+  .tl-total { margin-inline-start: auto; font-weight: 600; color: #e8a33d; }
+  .tl-results ul { display: flex; flex-direction: column; }
+  .tl-res {
+    display: grid;
+    grid-template-columns: 18px minmax(90px, 180px) minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+    border-top: 1px solid var(--line);
+    font-size: 13px;
+  }
+  .tl-res:first-child { border-top: 0; }
+  .tl-res-mark { color: #e5484d; }
+  .tl-res[data-ok] .tl-res-mark { color: #2fbf71; }
+  .tl-res-name { font-weight: 550; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tl-res-msg { color: var(--fg-2); }
+}

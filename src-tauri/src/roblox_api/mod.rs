@@ -324,6 +324,21 @@ impl Client {
         self.request(Method::POST, route, &url, Some(&body), account_id, Some(cookie)).await.map(|_| ())
     }
 
+    /// `PATCH users.roblox.com/v1/users/{me}/display-names` (cookie + CSRF): this account's new
+    /// display name. Roblox allows a change about once a week and refuses names it filters.
+    pub async fn set_display_name(&self, account_id: i64, cookie: &Secret, me: i64, name: &str) -> Result<()> {
+        let route = endpoints::DISPLAY_NAME;
+        let body = serde_json::json!({ "newDisplayName": name });
+        self.request(Method::PATCH, route, &endpoints::fill(route, me), Some(&body), account_id, Some(cookie)).await.map(|_| ())
+    }
+
+    /// `POST apis.roblox.com/user-blocking-api/v1/users/{target}/block-user` (or `unblock-user`).
+    pub async fn set_blocked(&self, account_id: i64, cookie: &Secret, target: i64, block: bool) -> Result<()> {
+        let route = if block { endpoints::BLOCK_USER } else { endpoints::UNBLOCK_USER };
+        let body = Value::Object(Default::default());
+        self.request(Method::POST, route, &endpoints::fill(route, target), Some(&body), account_id, Some(cookie)).await.map(|_| ())
+    }
+
     /// `GET games.roblox.com/v2/games/{placeId}/servers/Public?orderBy=..&excludeFullGames=..&limit=..&cursor=..`
     /// (`endpoints::SERVERS_PUBLIC`; the website's own list). `limit` must be 10, 25, 50 or 100
     /// (anything else → `Invalid` without a call). `cookie` optional; Recommended / BestLatency

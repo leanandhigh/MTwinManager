@@ -295,6 +295,12 @@ pub struct Settings {
     /// The executor in use (WEAO's name); Roblox is installed, updated and launched at the build
     /// it supports instead of Roblox's newest (`launcher::update::target_version`). "": none.
     pub executor: String,
+    /// The executor's own program, for the executor panel (`executor`); "": none.
+    pub executor_exe: String,
+    /// Start it when MTwin Manager starts.
+    pub executor_auto_open: bool,
+    /// Start it again when it closes.
+    pub executor_keep_open: bool,
     /// Closing the window hides it; the tray icon brings it back or quits.
     pub close_to_tray: bool,
     /// Open at full size, without the start-up animation (`splash`); from the next start.
@@ -577,6 +583,9 @@ impl Default for Settings {
             launch_args: String::new(),
             client_path: String::new(),
             executor: String::new(),
+            executor_exe: String::new(),
+            executor_auto_open: false,
+            executor_keep_open: false,
             close_to_tray: false,
             skip_splash: false,
             protect_main: true,
@@ -660,6 +669,12 @@ pub struct SettingsPatch {
     pub client_path: Option<String>,
     #[ts(optional)]
     pub executor: Option<String>,
+    #[ts(optional)]
+    pub executor_exe: Option<String>,
+    #[ts(optional)]
+    pub executor_auto_open: Option<bool>,
+    #[ts(optional)]
+    pub executor_keep_open: Option<bool>,
     #[ts(optional)]
     pub close_to_tray: Option<bool>,
     #[ts(optional)]
@@ -882,6 +897,35 @@ pub struct CookieExport {
     pub skipped: u32,
     /// Unix ms when MTwin Manager deletes it.
     pub deletes_at: i64,
+}
+
+/// One bulk tool (Tools page), run on each picked account in turn.
+#[derive(Deserialize, TS, Clone, Debug)]
+#[serde(rename_all = "camelCase", tag = "kind")]
+#[ts(export)]
+pub enum AccountTool {
+    /// Read each account's Robux.
+    Robux,
+    /// Sign-in check (as Check sign-in).
+    Validate,
+    /// Set each account's display name; `{n}` becomes 1, 2, 3...
+    DisplayName { name: String },
+    /// Send a friend request to this Roblox user.
+    AddFriend { user_id: i64 },
+    Block { user_id: i64 },
+    Unblock { user_id: i64 },
+}
+
+/// How a tool went on one account.
+#[derive(Serialize, TS, Clone, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct ToolResult {
+    pub account_id: i64,
+    pub ok: bool,
+    /// What went wrong, or what it found ("1,234 Robux").
+    pub message: String,
+    pub robux: Option<i64>,
 }
 
 /// What "make friends" did, counted in pairs of accounts.

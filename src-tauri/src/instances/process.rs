@@ -81,7 +81,7 @@ pub fn installer_running() -> bool {
 }
 
 /// Running processes whose executable is `exe`.
-fn named(exe: &str) -> Vec<ProcInfo> {
+pub(crate) fn named(exe: &str) -> Vec<ProcInfo> {
     let mut out = Vec::new();
     // SAFETY: the snapshot handle is owned and closed on drop; `e` is a zeroed PROCESSENTRY32W
     // with dwSize set, as Process32FirstW/NextW require.

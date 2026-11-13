@@ -34,6 +34,10 @@ pub const FRIENDS_ONLINE: &str = "https://friends.roblox.com/v1/users/{}/friends
 pub const FRIEND_STATUSES: &str = "https://friends.roblox.com/v1/users/{}/friends/statuses";
 pub const REQUEST_FRIENDSHIP: &str = "https://friends.roblox.com/v1/users/{}/request-friendship";
 pub const ACCEPT_FRIEND: &str = "https://friends.roblox.com/v1/users/{}/accept-friend-request";
+// Tools (cookie + CSRF): the website's own calls.
+pub const DISPLAY_NAME: &str = "https://users.roblox.com/v1/users/{}/display-names";
+pub const BLOCK_USER: &str = "https://apis.roblox.com/user-blocking-api/v1/users/{}/block-user";
+pub const UNBLOCK_USER: &str = "https://apis.roblox.com/user-blocking-api/v1/users/{}/unblock-user";
 
 // Servers (query string appended by the caller).
 pub const SERVERS_PUBLIC: &str = "https://games.roblox.com/v2/games/{}/servers/Public";

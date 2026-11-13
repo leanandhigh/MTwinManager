@@ -8,6 +8,7 @@ mod cookie_export;
 mod diagnostics;
 mod discord;
 mod error;
+mod executor;
 mod farm;
 mod instances;
 mod launcher;
@@ -506,6 +507,7 @@ fn init(app: &TauriApp, data_dir: &Path, moved_from: Option<&Path>) -> std::resu
     instances::afk::spawn(app.handle().clone());
     network::spawn(app.handle().clone());
     progress::spawn(app.handle().clone());
+    executor::spawn(app.handle().clone());
     launcher::flags::restore();
     launcher::client_settings::spawn(app.handle().clone());
     discord::spawn(app.handle().clone());
@@ -748,6 +750,14 @@ fn main() {
             progress::progress_state,
             progress::progress_web,
             commands::accounts_set_farm,
+            commands::accounts_tool,
+            executor::executor_status,
+            executor::executor_launch,
+            executor::executor_script_read,
+            executor::executor_script_write,
+            executor::executor_script_add,
+            executor::executor_script_delete,
+            executor::executor_folder_open,
             progress::progress_web_set,
             progress::progress_remove,
             progress::progress_catalog_save,

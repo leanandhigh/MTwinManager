@@ -117,6 +117,10 @@ export type { DetectedBootstrapper };
 import type { ProgressGame } from "./bindings/ProgressGame";
 import type { ProgressState } from "./bindings/ProgressState";
 import type { ProgressWeb } from "./bindings/ProgressWeb";
+import type { AccountTool } from "./bindings/AccountTool";
+import type { ToolResult } from "./bindings/ToolResult";
+import type { ExecutorStatus } from "./bindings/ExecutorStatus";
+export type { AccountTool, ToolResult, ExecutorStatus };
 export type { CatalogEntry, ProgressGame, ProgressState, ProgressWeb };
 export type { CatalogKind } from "./bindings/CatalogKind";
 export type { ProgressAccount } from "./bindings/ProgressAccount";
@@ -182,6 +186,16 @@ export const api = {
   accountsRemove: (ids: number[]) => invoke<void>("accounts_remove", { ids }),
   accountsValidate: (ids?: number[]) => invoke<AccountSummary[]>("accounts_validate", { ids }),
   accountsBefriend: (ids: number[]) => invoke<FriendReport>("accounts_befriend", { ids }),
+  /** Tools page: one tool on each of these accounts in turn. */
+  accountsTool: (ids: number[], tool: AccountTool) => invoke<ToolResult[]>("accounts_tool", { ids, tool }),
+  executorStatus: () => invoke<ExecutorStatus>("executor_status"),
+  /** Starts the executor; `restart` closes a running one first. */
+  executorLaunch: (restart: boolean) => invoke<ExecutorStatus>("executor_launch", { restart }),
+  executorScriptRead: (name: string) => invoke<string>("executor_script_read", { name }),
+  executorScriptWrite: (name: string, text: string) => invoke<ExecutorStatus>("executor_script_write", { name, text }),
+  executorScriptAdd: (from: string) => invoke<ExecutorStatus>("executor_script_add", { from }),
+  executorScriptDelete: (name: string) => invoke<ExecutorStatus>("executor_script_delete", { name }),
+  executorFolderOpen: () => invoke<null>("executor_folder_open"),
   /** Add to farm (farming), Mark done (done) or Remove from farm (none). */
   accountsSetFarm: (ids: number[], farm: import("./bindings/FarmState").FarmState) => invoke<null>("accounts_set_farm", { ids, farm }),
   /** Master mode needs the password; DPAPI mode shows Windows Hello. */

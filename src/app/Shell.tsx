@@ -34,6 +34,8 @@ function lazyView<M, C extends ComponentType<any>>(load: () => Promise<M>, pick:
 const AccountsView = lazyView(() => import("../features/accounts/AccountsView"), (m) => m.AccountsView);
 const BrowseView = lazyView(() => import("../features/browse/BrowseView"), (m) => m.BrowseView);
 const DebugView = lazyView(() => import("../features/debug/DebugView"), (m) => m.DebugView);
+const ToolsView = lazyView(() => import("../features/tools/ToolsView"), (m) => m.ToolsView);
+const ExecutorView = lazyView(() => import("../features/executor/ExecutorView"), (m) => m.ExecutorView);
 const DiscordView = lazyView(() => import("../features/discord/DiscordView"), (m) => m.DiscordView);
 const LaunchView = lazyView(() => import("../features/launch/LaunchView"), (m) => m.LaunchView);
 const MonitorView = lazyView(() => import("../features/monitor/MonitorView"), (m) => m.MonitorView);
@@ -376,6 +378,10 @@ export function Shell({ vault, settings, islandSlot }: { vault: VaultStatus; set
             <DiscordView />
           ) : view === "debug" ? (
             <DebugView />
+          ) : view === "tools" ? (
+            <ToolsView accounts={accounts.data} />
+          ) : view === "executor" ? (
+            <ExecutorView />
           ) : view === "progress" ? (
             <ProgressView accounts={accounts.data} />
           ) : view === "performance" ? (

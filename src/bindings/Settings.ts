@@ -180,6 +180,18 @@ farmDoneAt: boolean, farmDoneLevel: number,
  */
 closeWhenDone: boolean, 
 /**
+ * The executor's own program, for the executor panel (`executor`); "": none.
+ */
+executorExe: string, 
+/**
+ * Start it when MTwin Manager starts.
+ */
+executorAutoOpen: boolean, 
+/**
+ * Start it again when it closes.
+ */
+executorKeepOpen: boolean, 
+/**
  * System-wide key combination for Kill all, like "Ctrl+Shift+F12"; "" for none.
  */
 panicHotkey: string, 

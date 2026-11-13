@@ -79,7 +79,7 @@ let settings: Settings = {
   adaptive: { enabled: false, background: { cpuCap: 25, eco: true, trimEveryMin: null, affinity: null } }, bandwidthKbps: 0,
   antiAfk: { enabled: false, intervalMin: 15 },
   discord: { crash: true, hang: true, memRestart: true, disconnect: true, restart: true, breaker: true, batchDone: true, launch: false, statusEveryMin: 0, ping: "" },
-  autoUpdate: false, selfUpdate: true, tabLayout: "top", discordPresence: true, onlineCount: true, minimizeOnLaunch: false, replaceDead: false, replaceChallenged: false, farmDoneAt: false, farmDoneLevel: 100, closeWhenDone: false, microWidth: 320, microHeight: 240, tinyOnLaunch: false, panicHotkey: "", cleanLogs: false, fpsCap: 0, lowGraphics: true, skipSplash: false, protectMain: true, muteOnLaunch: false, windowLayout: "off", lighterRendering: true, renderFlags: { msaa: "x1", texture: "lowest", mode: "default", graySky: false, noGrass: true, lowestFrm: true, pauseVoxelizer: false },
+  autoUpdate: false, selfUpdate: true, tabLayout: "top", discordPresence: true, onlineCount: true, minimizeOnLaunch: false, replaceDead: false, replaceChallenged: false, farmDoneAt: false, farmDoneLevel: 100, closeWhenDone: false, executorExe: "", executorAutoOpen: false, executorKeepOpen: false, microWidth: 320, microHeight: 240, tinyOnLaunch: false, panicHotkey: "", cleanLogs: false, fpsCap: 0, lowGraphics: true, skipSplash: false, protectMain: true, muteOnLaunch: false, windowLayout: "off", lighterRendering: true, renderFlags: { msaa: "x1", texture: "lowest", mode: "default", graySky: false, noGrass: true, lowestFrm: true, pauseVoxelizer: false },
   customFlags: {}, customFlagsScope: "global", lockPurchases: true, rolimonsValues: false,
   allowPublicNetworks: true, language: "",
 };
@@ -831,6 +831,8 @@ end
 `,
 };
 const PROGRESS_DEFAULT_ALL = "-- Runs in every game, before the game's own script.\nlocal stats = P.player:FindFirstChild(\"leaderstats\")\n";
+let execRunning = false;
+const execFiles = new Map<string, string>([["autofarm.lua", "-- Auto farm\nloadstring(game:HttpGet(\"https://example.com/farm.lua\"))()\n"], ["anti-afk.luau", "-- keeps the client awake\n"]]);
 let webShare = false;
 let webKey = "";
 const progressState = (): ProgressState => ({
@@ -937,6 +939,37 @@ async function handle(cmd: string, args: Args): Promise<unknown> {
     case "accounts_remove":
       accounts = accounts.filter((a) => !args.ids.includes(a.id));
       changed();
+      return null;
+    case "accounts_tool": {
+      await sleep(700);
+      const tool = args.tool as { kind: string; name?: string };
+      return (args.ids as number[]).map((id, n) => {
+        const a = accounts.find((x) => x.id === id)!;
+        if (a.status === "challenged") return { accountId: id, ok: false, message: "Roblox wants a human check for this account.", robux: null };
+        if (tool.kind === "robux") { const r = (id * 137) % 900; return { accountId: id, ok: true, message: `${r} Robux`, robux: r }; }
+        if (tool.kind === "displayName") return { accountId: id, ok: true, message: `Now ${tool.name!.replace("{n}", String(n + 1))}.`, robux: null };
+        if (tool.kind === "validate") return { accountId: id, ok: true, message: "Signed in.", robux: null };
+        return { accountId: id, ok: true, message: tool.kind === "addFriend" ? "Request sent." : tool.kind === "block" ? "Blocked." : "Unblocked.", robux: null };
+      });
+    }
+    case "executor_status":
+    case "executor_launch":
+    case "executor_script_write":
+    case "executor_script_add":
+    case "executor_script_delete": {
+      if (cmd === "executor_launch") execRunning = true;
+      if (cmd === "executor_script_write") execFiles.set(args.name as string, args.text as string);
+      if (cmd === "executor_script_delete") execFiles.delete(args.name as string);
+      const path = settings.executorExe;
+      return {
+        path, found: !!path, running: !!path && execRunning,
+        autoexecDir: path ? "C:\\Users\\you\\AppData\\Local\\Potassium\\autoexec" : null,
+        files: path ? [...execFiles].map(([name, text]) => ({ name, size: text.length })) : [],
+      };
+    }
+    case "executor_script_read":
+      return execFiles.get(args.name as string) ?? "";
+    case "executor_folder_open":
       return null;
     case "accounts_set_farm": {
       const ids = new Set(args.ids as number[]);

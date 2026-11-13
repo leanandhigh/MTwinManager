@@ -351,5 +351,22 @@
   "The level must be 1 to 1,000,000.": "เลเวลต้องอยู่ระหว่าง 1 ถึง 1,000,000",
   "{name} stopped working and was taken off the farm. No spare account is left to replace it.": "{name} ใช้งานไม่ได้แล้วและถูกนำออกจากการฟาร์ม ไม่มีบัญชีสำรองเหลือมาแทน",
   "{old} stopped working: {new} farms in its place.": "{old} ใช้งานไม่ได้แล้ว: {new} ฟาร์มแทน",
-  "{name} reached level {level}: farming done.": "{name} ถึงเลเวล {level} แล้ว: ฟาร์มเสร็จ"
+  "{name} reached level {level}: farming done.": "{name} ถึงเลเวล {level} แล้ว: ฟาร์มเสร็จ",
+  "Tools run on up to {max} accounts at a time.": "เครื่องมือใช้ได้ครั้งละไม่เกิน {max} บัญชี",
+  "A display name is 3 to 20 characters.": "ชื่อที่แสดงต้องยาว 3 ถึง 20 ตัวอักษร",
+  "Couldn't check it.": "ตรวจสอบไม่ได้",
+  "Signed in.": "เข้าสู่ระบบอยู่",
+  "Roblox wants a human check.": "Roblox ต้องการให้ยืนยันว่าเป็นคน",
+  "Its cookie no longer works.": "คุกกี้ใช้ไม่ได้แล้ว",
+  "{robux} Robux": "{robux} Robux",
+  "Now {name}.": "เปลี่ยนเป็น {name} แล้ว",
+  "Request sent.": "ส่งคำขอแล้ว",
+  "Blocked.": "บล็อกแล้ว",
+  "Unblocked.": "เลิกบล็อกแล้ว",
+  "Choose your executor's .exe.": "เลือกไฟล์ .exe ของ executor",
+  "Choose your executor's program first.": "เลือกโปรแกรม executor ก่อน",
+  "Use a plain file name ending in .lua, .luau or .txt.": "ใช้ชื่อไฟล์ธรรมดาที่ลงท้ายด้วย .lua, .luau หรือ .txt",
+  "The executor's program isn't there any more. Choose it again.": "ไม่พบโปรแกรม executor แล้ว เลือกใหม่อีกครั้ง",
+  "Couldn't start the executor: {why}": "เปิด executor ไม่ได้: {why}",
+  "That script is over 1 MB.": "สคริปต์นี้ใหญ่เกิน 1 MB"
 }

@@ -513,6 +513,75 @@ pub(crate) fn record_cookie_error(app: &AppHandle, s: &App, id: i64, e: &AppErro
     Ok(true)
 }
 
+/// Tools page: runs `tool` on each of `ids` in turn (Roblox's own limits apply); one result each.
+#[tauri::command]
+pub async fn accounts_tool(app: AppHandle, s: State<'_, App>, ids: Vec<i64>, tool: crate::model::AccountTool) -> Result<Vec<crate::model::ToolResult>> {
+    use crate::model::{AccountTool, ToolResult};
+    unlocked(&s)?;
+    if ids.len() > 200 {
+        return Err(AppError::Invalid(tr!("Tools run on up to {max} accounts at a time.", max = 200)));
+    }
+    if let AccountTool::DisplayName { name } = &tool {
+        let len = name.replace("{n}", "00").chars().count();
+        if !(3..=20).contains(&len) {
+            return Err(AppError::Invalid(tr!("A display name is 3 to 20 characters.")));
+        }
+    }
+    if matches!(tool, AccountTool::Validate) {
+        let before = now_ms();
+        let after = accounts_validate(app.clone(), s.clone(), Some(ids.clone())).await?;
+        return Ok(ids
+            .iter()
+            .map(|&id| {
+                let a = after.iter().find(|a| a.id == id);
+                let checked = a.is_some_and(|a| a.status_checked_at.unwrap_or(0) >= before - 1000);
+                let ok = checked && a.is_some_and(|a| a.status == AccountStatus::Valid);
+                let message = match a.map(|a| a.status) {
+                    _ if !checked => tr!("Couldn't check it."),
+                    Some(AccountStatus::Valid) => tr!("Signed in."),
+                    Some(AccountStatus::Challenged) => tr!("Roblox wants a human check."),
+                    _ => tr!("Its cookie no longer works."),
+                };
+                ToolResult { account_id: id, ok, message, robux: None }
+            })
+            .collect());
+    }
+    let accounts = s.db.accounts()?;
+    let mut out = Vec::new();
+    for (n, &id) in ids.iter().enumerate() {
+        let Some(a) = accounts.iter().find(|a| a.id == id) else { continue };
+        let run = async {
+            let cookie = stored_cookie(&s, id)?;
+            match &tool {
+                AccountTool::Robux => {
+                    let r = s.api.robux(id, &cookie).await?;
+                    Ok((tr!("{robux} Robux", robux = r), Some(r)))
+                }
+                AccountTool::DisplayName { name } => {
+                    let name = name.replace("{n}", &(n + 1).to_string());
+                    s.api.set_display_name(id, &cookie, a.user_id, &name).await?;
+                    s.db.set_status(id, a.status, a.status_checked_at.unwrap_or(0), None, Some(&name))?;
+                    Ok((tr!("Now {name}.", name = name), None))
+                }
+                AccountTool::AddFriend { user_id } => s.api.request_friendship(id, &cookie, *user_id).await.map(|()| (tr!("Request sent."), None)),
+                AccountTool::Block { user_id } => s.api.set_blocked(id, &cookie, *user_id, true).await.map(|()| (tr!("Blocked."), None)),
+                AccountTool::Unblock { user_id } => s.api.set_blocked(id, &cookie, *user_id, false).await.map(|()| (tr!("Unblocked."), None)),
+                AccountTool::Validate => unreachable!("handled above"),
+            }
+        };
+        let r: Result<(String, Option<i64>)> = run.await;
+        out.push(match r {
+            Ok((message, robux)) => ToolResult { account_id: id, ok: true, message, robux },
+            Err(e) => {
+                let _ = record_cookie_error(&app, &s, id, &e);
+                ToolResult { account_id: id, ok: false, message: e.message(), robux: None }
+            }
+        });
+    }
+    accounts_changed(&app);
+    Ok(out)
+}
+
 /// Accounts → Add to farm / Mark done / Remove from farm, on these accounts.
 #[tauri::command]
 pub async fn accounts_set_farm(app: AppHandle, ids: Vec<i64>, farm: crate::model::FarmState) -> Result<()> {
@@ -3440,6 +3509,15 @@ pub fn settings_set(app: AppHandle, s: State<'_, App>, patch: SettingsPatch) -> 
         crate::launcher::client::set_custom(&c);
         v.client_path = c;
     }
+    if let Some(c) = &patch.executor_exe {
+        let c = c.trim().trim_matches('"').to_owned();
+        if !c.is_empty() && !(c.to_ascii_lowercase().ends_with(".exe") && std::path::Path::new(&c).is_file()) {
+            return Err(AppError::Invalid(tr!("Choose your executor's .exe.")));
+        }
+        v.executor_exe = c;
+    }
+    if let Some(b) = patch.executor_auto_open { v.executor_auto_open = b }
+    if let Some(b) = patch.executor_keep_open { v.executor_keep_open = b }
     if let Some(e) = patch.executor {
         let e: String = e.trim().chars().filter(|c| !c.is_control()).take(60).collect();
         if e != v.executor {

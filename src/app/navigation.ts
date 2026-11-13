@@ -3,7 +3,7 @@ import type { Key } from "../i18n";
 import type { IconName } from "../ui/Icon";
 import type { SettingsArea } from "../features/settings/areas";
 
-export type View = "dashboard" | "accounts" | "launch" | "browse" | "progress" | "performance" | "servers" | "monitor" | "updates" | "discord" | "debug" | "settings";
+export type View = "dashboard" | "accounts" | "launch" | "browse" | "progress" | "performance" | "servers" | "monitor" | "updates" | "discord" | "debug" | "tools" | "executor" | "settings";
 
 export const VIEW_NAME: Record<View, Key> = {
   dashboard: "app.nav.dashboard",
@@ -17,12 +17,14 @@ export const VIEW_NAME: Record<View, Key> = {
   updates: "app.nav.updates",
   discord: "app.nav.discord",
   debug: "app.nav.debug",
+  tools: "app.nav.tools",
+  executor: "app.nav.executor",
   settings: "app.nav.settings",
 };
 
 /** The island's places, by the ids `mtwin.sectionOrder` keeps (Debug moved into Tools). */
 export const MAIN_SECTIONS = ["home", "play", "browse", "accounts", "progress", "performance"] as const;
-export const TOOL_SECTIONS = ["servers", "monitor", "updates", "discord", "debug"] as const;
+export const TOOL_SECTIONS = ["servers", "monitor", "tools", "executor", "updates", "discord", "debug"] as const;
 export type Section = (typeof MAIN_SECTIONS)[number] | (typeof TOOL_SECTIONS)[number];
 
 export const SECTION_VIEW: Record<Section, View> = {
@@ -37,6 +39,8 @@ export const SECTION_VIEW: Record<Section, View> = {
   updates: "updates",
   discord: "discord",
   debug: "debug",
+  tools: "tools",
+  executor: "executor",
 };
 export const SECTION_ICON: Record<Section, IconName> = {
   home: "home",
@@ -50,6 +54,8 @@ export const SECTION_ICON: Record<Section, IconName> = {
   updates: "download",
   discord: "bell",
   debug: "terminal",
+  tools: "tools",
+  executor: "code",
 };
 
 /** Ctrl and a digit, by key position (so Ctrl+1 works where the digits need Shift). */
