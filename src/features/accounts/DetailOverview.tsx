@@ -8,7 +8,6 @@ import { groupColor, qk, useAccountInfo, useBulk, useInstances, useMultiStatus, 
 import { fmtDate, fmtList, t, type Key } from "../../i18n";
 import { Chip, Disclosure, Skeleton } from "../../ui/Bits";
 import { Input } from "../../ui/Field";
-import { EMPTY_DRAFT, type Draft } from "../launch/target";
 import { Button } from "../../ui/Button";
 import { Switch } from "../../ui/controls";
 import { Morph } from "../../ui/motion";
@@ -113,7 +112,7 @@ export function DetailOverview({ account: a, groups, checking, instance, onValid
             </Button>
           </div>
         ) : a.status === "valid" ? (
-          <QuickLaunch account={a} onMore={onLaunch} />
+          <JoinSomeone account={a} onPlay={onLaunch} />
         ) : a.status === "unknown" ? (
           <Button icon="refresh" block busy={checking} onClick={onValidate}>
             {t("accounts.menu.validate")}
@@ -129,7 +128,6 @@ export function DetailOverview({ account: a, groups, checking, instance, onValid
         {d ? <PresenceBlock p={d.presence} /> : infoError || <Skeleton width={160} height={18} />}
       </Section>
 
-      <RecentServers account={a} playing={!!instance} />
       <Organise account={a} groups={groups} />
 
       <Section>
@@ -180,42 +178,47 @@ export function PresenceBlock({ p }: { p: Presence | null }) {
 
 /** This account straight into a game: a game link, place ID or @username, a server's job ID when
  * wanted, Play. "More options" opens Play with the account picked. */
-function QuickLaunch({ account: a, onMore }: { account: AccountSummary; onMore: () => void }) {
-  const [text, setText] = useState("");
-  const [job, setJob] = useState("");
-  const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
+/** Join a Roblox user's game as this account (by username or user ID); the rest of launching is on
+ * the Play page. */
+function JoinSomeone({ account: a, onPlay }: { account: AccountSummary; onPlay: () => void }) {
+  const [who, setWho] = useState("");
+  const [busy, setBusy] = useState(false);
   const multi = useMultiStatus().data;
   const batch = useBulk().data;
   const others = (useInstances().data ?? []).some((i) => i.state !== "exited" && i.accountId !== a.id);
   const step = useLaunchStep();
   const blocked = step ?? launchBlocked(others, multi, batch);
   const id = useId();
-  const place = text.trim();
-  const jobId = job.trim();
-  const go = () => {
-    if (!place || blocked) return;
-    // A place ID and a job ID: that server. Anything else is read as Play reads it.
-    const where = /^\d+$/.test(place) && jobId ? { kind: "server" as const, placeId: Number(place), jobId } : { draft: { ...draft, text: place }, setDraft };
-    void launchOne(a, where);
+  const name = who.trim().replace(/^@/, "");
+  const go = async () => {
+    if (!name || blocked || busy) return;
+    setBusy(true);
+    try {
+      const userId = /^\d+$/.test(name) ? Number(name) : (await api.userLookup(name)).userId;
+      void launchOne(a, { kind: "followUser", userId });
+      setWho("");
+    } catch (e) {
+      toastError(e);
+    } finally {
+      setBusy(false);
+    }
   };
   return (
     <form
       className="flex flex-col gap-2.5"
       onSubmit={(e) => {
         e.preventDefault();
-        go();
+        void go();
       }}
     >
-      <label htmlFor={`${id}-where`} className="text-[12px] text-fg-3">{t("accounts.quick.where")}</label>
-      <Input id={`${id}-where`} mono value={text} placeholder={t("accounts.quick.wherePlaceholder")} autoComplete="off" onChange={(e) => setText(e.target.value)} />
-      <label htmlFor={`${id}-job`} className="text-[12px] text-fg-3">{t("accounts.quick.job")}</label>
-      <Input id={`${id}-job`} mono value={job} placeholder={t("accounts.quick.jobPlaceholder")} autoComplete="off" onChange={(e) => setJob(e.target.value)} />
-      <div className="flex gap-2 pt-1">
-        <Button type="submit" variant="primary" icon="play" className="flex-1" disabled={!place || !!blocked} data-tip={blocked ?? undefined}>
-          {t("common.launch")}
+      <label htmlFor={`${id}-who`} className="text-[12px] text-fg-3">{t("accounts.join.label")}</label>
+      <div className="flex gap-2">
+        <Input id={`${id}-who`} leading="accounts" value={who} placeholder={t("accounts.join.placeholder")} autoComplete="off" onChange={(e) => setWho(e.target.value)} />
+        <Button type="submit" variant="primary" icon="play" busy={busy} disabled={!name || !!blocked} data-tip={blocked ?? undefined}>
+          {t("accounts.join.go")}
         </Button>
-        <Button type="button" onClick={onMore}>{t("accounts.quick.more")}</Button>
       </div>
+      <Button type="button" variant="ghost" icon="play" onClick={onPlay}>{t("accounts.join.morePlay")}</Button>
     </form>
   );
 }

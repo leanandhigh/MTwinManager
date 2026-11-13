@@ -69,7 +69,6 @@ export function Shell({ vault, settings, islandSlot }: { vault: VaultStatus; set
   const groups = useGroups();
   const instances = useInstances().data ?? [];
   const [view, setView] = useState<View>("dashboard");
-  const [launchOpen, setLaunchOpen] = useState(false);
   const [area, setArea] = useState<SettingsArea>("launching");
   const [group, setGroup] = useState<number | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
@@ -128,11 +127,6 @@ export function Shell({ vault, settings, islandSlot }: { vault: VaultStatus; set
   /** Switches the view: the content cross-fades (a view transition), the island and rail stay live.
    * `focus` (a selector): what takes the focus once the view is on screen. */
   const go = (next: View, opts: { focus?: string } = {}) => {
-    // Play isn't a page: it opens in Accounts, where the open account would be.
-    if (next === "launch") {
-      setLaunchOpen(true);
-      next = "accounts";
-    }
     if (next === view && next === wanted.current) {
       if (opts.focus) focusIn(opts.focus);
       return;
@@ -339,26 +333,18 @@ export function Shell({ vault, settings, islandSlot }: { vault: VaultStatus; set
               setSelected={setSelected}
               onAdd={() => openAdd()}
               onLaunch={launchAs}
-              onTicked={setPicked}
-              launch={
-                launchOpen ? (
-                  <Suspense fallback={null}>
-                    <LaunchView
-                  accounts={accounts.data}
-                  picked={picked}
-                  setPicked={setPicked}
-                  sameServer={sameServer}
-                  setSameServer={setSameServer}
-                  draft={draft}
-                  setDraft={setDraft}
-                  onAdd={() => openAdd()}
-                  onPickFavourite={pickFavourite}
-                  embedded
-                  onClose={() => setLaunchOpen(false)}
-                />
-                  </Suspense>
-                ) : null
-              }
+            />
+          ) : view === "launch" ? (
+            <LaunchView
+              accounts={accounts.data}
+              picked={picked}
+              setPicked={setPicked}
+              sameServer={sameServer}
+              setSameServer={setSameServer}
+              draft={draft}
+              setDraft={setDraft}
+              onAdd={() => openAdd()}
+              onPickFavourite={pickFavourite}
             />
           ) : view === "browse" ? (
             <BrowseView accounts={accounts.data} ask={browseAsk} />

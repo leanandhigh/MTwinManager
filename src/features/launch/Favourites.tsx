@@ -83,9 +83,24 @@ export function FavouritesRow({ accounts, active, onPick }: {
     if (m && !m.matches(":popover-open")) m.showPopover();
   };
 
+  const [adding, setAdding] = useState(false);
   return (
     <div className="flex flex-col gap-2">
-      <span id={labelId} className="label text-fg-2">{t("launch.fav.title")}</span>
+      <div className="fav-head">
+        <span id={labelId} className="label text-fg-2">{t("launch.fav.title")}</span>
+        <Button size="sm" variant="ghost" icon={adding ? "x" : "plus"} onClick={() => setAdding(!adding)}>
+          {adding ? t("common.cancel") : t("launch.fav.new")}
+        </Button>
+      </div>
+      <Collapse open={adding}>
+        <NewFavourite
+          onSaved={(f) => {
+            qc.setQueryData<Favourite[]>(qk.favourites, (l) => [...(l ?? []), f]);
+            setAdding(false);
+            toast(t("launch.fav.saved", { name: f.name }));
+          }}
+        />
+      </Collapse>
       {favs.isPending ? (
         <div aria-busy="true" aria-label={t("common.loading")} className="launch-favs">
           {[112, 148, 96].map((w) => (
@@ -103,32 +118,37 @@ export function FavouritesRow({ accounts, active, onPick }: {
         <p className="text-[13px] text-fg-3">{t("launch.fav.empty")}</p>
       ) : null}
       {/* Mounted through loading too: useGridDrag and useFlip hold on to this element. */}
-      <ul ref={drag.grid as RefObject<HTMLUListElement>} aria-labelledby={labelId} className="sort-row launch-favs empty:hidden">
+      <ul ref={drag.grid as RefObject<HTMLUListElement>} aria-labelledby={labelId} className="sort-row fav-cards empty:hidden">
         {list.map((f) => (
           <li
             key={f.id}
             data-fav={f.id}
             data-flip
-            className="launch-fav"
+            className="fav-card"
+            data-on={active === f.id || undefined}
             style={{ anchorName: `--fav-${f.id}` } as CSSProperties}
             onContextMenu={(e) => {
               e.preventDefault();
               openMenu(f);
             }}
           >
-            <button type="button" className="chip launch-fav-pick" aria-pressed={active === f.id} onClick={() => onPick(f)} {...drag.item(f.name)}>
-              <Icon name="star" size={13} fill />
-              <span className="truncate max-w-[240px]">{f.name}</span>
+            <button type="button" className="fav-card-pick" aria-pressed={active === f.id} onClick={() => onPick(f)} {...drag.item(f.name)}>
+              <Icon name="star" size={14} fill className="fav-card-star" />
+              <span className="min-w-0">
+                <span className="fav-card-name">{f.name}</span>
+                <span className="fav-card-where">{whereOf(f.target)}</span>
+              </span>
             </button>
             <IconButton
-              icon="dots"
+              icon="pencil"
               size="sm"
-              className="launch-fav-more"
-              label={t("launch.fav.editOrDeleteName", { name: f.name })}
-              aria-haspopup="menu"
-              popoverTarget={MENU}
-              onClick={() => setMenuFor(f)}
+              label={t("launch.fav.edit")}
+              onClick={() => {
+                setEditing(f);
+                setEditOpen(true);
+              }}
             />
+            <IconButton icon="trash" size="sm" label={t("launch.fav.deleteConfirm")} onClick={() => setDeleting(f)} />
           </li>
         ))}
       </ul>
@@ -179,6 +199,71 @@ export function FavouritesRow({ accounts, active, onPick }: {
 }
 
 /** Saves a new favourite (no `initial.id`) or edits one; the target comes from `resolve`. */
+/** What a favourite opens, in a line ("Place 920587237 · job 8f3a…a911"). */
+function whereOf(target: LaunchTarget) {
+  switch (target.kind) {
+    case "place":
+      return t("launch.fav.wherePlace", { id: target.placeId });
+    case "server":
+      return `${t("launch.fav.wherePlace", { id: target.placeId })} · ${t("launch.fav.whereJob", { job: `${target.jobId.slice(0, 8)}…${target.jobId.slice(-4)}` })}`;
+    case "privateLink":
+    case "privateAccess":
+      return `${t("launch.fav.wherePlace", { id: target.placeId })} · ${t("servers.privateServer")}`;
+    case "followUser":
+      return t("launch.fav.whereUser", { id: target.userId });
+    case "universe":
+      return t("launch.fav.whereGame", { id: target.universeId });
+    default:
+      return t("launch.fav.whereLink");
+  }
+}
+
+/** A favourite made here, like a preset: a name, a place ID or any game link, and a job ID for one
+ * server. */
+function NewFavourite({ onSaved }: { onSaved: (f: Favourite) => void }) {
+  const [name, setName] = useState("");
+  const [where, setWhere] = useState("");
+  const [job, setJob] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const save = async (e: FormEvent) => {
+    e.preventDefault();
+    const n = name.trim();
+    const w = where.trim();
+    const j = job.trim();
+    if (!n || !w || busy) return setError(t("launch.fav.needBoth"));
+    setBusy(true);
+    setError(null);
+    try {
+      let target: LaunchTarget;
+      if (/^\d+$/.test(w)) target = j ? { kind: "server", placeId: Number(w), jobId: j } : { kind: "place", placeId: Number(w), launchData: null };
+      else {
+        const p = await api.targetParse(w);
+        if (p.kind !== "target") throw new Error("reason" in p ? p.reason : t("launch.fav.badWhere"));
+        target = j && "placeId" in p.target ? { kind: "server", placeId: p.target.placeId, jobId: j } : p.target;
+      }
+      const f = await api.favouriteSave({ name: n, target, accountIds: [], inTray: false });
+      setName("");
+      setWhere("");
+      setJob("");
+      onSaved(f);
+    } catch (e) {
+      setError(e instanceof Error && !("kind" in e) ? e.message : friendly(asError(e)));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <form className="fav-new" onSubmit={(e) => void save(e)}>
+      <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("launch.fav.namePlaceholder")} aria-label={t("launch.fav.name")} maxLength={60} />
+      <Input mono value={where} onChange={(e) => setWhere(e.target.value)} placeholder={t("launch.fav.wherePlaceholder")} aria-label={t("launch.fav.whereLabel")} />
+      <Input mono value={job} onChange={(e) => setJob(e.target.value)} placeholder={t("launch.fav.jobPlaceholder")} aria-label={t("launch.fav.jobLabel")} />
+      <Button type="submit" variant="primary" icon="star" busy={busy}>{t("launch.fav.saveNew")}</Button>
+      {error && <p className="alert text-[13px] fav-new-error">{error}</p>}
+    </form>
+  );
+}
+
 export function FavouriteDialog({ open, onClose, accounts, initial, resolve, onSaved }: {
   open: boolean;
   onClose: () => void;

@@ -528,3 +528,80 @@
     display: none;
   }
 }
+
+/* Favourites as presets: cards with the name and where it goes, edit and delete at hand, and a
+   form to make one from a name, a place ID or link and an optional job ID. */
+@layer brand {
+  .fav-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .fav-new {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px;
+    padding: 10px;
+    border-radius: 8px;
+    background: var(--hover);
+  }
+  .fav-new > .btn {
+    justify-self: stretch;
+  }
+  .fav-new-error {
+    grid-column: 1 / -1;
+    margin: 0;
+  }
+  .fav-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 8px;
+  }
+  .fav-card {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 4px 6px 4px 4px;
+    border-radius: 8px;
+    background: var(--surface-1, var(--hover));
+    box-shadow: inset 0 0 0 1px var(--line);
+    transition: box-shadow var(--dur-fast) var(--ease-out);
+  }
+  .fav-card[data-on] {
+    box-shadow: inset 0 0 0 1.5px var(--accent);
+  }
+  .fav-card-pick {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    text-align: start;
+  }
+  .fav-card-pick:hover {
+    background: var(--hover);
+  }
+  .fav-card-star {
+    flex: none;
+    color: #e8a33d;
+  }
+  .fav-card-name {
+    display: block;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .fav-card-where {
+    display: block;
+    color: var(--fg-3);
+    font-size: 12px;
+    font-family: var(--font-mono, ui-monospace, monospace);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}

@@ -1015,3 +1015,10 @@
     }
   }
 }
+
+/* Play: its grid sits in a column with a 16px gap of its own; level with the other pages. */
+@layer brand {
+  header:has(.page-title) + .play-grid {
+    margin-top: -16px;
+  }
+}
