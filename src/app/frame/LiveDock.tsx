@@ -1,0 +1,103 @@
+import { useQuery } from "@tanstack/react-query";
+import { api, type AccountSummary, type Instance } from "../../api";
+import { qk, useInstances } from "../../data";
+import { t } from "../../i18n";
+import { IconButton } from "../../ui/Button";
+import { Icon } from "../../ui/Icon";
+import { toastError } from "../../ui/Toast";
+import { useStored } from "../../ui/stored";
+import { accountName, Avatar } from "../../features/accounts/shared";
+import { useWindowTools } from "../../features/dashboard/windowTools";
+import { isRunning, STATES, uptime, useNow } from "../../features/launch/Running";
+import { KillAllButton } from "../KillAll";
+
+/** Every running client, always in view: a column at the window's right edge. Each row shows the
+ * account, where it is and for how long, and brings its window up or ends it. It folds to a strip. */
+export function LiveDock({ accounts }: { accounts: AccountSummary[] }) {
+  const [folded, setFolded] = useStored("mtwin.liveFolded", (v) => v === "1", (v) => (v ? "1" : "0"));
+  const running = (useInstances().data ?? []).filter(isRunning);
+  const byId = new Map(accounts.map((a) => [a.id, a]));
+  const tools = useWindowTools();
+  const now = useNow(10_000);
+  return (
+    <aside className="ld" data-folded={folded || undefined} aria-label={t("live.title")}>
+      <header className="ld-head">
+        {!folded && (
+          <>
+            <span className="ld-dot" data-on={running.length > 0 || undefined} aria-hidden="true" />
+            <h2 className="ld-title">{t("live.title")}</h2>
+            <span className="ld-n">{running.length}</span>
+          </>
+        )}
+        <IconButton size="sm" icon={folded ? "back" : "chevron"} className="ld-fold" label={t(folded ? "live.open" : "live.fold")} onClick={() => setFolded(!folded)} />
+      </header>
+      {folded ? (
+        <ul className="ld-mini">
+          {running.map((i) => {
+            const a = byId.get(i.accountId);
+            return (
+              <li key={i.id} data-tip={a ? accountName(a) : undefined}>
+                <button type="button" onClick={() => api.instanceShow(i.id, "focus").catch(toastError)}>
+                  {a && <Avatar account={a} size={28} />}
+                  <span className="ld-mini-dot" style={{ background: STATES[i.state][1] }} />
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <>
+          {running.length > 0 && (
+            <div className="ld-tools">
+              <button type="button" className="ld-tool" disabled={tools.busy} onClick={() => void tools.tile(false)}>
+                <Icon name="grid" size={13} />
+                {t("dashboard.tile")}
+              </button>
+              <button type="button" className="ld-tool" disabled={tools.busy} onClick={() => void tools.minimizeAll()}>
+                <Icon name="minimize" size={13} />
+                {t("dashboard.minimizeAll")}
+              </button>
+            </div>
+          )}
+          <ul className="ld-list">
+            {running.map((i) => (
+              <Row key={i.id} i={i} a={byId.get(i.accountId)} now={now} />
+            ))}
+          </ul>
+          {running.length === 0 && (
+            <div className="ld-empty">
+              <Icon name="monitor" size={20} />
+              <p>{t("live.empty")}</p>
+            </div>
+          )}
+          {running.length > 0 && (
+            <footer className="ld-foot">
+              <KillAllButton />
+            </footer>
+          )}
+        </>
+      )}
+    </aside>
+  );
+}
+
+function Row({ i, a, now }: { i: Instance; a: AccountSummary | undefined; now: number }) {
+  const game = useQuery({ queryKey: qk.game(i.placeId), queryFn: () => api.gameInfo(i.placeId!), enabled: i.placeId !== null }).data;
+  const [label, color] = STATES[i.state];
+  return (
+    <li className="ld-row">
+      <button type="button" className="ld-main" onClick={() => api.instanceShow(i.id, "focus").catch(toastError)} data-tip={t("home.show")}>
+        {a ? <Avatar account={a} size={32} /> : <span className="ld-noav" />}
+        <span className="min-w-0 flex-1">
+          <span className="ld-name">{a ? accountName(a) : t("dashboard.account", { id: i.accountId })}</span>
+          <span className="ld-where">
+            <span className="ld-state" style={{ color }}>{label}</span>
+            {game?.name && <> · {game.name}</>}
+          </span>
+        </span>
+        <span className="ld-time">{uptime(i.startedAt, now)}</span>
+      </button>
+      <IconButton size="sm" icon="x" className="ld-kill" label={t("live.end")} onClick={() => api.instancesKill([i.id]).catch(toastError)} />
+    </li>
+  );
+}

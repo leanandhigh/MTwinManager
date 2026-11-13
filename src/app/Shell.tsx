@@ -6,9 +6,8 @@ import type { Favourite, SameServer, Settings, VaultStatus } from "../api";
 import { qk, useAccounts, useGroups, useInstances } from "../data";
 import { t } from "../i18n";
 import { AddAccountDialog, type Tab as AddTab } from "../features/accounts/AddAccountDialog";
-import { AccountRail } from "../features/dashboard/AccountRail";
-import { DashboardView } from "../features/dashboard/DashboardView";
-import { useHomeTabs, useSectionOrder } from "../features/dashboard/homeLayout";
+import { HomeView } from "../features/home/HomeView";
+import { useSectionOrder } from "../features/dashboard/homeLayout";
 import { LaunchFlight } from "../features/launch/LaunchButton";
 import { lastLaunchAccount } from "../features/launch/launchQueue";
 import { isLive } from "../features/launch/Running";
@@ -18,9 +17,10 @@ import { useSplashPhase } from "../features/splash/phase";
 import { overlayOpen } from "../ui/a11y";
 import type { IslandLeaf, IslandModel } from "../ui/island/model";
 import { markViewEntering } from "../ui/motion";
-import { Divider, usePanelWidth } from "../ui/Resizer";
 import { LiveActivities } from "./LiveActivities";
-import { Sidebar } from "./Sidebar";
+import { LiveDock } from "./frame/LiveDock";
+import { TopNav } from "./frame/TopNav";
+import "./frame/frame.css";
 import { MAIN_SECTIONS, requestNavigation, SECTION_ICON, SECTION_VIEW, SHORTCUT_VIEW, shortcutFor, TOOL_SECTIONS, useNavigationRequests, VIEW_NAME, type BrowseRequest, type Request, type Section, type View } from "./navigation";
 
 // Home is the start; every other view is its own chunk, fetched once Home has painted.
@@ -60,7 +60,6 @@ function focusIn(selector: string) {
  * side layout, and one view at a time. Owns the state that must outlive a view: picked accounts, the
  * draft target, Home's tabs, a launch in flight. */
 export function Shell({ vault, settings, islandSlot }: { vault: VaultStatus; settings: Settings; islandSlot: HTMLElement | null }) {
-  const nav = usePanelWidth("nav", 228, 180, 320);
   const qc = useQueryClient();
   const accounts = useAccounts();
   const groups = useGroups();
@@ -76,7 +75,6 @@ export function Shell({ vault, settings, islandSlot }: { vault: VaultStatus; set
   });
   const [sameServer, setSameServer] = useState<SameServer>("off");
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
-  const homeTabs = useHomeTabs(accounts.data);
   const [sectionOrder, setSectionOrder] = useSectionOrder();
   // The game the Servers view shows.
   const [serversPlace, setServersPlace] = useState<number | null>(null);
@@ -270,7 +268,6 @@ export function Shell({ vault, settings, islandSlot }: { vault: VaultStatus; set
     ],
   };
 
-  const side = settings.tabLayout === "side";
   return (
     <div className="shell">
       <span className="sr-only" aria-live="polite">{viewName}</span>
@@ -285,34 +282,23 @@ export function Shell({ vault, settings, islandSlot }: { vault: VaultStatus; set
           </div>,
           islandSlot,
         )}
-      <Sidebar model={model} />
+      <TopNav model={model} />
+      <div className="shell-body">
       {/* Where a launch button's pill flies from into the island; outlives the view that launched. */}
       <LaunchFlight />
-      {side && (
-        <>
-          <AccountRail
-            width={nav.width}
-            accounts={accounts.data}
-            instances={instances}
-            home={homeTabs}
-            onHome={view === "dashboard"}
-            onOpen={() => go("dashboard")}
-            onAdd={() => openAdd()}
-          />
-          <Divider panel={nav} side="left" label={t("app.sidebarWidth")} />
-        </>
-      )}
       <div className="stage">
         {/* Outside the keyed transition: a view whose chunk is still on its way never flashes an empty stage. */}
         <Suspense fallback={null}>
         <ViewTransition key={view} enter="view-in" exit="view-out" update="none" default="none">
           {view === "dashboard" ? (
-            <DashboardView
+            <HomeView
               accounts={accounts.data}
-              home={homeTabs}
               onAdd={() => openAdd()}
-              onImport={() => openAdd("many")}
               onPickFavourite={pickFavourite}
+              onOpenAccount={(id) => {
+                showAll();
+                setSelected(id);
+              }}
             />
           ) : view === "accounts" ? (
             <AccountsView
@@ -369,6 +355,8 @@ export function Shell({ vault, settings, islandSlot }: { vault: VaultStatus; set
         </Suspense>
       </div>
 
+        <LiveDock accounts={accounts.data} />
+      </div>
       <AddAccountDialog
         open={adding}
         startOn={addOn}
