@@ -164,6 +164,22 @@ rolimonsValues: boolean,
  */
 minimizeOnLaunch: boolean, 
 /**
+ * A farming account whose cookie stops working is taken off the farm and a spare takes its place.
+ */
+replaceDead: boolean, 
+/**
+ * The same for one Roblox wants a human check (captcha, 2-step) from.
+ */
+replaceChallenged: boolean, 
+/**
+ * A farming account the Progress script reports at `farm_done_level` or higher is marked Done.
+ */
+farmDoneAt: boolean, farmDoneLevel: number, 
+/**
+ * An account marked Done (by hand or by level) has its clients closed.
+ */
+closeWhenDone: boolean, 
+/**
  * System-wide key combination for Kill all, like "Ctrl+Shift+F12"; "" for none.
  */
 panicHotkey: string, 

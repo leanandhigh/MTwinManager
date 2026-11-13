@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
-import type { Group } from "../../api";
+import type { FarmState, Group } from "../../api";
 import { groupColor, useSetSettings, useSettings } from "../../data";
 import { fmtNum, t, type Key } from "../../i18n";
 import { Button, IconButton } from "../../ui/Button";
@@ -12,6 +12,7 @@ import { MenuItem, MenuLabel, MenuSeparator, Popover, useAnchor } from "../../ui
 const BEFRIEND_MAX = 20;
 const GROUP_MENU = "acc-group-menu";
 const MORE_MENU = "acc-more-menu";
+const FARM_MENU = "acc-farm-menu";
 
 /** A counted phrase ("12 selected") whose number tweens to each new count. */
 export function Counted({ k, n }: { k: Key; n: number }) {
@@ -30,7 +31,7 @@ export function Counted({ k, n }: { k: Key; n: number }) {
 
 /** The header's one pill. At rest: check, export, add. With rows ticked it morphs into what applies to
  * them; reasons for what won't work show in the line under it, never in a tooltip alone. */
-export function AccountsToolbar({ total, selected, groups, playable, friendable, mainSkipped, checking, befriending, running, onKill, onCheckAll, onCheck, onExport, onAdd, onPlay, onBefriend, onAddToGroup, onRemove, onClear }: {
+export function AccountsToolbar({ total, selected, groups, playable, friendable, mainSkipped, checking, befriending, running, onKill, onCheckAll, onCheck, onExport, onAdd, onPlay, onBefriend, onAddToGroup, onFarm, onRemove, onClear }: {
   total: number;
   /** Ticked account ids. */
   selected: number[];
@@ -53,6 +54,8 @@ export function AccountsToolbar({ total, selected, groups, playable, friendable,
   onPlay: () => void;
   onBefriend: () => void;
   onAddToGroup: (g: Group) => void;
+  /** Add to farm, Mark done, Remove from farm. */
+  onFarm: (state: FarmState) => void;
   onRemove: () => void;
   onClear: () => void;
 }) {
@@ -138,6 +141,14 @@ export function AccountsToolbar({ total, selected, groups, playable, friendable,
     </>
   );
 
+  const farmMenu = useAnchor();
+  const farmItems = (
+    <>
+      <MenuItem icon="sprout" onSelect={() => onFarm("farming")}>{t("farm.add")}</MenuItem>
+      <MenuItem icon="check" onSelect={() => onFarm("done")}>{t("farm.markDone")}</MenuItem>
+      <MenuItem icon="x" onSelect={() => onFarm("none")}>{t("farm.remove")}</MenuItem>
+    </>
+  );
   const selection = (
     <>
       <PillLabel>
@@ -172,6 +183,9 @@ export function AccountsToolbar({ total, selected, groups, playable, friendable,
             onClick={befriend}
           >
             {befriending ? t("accounts.befriending") : t("accounts.befriendEllipsis")}
+          </Button>
+          <Button variant="ghost" size="md" icon="sprout" iconEnd="chevron" popoverTarget={FARM_MENU} style={farmMenu.style}>
+            {t("farm.menu")}
           </Button>
           <Button variant="ghost" size="md" iconEnd="chevron" popoverTarget={GROUP_MENU} style={groupMenu.style}>
             {t("accounts.addToGroup")}
@@ -225,7 +239,13 @@ export function AccountsToolbar({ total, selected, groups, playable, friendable,
       <Popover id={GROUP_MENU} anchor={groupMenu.name} placement="below-end" role="menu" label={t("accounts.addToGroup")}>
         {groupItems}
       </Popover>
+      <Popover id={FARM_MENU} anchor={farmMenu.name} placement="below-end" role="menu" label={t("farm.menu")}>
+        {farmItems}
+      </Popover>
       <Popover id={MORE_MENU} anchor={moreMenu.name} placement="below-end" role="menu" label={t("home.more")}>
+        <MenuLabel>{t("farm.menu")}</MenuLabel>
+        {farmItems}
+        <MenuSeparator />
         <MenuItem icon="accounts" disabled={!canBefriend} onSelect={befriend}>{t("accounts.befriendEllipsis")}</MenuItem>
         <MenuItem icon="download" onSelect={() => onExport(selected)}>{t("accounts.exportCookiesEllipsis")}</MenuItem>
         <MenuSeparator />

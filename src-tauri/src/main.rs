@@ -8,6 +8,7 @@ mod cookie_export;
 mod diagnostics;
 mod discord;
 mod error;
+mod farm;
 mod instances;
 mod launcher;
 mod model;
@@ -746,6 +747,7 @@ fn main() {
             commands::client_bootstrappers,
             progress::progress_state,
             progress::progress_web,
+            commands::accounts_set_farm,
             progress::progress_web_set,
             progress::progress_remove,
             progress::progress_catalog_save,

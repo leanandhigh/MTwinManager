@@ -390,15 +390,17 @@ impl Progress {
         self.changed();
     }
 
-    fn accept(&self, body: &Value) -> std::result::Result<(), String> {
+    /// Keeps one report; the reporter's user id and level, when it has one.
+    fn accept(&self, body: &Value) -> std::result::Result<Option<(i64, f64)>, String> {
         let now = now_ms();
         let mut s = self.stored();
         let prev_first = |key: &str| s.accounts.get(key).map(|a| a.first_seen);
         let account = parse_report(body, now, prev_first)?;
+        let level = account.level.filter(|_| account.user_id > 0).map(|l| (account.user_id, l));
         s.accounts.insert(account.key.clone(), account);
         drop(s);
         self.changed();
-        Ok(())
+        Ok(level)
     }
 
     /// The Catalog entries of a game the script has to read (those with a path), as JSON.
@@ -665,7 +667,12 @@ async fn serve(handle: &AppHandle, mut stream: TcpStream) {
                 req.query.get("d").ok_or_else(|| "d is required".to_owned()).and_then(|d| serde_json::from_str(d).map_err(|e| e.to_string()))
             };
             match parsed.and_then(|v| progress.accept(&v)) {
-                Ok(()) => respond(&mut stream, "200 OK", JSON, "{\"ok\":true}").await,
+                Ok(level) => {
+                    if let Some((user_id, level)) = level {
+                        crate::farm::on_level(handle, user_id, level);
+                    }
+                    respond(&mut stream, "200 OK", JSON, "{\"ok\":true}").await
+                }
                 Err(e) => respond(&mut stream, "400 Bad Request", JSON, &serde_json::json!({ "ok": false, "error": e }).to_string()).await,
             }
         }

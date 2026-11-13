@@ -38,6 +38,35 @@ pub enum AccountStatus {
     Challenged,
 }
 
+/// Where an account is in farming: picked to farm, or finished. Shown on Accounts with counts.
+#[derive(Serialize, Deserialize, TS, Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub enum FarmState {
+    #[default]
+    None,
+    Farming,
+    Done,
+}
+
+impl FarmState {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::None => "",
+            Self::Farming => "farming",
+            Self::Done => "done",
+        }
+    }
+
+    pub fn parse(s: &str) -> Self {
+        match s {
+            "farming" => Self::Farming,
+            "done" => Self::Done,
+            _ => Self::None,
+        }
+    }
+}
+
 impl AccountStatus {
     pub fn as_str(self) -> &'static str {
         match self {
@@ -98,6 +127,7 @@ pub struct AccountSummary {
     pub main: bool,
     /// Its own FFlags (`launcher::flags`), used while `Settings.custom_flags_scope` is Account.
     pub custom_flags: BTreeMap<String, String>,
+    pub farm: FarmState,
 }
 
 /// Partial update from the UI; `None` leaves a field as it is.
@@ -134,6 +164,8 @@ pub struct AccountPatch {
     /// Replaces the account's own FFlags (`launcher::flags::check` rules); empty: none.
     #[ts(optional)]
     pub custom_flags: Option<BTreeMap<String, String>>,
+    #[ts(optional)]
+    pub farm: Option<FarmState>,
 }
 
 #[derive(Serialize, Deserialize, TS, Clone, Debug, PartialEq)]
@@ -312,6 +344,16 @@ pub struct Settings {
     /// account is full quality. A hidden client (`instances::window`) stays live while Home shows
     /// it and sleeps otherwise, and comes back from the taskbar or Alt-Tab.
     pub minimize_on_launch: bool,
+    /// A farming account whose cookie stops working is taken off the farm and a spare (signed in,
+    /// not farming, not done, not MAIN, no client) takes its place, in the same game (`farm`).
+    pub replace_dead: bool,
+    /// The same for one Roblox wants a human check (captcha, 2-step) from.
+    pub replace_challenged: bool,
+    /// A farming account the Progress script reports at `farm_done_level` or higher is marked Done.
+    pub farm_done_at: bool,
+    pub farm_done_level: u32,
+    /// An account marked Done (by hand or by level) has its clients closed.
+    pub close_when_done: bool,
     /// System-wide key combination for Kill all, like "Ctrl+Shift+F12"; "" for none.
     pub panic_hotkey: String,
     /// Delete old or huge Roblox client logs at start and every hour (`logwatch::clean`).
@@ -555,6 +597,11 @@ impl Default for Settings {
             online_count: true,
             rolimons_values: false,
             minimize_on_launch: false,
+            replace_dead: false,
+            replace_challenged: false,
+            farm_done_at: false,
+            farm_done_level: 100,
+            close_when_done: false,
 panic_hotkey: String::new(),
             clean_logs: false,
             fps_cap: 0,
@@ -651,6 +698,16 @@ pub struct SettingsPatch {
     pub rolimons_values: Option<bool>,
     #[ts(optional)]
     pub minimize_on_launch: Option<bool>,
+    #[ts(optional)]
+    pub replace_dead: Option<bool>,
+    #[ts(optional)]
+    pub replace_challenged: Option<bool>,
+    #[ts(optional)]
+    pub farm_done_at: Option<bool>,
+    #[ts(optional)]
+    pub farm_done_level: Option<u32>,
+    #[ts(optional)]
+    pub close_when_done: Option<bool>,
     #[ts(optional)]
     pub panic_hotkey: Option<String>,
     #[ts(optional)]

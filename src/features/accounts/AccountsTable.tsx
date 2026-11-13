@@ -421,6 +421,11 @@ const AccountRow = memo(function AccountRow({ index, tabbable, menuOpen, a, p, g
                 {name}
               </button>
               {a.main && <MainBadge />}
+              {a.farm !== "none" && (
+                <span className="tag acc-farm-tag flex-none" data-farm={a.farm}>
+                  {t(a.farm === "farming" ? "farm.badge.farming" : "farm.badge.done")}
+                </span>
+              )}
             </span>
             <span className="acc-handle mono text-xs text-fg-3 truncate">@{a.username}</span>
             {/* No room for the Status column. */}

@@ -66,6 +66,7 @@ export type {
   ImportReport, InstallProgress, Settings, SettingsPatch, VaultMode, VaultStatus,
 };
 export type { AccountStatus } from "./bindings/AccountStatus";
+export type { FarmState } from "./bindings/FarmState";
 export type { Adaptive } from "./bindings/Adaptive";
 export type { Profile } from "./bindings/Profile";
 export type { SystemUsage } from "./bindings/SystemUsage";
@@ -181,6 +182,8 @@ export const api = {
   accountsRemove: (ids: number[]) => invoke<void>("accounts_remove", { ids }),
   accountsValidate: (ids?: number[]) => invoke<AccountSummary[]>("accounts_validate", { ids }),
   accountsBefriend: (ids: number[]) => invoke<FriendReport>("accounts_befriend", { ids }),
+  /** Add to farm (farming), Mark done (done) or Remove from farm (none). */
+  accountsSetFarm: (ids: number[], farm: import("./bindings/FarmState").FarmState) => invoke<null>("accounts_set_farm", { ids, farm }),
   /** Master mode needs the password; DPAPI mode shows Windows Hello. */
   accountRevealCookie: (id: number, password?: string) => invoke<string>("account_reveal_cookie", { id, password }),
   accountCopyCookie: (id: number, password?: string) => invoke<void>("account_copy_cookie", { id, password }),

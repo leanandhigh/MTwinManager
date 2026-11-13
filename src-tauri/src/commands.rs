@@ -474,6 +474,7 @@ pub async fn accounts_validate(app: AppHandle, s: State<'_, App>, ids: Option<Ve
         answered += 1;
     }
     accounts_changed(&app);
+    crate::farm::sweep(&app);
     match last_err {
         Some(e) if answered == 0 => Err(e),
         _ => s.db.accounts(),
@@ -508,7 +509,14 @@ pub(crate) fn record_cookie_error(app: &AppHandle, s: &App, id: i64, e: &AppErro
     log::info!("account {id} marked {status:?}: {e}");
     s.db.set_status(id, status, now_ms(), None, None)?;
     accounts_changed(app);
+    crate::farm::sweep(app);
     Ok(true)
+}
+
+/// Accounts → Add to farm / Mark done / Remove from farm, on these accounts.
+#[tauri::command]
+pub async fn accounts_set_farm(app: AppHandle, ids: Vec<i64>, farm: crate::model::FarmState) -> Result<()> {
+    crate::farm::set(&app, &ids, farm).await
 }
 
 fn stored_cookie(s: &App, id: i64) -> Result<Secret> {
@@ -2148,7 +2156,7 @@ async fn hop_target(s: &App, inst: &Instance, target: LaunchTarget) -> Result<La
 }
 
 /// How long a closed client gets before it is terminated (`settings.close_grace_s`).
-fn grace(s: &App) -> Duration {
+pub(crate) fn grace(s: &App) -> Duration {
     Duration::from_secs(u64::from(
         s.db.settings().inspect_err(|e| log::debug!("could not read settings, close grace 5 s: {e}")).map_or(5, |v| v.close_grace_s),
     ))
@@ -2156,7 +2164,7 @@ fn grace(s: &App) -> Duration {
 
 /// Closes the processes at once (each `process::close` waits up to `grace`), so the whole
 /// thing takes one grace period, not one per client. Results in input order.
-async fn close_all(targets: Vec<(u32, Option<u64>)>, force: bool, grace: Duration) -> Result<Vec<Result<()>>> {
+pub(crate) async fn close_all(targets: Vec<(u32, Option<u64>)>, force: bool, grace: Duration) -> Result<Vec<Result<()>>> {
     tauri::async_runtime::spawn_blocking(move || {
         std::thread::scope(|sc| {
             let jobs: Vec<_> = targets
@@ -3352,6 +3360,16 @@ pub fn settings_set(app: AppHandle, s: State<'_, App>, patch: SettingsPatch) -> 
     }
     let mut v = s.db.settings()?;
     apply_performance(&mut v, &patch)?;
+    if let Some(b) = patch.replace_dead { v.replace_dead = b }
+    if let Some(b) = patch.replace_challenged { v.replace_challenged = b }
+    if let Some(b) = patch.farm_done_at { v.farm_done_at = b }
+    if let Some(l) = patch.farm_done_level {
+        if !(1..=1_000_000).contains(&l) {
+            return Err(AppError::Invalid(tr!("The level must be 1 to 1,000,000.")));
+        }
+        v.farm_done_level = l;
+    }
+    if let Some(b) = patch.close_when_done { v.close_when_done = b }
     if let Some(t) = patch.theme { v.theme = t }
     if let Some(l) = &patch.language {
         if !(l.is_empty() || crate::i18n::LANGS.contains(&l.as_str())) {

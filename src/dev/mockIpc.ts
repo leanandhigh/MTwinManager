@@ -68,6 +68,7 @@ let accounts: AccountSummary[] = seed.map(([alias, displayName, username, userId
   fullQuality: false,
   main: i === 0,
   customFlags: {},
+  farm: (i === 2 || i === 3 ? "farming" : i === 4 ? "done" : "none") as AccountSummary["farm"],
 }));
 
 let settings: Settings = {
@@ -78,7 +79,7 @@ let settings: Settings = {
   adaptive: { enabled: false, background: { cpuCap: 25, eco: true, trimEveryMin: null, affinity: null } }, bandwidthKbps: 0,
   antiAfk: { enabled: false, intervalMin: 15 },
   discord: { crash: true, hang: true, memRestart: true, disconnect: true, restart: true, breaker: true, batchDone: true, launch: false, statusEveryMin: 0, ping: "" },
-  autoUpdate: false, selfUpdate: true, tabLayout: "top", discordPresence: true, onlineCount: true, minimizeOnLaunch: false, microWidth: 320, microHeight: 240, tinyOnLaunch: false, panicHotkey: "", cleanLogs: false, fpsCap: 0, lowGraphics: true, skipSplash: false, protectMain: true, muteOnLaunch: false, windowLayout: "off", lighterRendering: true, renderFlags: { msaa: "x1", texture: "lowest", mode: "default", graySky: false, noGrass: true, lowestFrm: true, pauseVoxelizer: false },
+  autoUpdate: false, selfUpdate: true, tabLayout: "top", discordPresence: true, onlineCount: true, minimizeOnLaunch: false, replaceDead: false, replaceChallenged: false, farmDoneAt: false, farmDoneLevel: 100, closeWhenDone: false, microWidth: 320, microHeight: 240, tinyOnLaunch: false, panicHotkey: "", cleanLogs: false, fpsCap: 0, lowGraphics: true, skipSplash: false, protectMain: true, muteOnLaunch: false, windowLayout: "off", lighterRendering: true, renderFlags: { msaa: "x1", texture: "lowest", mode: "default", graySky: false, noGrass: true, lowestFrm: true, pauseVoxelizer: false },
   customFlags: {}, customFlagsScope: "global", lockPurchases: true, rolimonsValues: false,
   allowPublicNetworks: true, language: "",
 };
@@ -327,7 +328,7 @@ function addFake(username: string): AccountSummary {
   const a: AccountSummary = {
     id, userId: 6000000000 + id, username, displayName: username.replace(/_/g, " "), alias: "", notes: "", color: null,
     favourite: false, sortOrder: accounts.length, groupIds: [], status: "valid", statusCheckedAt: Date.now(), createdAt: Date.now(),
-    allowDisconnect: false, launchArgs: null, discordMuted: false, fpsCap: null, fullQuality: false, main: false, customFlags: {},
+    allowDisconnect: false, launchArgs: null, discordMuted: false, fpsCap: null, fullQuality: false, main: false, customFlags: {}, farm: "none",
   };
   accounts.push(a);
   changed();
@@ -937,6 +938,12 @@ async function handle(cmd: string, args: Args): Promise<unknown> {
       accounts = accounts.filter((a) => !args.ids.includes(a.id));
       changed();
       return null;
+    case "accounts_set_farm": {
+      const ids = new Set(args.ids as number[]);
+      for (const a of accounts) if (ids.has(a.id)) a.farm = args.farm as AccountSummary["farm"];
+      changed();
+      return null;
+    }
     case "accounts_validate": {
       const ids: number[] = args.ids ?? accounts.map((a) => a.id);
       for (const id of ids) {

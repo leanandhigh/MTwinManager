@@ -13,7 +13,7 @@ use rusqlite_migration::{M, Migrations};
 
 use crate::commands::now_ms;
 use crate::error::{AppError, Result};
-use crate::model::{AccountPatch, AccountStatus, AccountSummary, Crash, CrashKind, Group, GroupInput, PlaytimeRow, ServerVisit, Settings, VaultMode};
+use crate::model::{AccountPatch, AccountStatus, AccountSummary, Crash, FarmState, CrashKind, Group, GroupInput, PlaytimeRow, ServerVisit, Settings, VaultMode};
 use crate::vault::{Kdf, RecoveryRecord, VaultRecord};
 
 /// What `upsert_account` writes. `cookie` is the encrypted blob.
@@ -83,7 +83,7 @@ const ACCOUNT_SELECT: &str = "SELECT a.id, a.user_id, a.username, a.display_name
      (SELECT group_concat(ag.group_id ORDER BY g.sort_order, g.id) \
         FROM account_groups ag JOIN groups g ON g.id = ag.group_id WHERE ag.account_id = a.id), \
      a.status, a.status_checked_at, a.created_at, a.allow_disconnect, a.launch_args, a.discord_muted, a.fps_cap, a.full_quality, a.is_main, \
-     a.custom_flags \
+     a.custom_flags, a.farm \
      FROM accounts a";
 
 const GROUP_SELECT: &str = "SELECT id, name, color, sort_order FROM groups";
@@ -363,6 +363,9 @@ impl Db {
         }
         if let Some(v) = patch.full_quality {
             tx.execute("UPDATE accounts SET full_quality = ?2 WHERE id = ?1", params![id, v])?;
+        }
+        if let Some(v) = patch.farm {
+            tx.execute("UPDATE accounts SET farm = ?2 WHERE id = ?1", params![id, v.as_str()])?;
         }
         if let Some(v) = &patch.custom_flags {
             let json = if v.is_empty() { None } else { Some(serde_json::to_string(v).map_err(|e| AppError::Internal(e.to_string()))?) };
@@ -769,6 +772,7 @@ fn migrations() -> Migrations<'static> {
         M::up(include_str!("migrations/012_drop_macros.sql")),
         M::up(include_str!("migrations/013_custom_flags.sql")),
         M::up(include_str!("migrations/014_playtime.sql")),
+        M::up(include_str!("migrations/015_farm.sql")),
     ])
 }
 
@@ -827,6 +831,7 @@ fn account_row(r: &Row) -> rusqlite::Result<AccountSummary> {
             let json: Option<String> = r.get(19)?;
             json.and_then(|j| serde_json::from_str(&j).inspect_err(|e| log::warn!("account custom flags unreadable, none used: {e}")).ok()).unwrap_or_default()
         },
+        farm: FarmState::parse(&r.get::<_, String>(20)?),
     })
 }
 
@@ -1160,6 +1165,7 @@ mod tests {
             full_quality: None,
             main: None,
             custom_flags: None,
+            farm: None,
         };
 
         db.update_account(id, &p).unwrap();

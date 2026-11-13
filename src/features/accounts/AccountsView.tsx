@@ -2,15 +2,15 @@ import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
 import "./accounts.css";
-import { api, type AccountStatus, type AccountSummary, type Density, type Group, type Presence, type VaultMode } from "../../api";
+import { api, type AccountStatus, type AccountSummary, type Density, type FarmState, type Group, type Presence, type VaultMode } from "../../api";
 import { qk, setAccounts, useInstances, usePresence, useSettings, useUpdateAccount } from "../../data";
-import { isRtl, t, type Key } from "../../i18n";
+import { fmtNum, isRtl, t, type Key } from "../../i18n";
 import { announce, overlayOpen } from "../../ui/a11y";
 import { Kbd } from "../../ui/Bits";
 import { Button, IconButton } from "../../ui/Button";
 import { ConfirmDialog } from "../../ui/Dialog";
 import { Input } from "../../ui/Field";
-import { Icon } from "../../ui/Icon";
+import { Icon, type IconName } from "../../ui/Icon";
 import { SPRING, Swap, TWEEN, useReducedMotionFlag } from "../../ui/motion";
 import { MenuRadioItem, Popover, useAnchor } from "../../ui/Popover";
 import { Divider, usePanelWidth } from "../../ui/Resizer";
@@ -44,6 +44,17 @@ const shownKey = (a: AccountSummary, p?: Presence): Filter | "valid" => {
   return p.kind === "studio" ? "online" : p.kind;
 };
 const inFilter = (a: AccountSummary, f: Filter, p?: Presence) => f === "all" || (f === "fav" ? a.favourite : shownKey(a, p) === f);
+/** The count cards over the list: where each account is in farming, or that it needs attention. */
+type FarmFilter = "all" | "active" | "farming" | "done" | "attention";
+const inFarm = (a: AccountSummary, f: FarmFilter) =>
+  f === "all" ||
+  (f === "attention" ? a.status === "invalid" || a.status === "challenged" : a.status !== "invalid" && a.status !== "challenged" && (f === "active" ? a.farm === "none" : a.farm === f));
+const FARM_CARDS: { key: Exclude<FarmFilter, "all">; label: Key; icon: IconName; tone: string }[] = [
+  { key: "active", label: "farm.card.active", icon: "check", tone: "ok" },
+  { key: "farming", label: "farm.card.farming", icon: "sprout", tone: "info" },
+  { key: "done", label: "farm.card.done", icon: "flag", tone: "done" },
+  { key: "attention", label: "farm.card.attention", icon: "alert", tone: "warn" },
+];
 const isTyping = (el: EventTarget | null) =>
   el instanceof HTMLElement && (el.matches("textarea, select, input:not([type=checkbox]):not([type=radio])") || el.isContentEditable);
 /** Main narrower than this: the details become a sheet over the list. */
@@ -78,6 +89,7 @@ export function AccountsView({ accounts, groups, density, vaultMode, clipboardSe
   const statusMenu = useAnchor();
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
+  const [farm, setFarm] = useState<FarmFilter>("all");
   const [checked, setChecked] = useState<Set<number>>(() => new Set());
   const [mainSkipped, setMainSkipped] = useState(false);
   const rangeFrom = useRef<number | null>(null);
@@ -132,7 +144,7 @@ export function AccountsView({ accounts, groups, density, vaultMode, clipboardSe
     [inGroup.map((a) => `${a.id}:${a.status}`).join(), filter],
   );
   const presence = usePresence(presenceIds).data;
-  const shown = matching.filter((a) => inFilter(a, filter, presence?.get(a.id)));
+  const shown = matching.filter((a) => inFilter(a, filter, presence?.get(a.id)) && inFarm(a, farm));
   const checkedIds = accounts.filter((a) => checked.has(a.id)).map((a) => a.id);
   const canPlay = (id: number) => byId.get(id)?.status === "valid" && !live.has(id);
   // With Play's settings open, ticking accounts picks who plays (signed-out and playing ones left out).
@@ -277,7 +289,7 @@ export function AccountsView({ accounts, groups, density, vaultMode, clipboardSe
   const clear = () => checked.size > 0 && setTicks(new Set());
   // What a search or filter leaves, once the typing settles.
   const shownCount = shown.length;
-  const filterKey = `${q}\n${filter}\n${group}`;
+  const filterKey = `${q}\n${filter}\n${group}\n${farm}`;
   const lastFilter = useRef(filterKey);
   useEffect(() => {
     if (lastFilter.current === filterKey) return;
@@ -342,7 +354,17 @@ export function AccountsView({ accounts, groups, density, vaultMode, clipboardSe
   const clearFilters = () => {
     setQ("");
     setFilter("all");
+    setFarm("all");
     setGroup(null);
+  };
+  const setFarmState = (state: FarmState) => {
+    const ids = checkedIds;
+    api
+      .accountsSetFarm(ids, state)
+      .then(() => {
+        void qc.invalidateQueries({ queryKey: qk.accounts });
+        toast(t(state === "farming" ? "farm.toast.added" : state === "done" ? "farm.toast.done" : "farm.toast.removed", { count: ids.length }));
+      }, toastError);
   };
 
   const panel = current && (
@@ -435,6 +457,7 @@ export function AccountsView({ accounts, groups, density, vaultMode, clipboardSe
             onPlay={() => onLaunch(checkedIds)}
             onBefriend={() => setBefriendOpen(true)}
             onAddToGroup={addToGroup}
+            onFarm={setFarmState}
             onRemove={() => removing.ask(checkedIds)}
             onClear={clear}
           />
@@ -453,8 +476,22 @@ export function AccountsView({ accounts, groups, density, vaultMode, clipboardSe
         ) : (
           // Positioned: the narrow layout's sheet covers the filters and the list, never the header's pill.
           <div className="relative flex-1 min-h-0 flex flex-col gap-4">
+            <div className="acc-farm" role="group" aria-label={t("farm.cards")} inert={(narrow && sheet) || undefined}>
+              {FARM_CARDS.map((c) => {
+                const n = accounts.filter((a) => inFarm(a, c.key)).length;
+                return (
+                  <button key={c.key} type="button" className="acc-farm-card" data-tone={c.tone} aria-pressed={farm === c.key} onClick={() => setFarm(farm === c.key ? "all" : c.key)}>
+                    <span className="acc-farm-label">{t(c.label)}</span>
+                    <span className="acc-farm-n">{fmtNum(n)}</span>
+                    <span className="acc-farm-icon" aria-hidden="true">
+                      <Icon name={c.icon} size={15} />
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
             {/* Under the open sheet the filters and the list are out of reach (Tab stays in the sheet). */}
-            <div className="flex flex-wrap items-center gap-2" inert={(narrow && sheet) || undefined}>
+            <div className="acc-filters flex flex-wrap items-center gap-2" inert={(narrow && sheet) || undefined}>
               <div className="acc-search relative flex-[1_1_220px] min-w-[200px] max-w-[320px] flex">
                 <Input
                   ref={filterInput}

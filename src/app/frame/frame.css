@@ -377,7 +377,18 @@
   }
 
   /* In game by Roblox's account, not a client here: dimmer, no actions. */
+  .ld-list:has(+ .ld-else) {
+    flex: 0 1 auto;
+  }
+  .ld-list:empty {
+    display: none;
+  }
   .ld-else {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+  .ld-list:not(:empty) + .ld-else {
     border-top: 1px solid var(--line);
     padding-top: 6px;
   }
