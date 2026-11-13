@@ -1702,5 +1702,6 @@
   "app.group.tools": "เครื่องมือ",
   "app.sidebarFold": "ย่อแถบข้าง",
   "app.sidebarOpen": "ขยายแถบข้าง",
-  "launch.batch.rejoining": "กำลังกลับเข้าเกม"
+  "launch.batch.rejoining": "กำลังกลับเข้าเกม",
+  "accounts.pickOne": "เลือกบัญชีจากรายการเพื่อดูรายละเอียดที่นี่"
 }

@@ -62,8 +62,10 @@ export function DebugView() {
 
   return (
     <main className="dbg page flex-1 min-w-0 min-h-0 flex flex-col pb-6">
-      <h1 className="page-title">{t("debug.title")}</h1>
-      <p className="page-sub">{t("debug.intro")}</p>
+      <header>
+        <h1 className="page-title">{t("debug.title")}</h1>
+        <p className="page-sub">{t("debug.intro")}</p>
+      </header>
 
       <div className="dbg-bar">
         <div className="dbg-levels" role="group" aria-label={t("debug.levels")}>

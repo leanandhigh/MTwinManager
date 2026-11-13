@@ -259,16 +259,75 @@
     font-weight: 600;
     line-height: 1.4;
   }
+  /* The page bar: every page (but Home, which opens on its tabs) starts with a bar across the
+     page, the title and its line on the left, the page's actions on the right, a hairline under
+     it. It stays while the page scrolls. */
+  .page:not(:has(.home-strip)) :is(header, .srv-head):has(.page-title) {
+    position: sticky;
+    /* Sticky counts from inside the page's padding: up by that much to sit at the very top. */
+    top: calc(-1 * var(--page-pt));
+    z-index: 6;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center !important;
+    justify-content: space-between;
+    gap: 8px 20px;
+    min-height: 64px;
+    margin: calc(-1 * var(--page-pt)) calc(-1 * var(--page-px)) 20px !important;
+    padding: 12px var(--page-px) !important;
+    background: var(--ground);
+    border-bottom: 1px solid var(--line);
+  }
+  /* A bar with only a title and its line stacks them on the left. */
+  .page:not(:has(.home-strip)) :is(header, .srv-head):has(> .page-title):not(:has(> :not(.page-title, .page-sub))) {
+    flex-direction: column;
+    align-items: flex-start !important;
+    justify-content: center;
+    gap: 0;
+  }
+  .page:not(:has(.home-strip)) :is(header, .srv-head):has(.page-title) .page-title {
+    font-size: 17px;
+    line-height: 1.35;
+  }
+  /* A line beside a title row (not under the title itself) takes a line of its own, on the left. */
+  .page:not(:has(.home-strip)) :is(header, .srv-head):has(.page-title) > .page-sub {
+    flex-basis: 100%;
+    max-width: none;
+    margin-top: -6px;
+  }
+  .page:not(:has(.home-strip)) :is(header, .srv-head):has(> .page-title):not(:has(> :not(.page-title, .page-sub))) > .page-sub {
+    flex-basis: auto;
+    margin-top: 1px;
+  }
+  /* Discord's line opens to tell more: it stacks under the title like a plain one. */
+  .page .dc-head {
+    flex-direction: column;
+    align-items: flex-start !important;
+    justify-content: center;
+    gap: 2px;
+  }
+  .page .dc-head > * {
+    align-self: flex-start;
+    text-align: start;
+  }
+  .page:not(:has(.home-strip)) :is(header, .srv-head):has(.page-title) .page-sub {
+    margin-top: 1px;
+    font-size: 12.5px;
+  }
+  /* The bar spans the page; what's under it keeps its width. */
   .set-page,
   .dc-page,
-  .perf-page {
-    max-width: 920px;
-    margin-inline: 0;
-  }
+  .perf-page,
   .up-page,
   .pg-page {
-    max-width: 1280px;
+    max-width: none;
     margin-inline: 0;
+  }
+  :is(.set-page, .dc-page, .perf-page) > :not(header) {
+    max-width: 920px;
+  }
+  :is(.up-page, .pg-page) > :not(header) {
+    max-width: 1280px;
   }
 
   /* ---- Surfaces: a card is a step up from the page with one hairline ---- */

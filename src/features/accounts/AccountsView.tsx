@@ -501,8 +501,13 @@ export function AccountsView({ accounts, groups, density, vaultMode, clipboardSe
               <GroupChips groups={groups} accounts={accounts} active={activeGroup?.id ?? null} onPick={setGroup} />
             </div>
 
+            {/* The list as a column on the left, the account it has open filling the rest (narrow
+                windows keep the full-width list and its sheet). */}
             <div className="flex-[1_1_240px] min-h-0 flex" inert={(narrow && sheet) || undefined}>
-              <div className="panel flex-1 min-w-0 flex flex-col overflow-hidden">
+              <div
+                className={`panel min-w-0 flex flex-col overflow-hidden ${narrow ? "flex-1" : "flex-none acc-list"}`}
+                style={narrow ? undefined : { width: detail.width, maxWidth: "50cqw" }}
+              >
                 <AccountsTable
                   rows={shown}
                   ordered={ordered}
@@ -533,17 +538,19 @@ export function AccountsView({ accounts, groups, density, vaultMode, clipboardSe
                   <span className="mono ms-auto">v{import.meta.env.APP_VERSION}</span>
                 </footer>
               </div>
-              {!narrow && current && (
+              {!narrow && (
                 <>
-                  <Divider panel={detail} side="right" label={t("accounts.detailsWidth")} />
-                  <aside
-                    aria-label={t("accounts.details")}
-                    onFocusCapture={pin}
-                    style={{ width: detail.width, maxWidth: "40cqw" }}
-                    className="panel relative flex-none ms-3 overflow-hidden flex flex-col"
-                  >
-                    {panel}
-                  </aside>
+                  <Divider panel={detail} side="left" label={t("accounts.detailsWidth")} />
+                  {current ? (
+                    <aside aria-label={t("accounts.details")} onFocusCapture={pin} className="panel relative flex-1 min-w-0 ms-3 overflow-hidden flex flex-col acc-detail">
+                      {panel}
+                    </aside>
+                  ) : (
+                    <div className="empty flex-1 ms-3 grid place-content-center text-center p-6">
+                      <Icon name="accounts" size={22} className="mx-auto mb-2 text-fg-3" />
+                      <p className="text-fg-2">{t("accounts.pickOne")}</p>
+                    </div>
+                  )}
                 </>
               )}
             </div>

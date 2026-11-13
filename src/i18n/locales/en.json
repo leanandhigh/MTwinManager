@@ -1759,5 +1759,6 @@
   "app.group.tools": "Tools",
   "app.sidebarFold": "Collapse sidebar",
   "app.sidebarOpen": "Expand sidebar",
-  "launch.batch.rejoining": "rejoining"
+  "launch.batch.rejoining": "rejoining",
+  "accounts.pickOne": "Pick an account in the list to see it here."
 }
