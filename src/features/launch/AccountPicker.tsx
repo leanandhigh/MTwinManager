@@ -265,7 +265,8 @@ function Tiles({ accounts, picked, onPicked, label, onAdd, className = "" }: Pic
   );
 }
 
-/** Servers' send bar: the signed-in accounts as chips; a playing one can't be picked and says so. */
+/** Servers' send bar: the signed-in accounts as chips, any number picked; a playing one says so, and
+ * joining moves its client (ServersView asks first). */
 function Chips({ accounts, picked, onPicked, label }: Picks) {
   const live = useLive();
   const [q, setQ] = useState("");
@@ -291,8 +292,7 @@ function Chips({ accounts, picked, onPicked, label }: Picks) {
               aria-pressed={has.has(a.id)}
               tabIndex={a.id === focusable ? 0 : -1}
               onFocus={() => setFocusId(a.id)}
-              // A playing account is picked on its own: launching it moves its client (useMoveConfirm).
-              onClick={() => onPicked(has.has(a.id) ? picked.filter((id) => id !== a.id) : playing ? [a.id] : [...picked.filter((id) => !live.has(id)), a.id])}
+              onClick={() => onPicked(has.has(a.id) ? picked.filter((id) => id !== a.id) : [...picked, a.id])}
             >
               <span aria-hidden="true" className="w-2 h-2 rounded-full flex-none" style={{ background: avatarColor(a) }} />
               <span className="truncate">{accountName(a)}</span>

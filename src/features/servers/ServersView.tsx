@@ -11,7 +11,8 @@ import { MenuLabel, MenuRadioItem, MenuSeparator, Popover, useAnchor } from "../
 import { accountName } from "../accounts/shared";
 import { AccountPicker } from "../launch/AccountPicker";
 import { LaunchButton } from "../launch/LaunchButton";
-import { launchBlocked, launchOne, launchSame } from "../launch/launchQueue";
+import { launchBlocked, launchEach, launchOne, launchSame } from "../launch/launchQueue";
+import { ConfirmDialog } from "../../ui/Dialog";
 import { useMoveConfirm } from "../launch/MoveDialog";
 import { MultiNotice } from "../launch/MultiNotice";
 import { isLive, isRunning } from "../launch/Running";
@@ -103,10 +104,19 @@ export function ServersView({ accounts, picked, setPicked, place, setPlace }: {
     n > 1 && client?.outdated ? t("servers.outdated") : null,
   ];
 
+  // Several picked and some already playing: one question, then each goes in turn, a playing one
+  // moving its client (closed first).
+  const [moveMany, setMoveMany] = useState(false);
+  const playingPicked = mine.filter((a) => move.liveOf(a));
+  const joinEach = () => {
+    if (!target) return;
+    void launchEach(mine.map((a) => ({ account: a, where: target, moveFrom: move.liveOf(a)?.id })));
+  };
   const join = () => {
     if (!target) return;
     const one = mine[0];
-    if (n > 1) void launchSame(mine, target);
+    if (n > 1 && playingPicked.length) setMoveMany(true);
+    else if (n > 1) void launchSame(mine, target);
     else if (one && move.liveOf(one)) move.ask(one, (from) => void launchOne(one, target, undefined, from));
     else if (one) void launchOne(one, target);
   };
@@ -174,6 +184,18 @@ export function ServersView({ accounts, picked, setPicked, place, setPlace }: {
         </section>
       </div>
       {move.dialog}
+      <ConfirmDialog
+        open={moveMany}
+        onClose={() => setMoveMany(false)}
+        onConfirm={() => {
+          setMoveMany(false);
+          joinEach();
+        }}
+        title={t("move.manyTitle", { count: playingPicked.length })}
+        text={t("move.manyText", { names: playingPicked.map(accountName).join(", ") })}
+        confirmLabel={t("move.manyConfirm")}
+        safe
+      />
     </main>
   );
 }
