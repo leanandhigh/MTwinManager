@@ -979,3 +979,39 @@
     line-height: 1.5;
   }
 }
+
+/* Every page's content starts the same 20px under its bar. Pages whose own gap would add to the
+   bar's margin take that gap off it (Monitor's flex gap is 24px, Tools' and Executor's grid 16px). */
+@layer brand {
+  .page.mon:not(:has(.home-strip)) > header:has(.page-title) {
+    margin-bottom: -4px !important;
+  }
+  .page:not(:has(.home-strip)) :is(.tl-page, .ex-page) > header:has(.page-title) {
+    margin-bottom: 4px !important;
+  }
+  /* Servers: the bar runs across the Join column too (its content stays in the list's column), on
+     one line so the Join column below it knows its height. */
+  @media (min-width: 1200px) {
+    .srv-page.page .srv-head:has(.page-title) {
+      flex-wrap: nowrap !important;
+      margin-inline-end: calc(-300px - 20px - var(--page-px)) !important;
+      padding-inline-end: calc(300px + 20px + var(--page-px)) !important;
+    }
+    .srv-page.page .srv-head:has(.page-title) > :first-child {
+      min-width: 0;
+    }
+    /* The list's column has a 16px gap of its own: off the bar's margin, so the list and the Join
+       panel both start 20px under the bar. */
+    .srv-page.page .srv > .srv-head:has(.page-title) {
+      margin-bottom: 4px !important;
+    }
+    .srv-page.page > .flex-none {
+      padding-top: calc(64px + 20px - var(--page-pt) + 3px);
+    }
+    .srv-page.page .srv-head:has(.page-title) .page-sub {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+}

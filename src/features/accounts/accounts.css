@@ -291,7 +291,8 @@
   .page.acc-grid > header > :last-child {
     grid-area: tools;
     align-self: end;
-    justify-self: end;
+    justify-self: stretch;
+    width: 100%;
     margin: 0;
   }
   .page.acc-grid > .relative > .acc-farm {

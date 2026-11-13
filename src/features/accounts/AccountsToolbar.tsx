@@ -72,9 +72,16 @@ export function AccountsToolbar({ total, selected, groups, playable, friendable,
   }, [n > 0]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Make friends, the groups and Export go into "…" while the whole selection is wider than the
-  // header (German needs far more than English); folded, they come back once that width fits.
+  // room it has (German needs far more than English); folded, they come back once that width fits.
+  // At rest, folded, Check all and Export show as icons. Each set measures itself afresh.
   const [fold, setFold] = useState(false);
   const unfolded = useRef(0);
+  const [mode, setMode] = useState(n > 0);
+  if (mode !== n > 0) {
+    setMode(n > 0);
+    setFold(false);
+    unfolded.current = 0;
+  }
   const [, resized] = useReducer((x: number) => x + 1, 0);
   useLayoutEffect(() => {
     const ro = new ResizeObserver(() => resized());
@@ -84,14 +91,17 @@ export function AccountsToolbar({ total, selected, groups, playable, friendable,
   useLayoutEffect(() => {
     const header = root.current?.parentElement;
     const pill = set.current?.closest<HTMLElement>(".pill-toolbar");
-    if (!header || !pill || !set.current || (!fold && n === 0)) return;
+    if (!header || !root.current || !pill || !set.current) return;
+    // In the wide layout the header is `display: contents` (no width of its own): the toolbar fills
+    // its grid cell instead (accounts.css), so its own width is the room.
+    const room = getComputedStyle(header).display === "contents" ? root.current.clientWidth : header.clientWidth;
     if (fold) {
-      if (header.clientWidth >= unfolded.current) setFold(false);
+      if (room >= unfolded.current) setFold(false);
       return;
     }
     // The set's own width, whatever the pill's spring shows of it now, plus the pill's padding.
     const need = set.current.offsetWidth + pill.offsetWidth - (pill.firstElementChild as HTMLElement).offsetWidth;
-    if (need > header.clientWidth) {
+    if (need > room) {
       unfolded.current = need;
       setFold(true);
     }
@@ -126,13 +136,21 @@ export function AccountsToolbar({ total, selected, groups, playable, friendable,
     <>
       {total > 0 && (
         <>
-          <Button variant="ghost" size="md" icon="refresh" busy={checking} data-rest data-tip={t("accounts.validateAll")} data-tip-kbd="Ctrl+R" onClick={onCheckAll}>
-            {checking ? t("accounts.validating") : t("accounts.validateAll")}
-          </Button>
+          {fold ? (
+            <IconButton icon="refresh" label={checking ? t("accounts.validating") : t("accounts.validateAll")} shortcut="Ctrl+R" data-rest disabled={checking} onClick={onCheckAll} />
+          ) : (
+            <Button variant="ghost" size="md" icon="refresh" busy={checking} data-rest data-tip={t("accounts.validateAll")} data-tip-kbd="Ctrl+R" onClick={onCheckAll}>
+              {checking ? t("accounts.validating") : t("accounts.validateAll")}
+            </Button>
+          )}
           <AutoRejoin />
-          <Button variant="ghost" size="md" icon="download" onClick={() => onExport(null)}>
-            {t("accounts.exportCookiesEllipsis")}
-          </Button>
+          {fold ? (
+            <IconButton icon="download" label={t("accounts.exportCookiesEllipsis")} onClick={() => onExport(null)} />
+          ) : (
+            <Button variant="ghost" size="md" icon="download" onClick={() => onExport(null)}>
+              {t("accounts.exportCookiesEllipsis")}
+            </Button>
+          )}
         </>
       )}
       <Button variant="primary" size="md" icon="plus" data-rest={total === 0 || undefined} data-tip={t("accounts.add.title")} data-tip-kbd="Ctrl+N" onClick={onAdd}>
