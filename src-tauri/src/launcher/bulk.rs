@@ -936,7 +936,9 @@ fn mirror_item(item: &mut BulkItem, inst: &Instance, a: &Account) -> Option<Stri
             tr!("Roblox wants a human check for {name}. Finish it in that client or close it.", name = name)
         }
         _ => {
-            item.stage = if coming_back(inst) { BulkStage::Starting } else { stage_of(inst, a.allow_disconnect) };
+            let next = if coming_back(inst) { BulkStage::Starting } else { stage_of(inst, a.allow_disconnect) };
+            // It got into its game: the launch worked, whatever happens to the client after.
+            item.stage = if arrived(&item.stage) && matches!(next, BulkStage::Failed { .. }) { BulkStage::Done } else { next };
             return None;
         }
     };
@@ -950,9 +952,16 @@ fn coming_back(inst: &Instance) -> bool {
     inst.relaunching && matches!(inst.state, InstanceState::Disconnected | InstanceState::Exited)
 }
 
-/// A started client that left the tracker: it ended.
+/// In its game at some point (`Done` only ever follows that).
+fn arrived(stage: &BulkStage) -> bool {
+    matches!(stage, BulkStage::InGame | BulkStage::Done)
+}
+
+/// A started client that left the tracker: it ended. One that got into its game launched fine.
 fn gone(item: &mut BulkItem) {
-    if !matches!(item.stage, BulkStage::Failed { .. }) {
+    if arrived(&item.stage) {
+        item.stage = BulkStage::Done;
+    } else if !matches!(item.stage, BulkStage::Failed { .. }) {
         item.stage = BulkStage::Failed { message: crate::instances::closed() };
     }
 }
@@ -1326,6 +1335,23 @@ mod tests {
         let mut it = item(failed("Kicked"), true);
         gone(&mut it);
         assert_eq!(it.stage, failed("Kicked"));
+    }
+
+    #[test]
+    fn a_client_that_got_in_game_stays_a_success() {
+        use InstanceState::*;
+        let a = accounts(&[1]).remove(0);
+        let mut it = item(BulkStage::InGame, true);
+        assert_eq!(mirror_item(&mut it, &instance(Exited, Some("Closed unexpectedly")), &a), None);
+        assert_eq!(it.stage, BulkStage::Done, "closed after it got in");
+        assert_eq!(mirror_item(&mut it, &instance(Disconnected, None), &a), None);
+        assert_eq!(it.stage, BulkStage::Done);
+        let mut it = item(BulkStage::InGame, true);
+        gone(&mut it);
+        assert_eq!(it.stage, BulkStage::Done, "left the tracker after it got in");
+        let mut it = item(BulkStage::Joining, true);
+        assert_eq!(mirror_item(&mut it, &instance(Exited, Some("Closed unexpectedly")), &a), None);
+        assert_eq!(it.stage, failed("Closed unexpectedly"), "never got in");
     }
 
     #[test]
