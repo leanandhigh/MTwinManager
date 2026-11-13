@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { api, type AccountSummary, type Instance } from "../../api";
 import { useState } from "react";
-import { qk, useInstances, useSetSettings, useSettings } from "../../data";
+import { qk, useInstances, usePresence, useSetSettings, useSettings } from "../../data";
 import { t } from "../../i18n";
 import { Button, IconButton } from "../../ui/Button";
 import { Switch } from "../../ui/controls";
@@ -19,6 +19,12 @@ export function LiveDock({ accounts }: { accounts: AccountSummary[] }) {
   const running = (useInstances().data ?? []).filter(isRunning);
   const byId = new Map(accounts.map((a) => [a.id, a]));
   const now = useNow(10_000);
+  // In a game by Roblox's own account (as Accounts and Home show), with no client here: started
+  // outside MTwin Manager, or one it lost track of. Listed so Live and Accounts agree.
+  const presence = usePresence(accounts.filter((a) => a.status === "valid").map((a) => a.id)).data;
+  const tracked = new Set(running.map((i) => i.accountId));
+  const elsewhere = accounts.filter((a) => !tracked.has(a.id) && presence?.get(a.id)?.kind === "inGame");
+  const total = running.length + elsewhere.length;
   const settings = useSettings().data;
   const set = useSetSettings({ quiet: true });
   const layout = settings?.windowLayout ?? "off";
@@ -49,9 +55,9 @@ export function LiveDock({ accounts }: { accounts: AccountSummary[] }) {
       <header className="ld-head">
         {!folded && (
           <>
-            <span className="ld-dot" data-on={running.length > 0 || undefined} aria-hidden="true" />
+            <span className="ld-dot" data-on={total > 0 || undefined} aria-hidden="true" />
             <h2 className="ld-title">{t("live.title")}</h2>
-            <span className="ld-n">{running.length}</span>
+            <span className="ld-n">{total}</span>
           </>
         )}
         <IconButton size="sm" icon={folded ? "back" : "chevron"} className="ld-fold" label={t(folded ? "live.open" : "live.fold")} onClick={() => setFolded(!folded)} />
@@ -69,6 +75,13 @@ export function LiveDock({ accounts }: { accounts: AccountSummary[] }) {
               </li>
             );
           })}
+          {elsewhere.map((a) => (
+            <li key={`e${a.id}`} data-tip={`${accountName(a)} · ${t("live.elsewhere")}`}>
+              <span className="ld-mini-out">
+                <Avatar account={a} size={28} />
+              </span>
+            </li>
+          ))}
         </ul>
       ) : (
         <>
@@ -87,7 +100,27 @@ export function LiveDock({ accounts }: { accounts: AccountSummary[] }) {
               <Row key={i.id} i={i} a={byId.get(i.accountId)} now={now} picked={picked.has(i.id)} onPick={() => toggle(i.id)} />
             ))}
           </ul>
-          {running.length === 0 && (
+          {elsewhere.length > 0 && (
+            <section className="ld-else">
+              <h3 className="ld-sub" data-tip={t("live.elsewhereHint")}>
+                {t("live.elsewhere")} <span className="ld-n">{elsewhere.length}</span>
+              </h3>
+              <ul className="ld-list">
+                {elsewhere.map((a) => (
+                  <li key={a.id} className="ld-row ld-row-out">
+                    <span className="ld-main">
+                      <Avatar account={a} size={32} />
+                      <span className="min-w-0 flex-1">
+                        <span className="ld-name">{accountName(a)}</span>
+                        <span className="ld-where">{presence?.get(a.id)?.lastLocation || t("home2.inGame")}</span>
+                      </span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {total === 0 && (
             <div className="ld-empty">
               <Icon name="monitor" size={20} />
               <p>{t("live.empty")}</p>

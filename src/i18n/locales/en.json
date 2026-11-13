@@ -1786,6 +1786,8 @@
   "home2.offline": "Offline",
   "home2.signInAgain": "Needs to sign in",
   "home2.addFirst": "Add your first account",
+  "live.elsewhere": "In game elsewhere",
+  "live.elsewhereHint": "In a game by Roblox's own status, but not started by MTwin Manager (or started before it last restarted), so it can't be controlled here.",
   "live.title": "Live",
   "live.open": "Show running clients",
   "live.fold": "Hide running clients",
