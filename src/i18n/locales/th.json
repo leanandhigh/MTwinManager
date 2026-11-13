@@ -1135,8 +1135,6 @@
   "settings.tabLayoutHint": "ตำแหน่งของบัญชีและส่วนต่าง ๆ ของ MTwin Manager",
   "settings.tabLayoutTop": "บัญชีด้านบน",
   "settings.tabLayoutSide": "บัญชีด้านข้าง",
-  "ui.accountsTop": "ย้ายบัญชีไปด้านบน",
-  "ui.accountsSide": "ย้ายบัญชีไปด้านข้าง",
   "settings.soundEffects": "เอฟเฟกต์เสียง",
   "settings.soundHint": "เสียงเบา ๆ สำหรับการคลิก สวิตช์ และการแจ้งเตือน",
   "settings.soundVolume": "ระดับเสียง",

@@ -1183,8 +1183,6 @@
   "settings.tabLayoutHint": "Where accounts and MTwin Manager's sections go.",
   "settings.tabLayoutTop": "Accounts on top",
   "settings.tabLayoutSide": "Accounts on the side",
-  "ui.accountsTop": "Move accounts to the top",
-  "ui.accountsSide": "Move accounts to the side",
   "settings.soundEffects": "Sound effects",
   "settings.soundHint": "Subtle sounds for clicks, switches and notifications.",
   "settings.soundVolume": "Sound volume",

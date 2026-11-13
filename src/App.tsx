@@ -155,8 +155,6 @@ function Root() {
             onToggleTheme={s ? () => setSettings.mutate({ theme: dark ? "light" : "dark" }) : undefined}
             onLock={unlocked && v.mode === "master" ? lock : undefined}
             vaultMode={unlocked ? v.mode : undefined}
-            sideTabs={s?.tabLayout === "side"}
-            onToggleTabs={unlocked && s ? () => setSettings.mutate({ tabLayout: s.tabLayout === "side" ? "top" : "side" }) : undefined}
             onLang={s ? (language) => setSettings.mutate({ language }) : undefined}
           />
         }
