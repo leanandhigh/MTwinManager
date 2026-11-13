@@ -390,7 +390,7 @@ export function MonitorView({ accounts }: { accounts: AccountSummary[] }) {
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
           key={view}
-          className={view === "live" ? "flex-1 min-h-0 flex flex-col" : undefined}
+          className={view === "live" ? "flex-1 min-h-0 mon-live" : undefined}
           initial={{ opacity: 0, y: RISE.md }}
           animate={{ opacity: 1, y: 0, transition: SPRING.smooth }}
           exit={{ opacity: 0, transition: TWEEN.exit }}

@@ -221,3 +221,39 @@
     color: var(--fg-3);
   }
 }
+
+/* Two columns: the presets and For this PC down the left (they stay in view), the fine-tuning on
+   the right. */
+@layer brand {
+  @media (min-width: 1150px) {
+    .perf-page {
+      display: grid;
+      grid-template-columns: 300px minmax(0, 1fr);
+      column-gap: 24px;
+      align-items: start;
+      max-width: 1280px !important;
+    }
+    .perf-page > header {
+      grid-column: 1 / -1;
+    }
+    .perf-page > .perf-top {
+      grid-column: 1;
+      grid-row: 2 / span 30;
+      position: sticky;
+      top: 84px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-width: none !important;
+    }
+    .perf-page > .perf-top .perf-presets {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .perf-page > :not(header, .perf-top) {
+      grid-column: 2;
+      max-width: none !important;
+    }
+  }
+}

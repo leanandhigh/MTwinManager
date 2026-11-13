@@ -139,3 +139,66 @@
     line-height: 1.45;
   }
 }
+
+/* Two columns: the levels, the filter and the actions down the left, the log on the right. */
+@layer brand {
+  @media (min-width: 1100px) {
+    .dbg {
+      display: grid !important;
+      grid-template-columns: 220px minmax(0, 1fr);
+      grid-template-rows: auto auto minmax(0, 1fr);
+      column-gap: 20px;
+    }
+    .dbg > header {
+      grid-column: 1 / -1;
+    }
+    .dbg > .dbg-bar {
+      grid-column: 1;
+      grid-row: 2 / span 2;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 14px;
+      margin: 0;
+    }
+    .dbg > .dbg-bar .dbg-levels {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 4px;
+    }
+    .dbg > .dbg-bar .dbg-levels .chip {
+      justify-content: flex-start;
+    }
+    .dbg > .dbg-bar .dbg-levels .chip > :last-child {
+      margin-inline-start: auto;
+    }
+    .dbg > .dbg-bar .dbg-find {
+      width: auto;
+      max-width: none;
+      flex: none;
+    }
+    .dbg > .dbg-bar .dbg-act,
+    .dbg > .dbg-bar .dbg-actions {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 6px;
+      margin: 0;
+    }
+    .dbg > :not(header, .dbg-bar) {
+      grid-column: 2;
+    }
+  }
+  @media (min-width: 1100px) {
+    .dbg > .dbg-bar .dbg-act,
+    .dbg > .dbg-bar .dbg-act > *,
+    .dbg > .dbg-bar .dbg-actions {
+      width: 100% !important;
+    }
+    .dbg > .dbg-bar .dbg-actions > * {
+      width: 100%;
+      justify-content: flex-start;
+    }
+  }
+}

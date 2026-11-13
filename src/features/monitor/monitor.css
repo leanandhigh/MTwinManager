@@ -243,3 +243,70 @@
     rotate: 180deg;
   }
 }
+
+/* Monitor: the clients' table first, the totals down a column beside it. */
+@layer brand {
+  .mon-live {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 210px;
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas:
+      "note sum"
+      "table sum";
+    gap: 0 16px;
+    align-items: start;
+  }
+  .mon-live > .mon-strip {
+    grid-area: sum;
+  }
+  .mon-live > .mon-strip .mon-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .mon-live > .mon-strip .mon-cell {
+    padding: 12px 14px;
+  }
+  .mon-live > .mon-strip .mon-value {
+    font-size: 20px;
+  }
+  .mon-live > :nth-child(2) {
+    grid-area: note;
+  }
+  .mon-live > .mon-scroll {
+    grid-area: table;
+    max-height: 100%;
+    border-radius: 10px;
+    background: var(--surface-1);
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+  .mon-live .mon-table thead th:first-child {
+    padding-inline-start: 16px;
+  }
+  .mon-live .mon-table td:first-child {
+    padding-inline-start: 16px;
+  }
+  /* Not enough room for a column: the totals are a row of small figures over the table. */
+  @media (max-width: 1499px) {
+    .mon-live {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: auto auto minmax(0, 1fr);
+      grid-template-areas: "sum" "note" "table";
+      align-content: start;
+      gap: 14px;
+    }
+    .mon-live > .mon-strip .mon-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    }
+    .mon-live > .mon-strip .mon-cell {
+      padding: 10px 12px;
+    }
+    .mon-live > .mon-strip .mon-value {
+      font-size: 17px;
+    }
+    .mon-live .mon-chart {
+      display: none;
+    }
+  }
+}

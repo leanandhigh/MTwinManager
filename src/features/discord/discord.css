@@ -42,3 +42,25 @@
     margin-top: 32px;
   }
 }
+
+/* Two columns: where alerts go on the left, which events on the right. */
+@layer brand {
+  @media (min-width: 1150px) {
+    .dc-page {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      column-gap: 20px;
+      align-items: start;
+      max-width: 1280px !important;
+    }
+    .dc-page > header {
+      grid-column: 1 / -1;
+    }
+    .dc-page > :not(header) {
+      max-width: none !important;
+    }
+    .dc-page > .dc-events {
+      margin-top: 0 !important;
+    }
+  }
+}

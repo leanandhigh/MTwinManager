@@ -1734,5 +1734,7 @@
   "live.empty": "ไคลเอนต์ที่คุณเปิดจะแสดงที่นี่ระหว่างทำงาน",
   "live.end": "ปิดไคลเอนต์นี้",
   "home2.tabOverview": "ภาพรวม",
-  "home2.tabClients": "ไคลเอนต์"
+  "home2.tabClients": "ไคลเอนต์",
+  "servers.joinTitle": "เข้าร่วม",
+  "updates.platform": "แพลตฟอร์ม"
 }

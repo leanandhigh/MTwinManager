@@ -45,13 +45,7 @@ export function UpdatesView() {
         {v?.error && <p className="up-error panel">{t("updates.partial", { why: v.error })}</p>}
         {v && <Installed v={v} />}
         {v && <ChosenExecutor v={v} />}
-        {v && (
-          <>
-            <Section title="updates.current" hint="updates.currentHint" set={v.current} platforms={PLATFORMS} installed={v.installed} />
-            <Section title="updates.future" hint="updates.futureHint" set={v.future} platforms={PLATFORMS.slice(0, 2)} installed={v.installed} />
-            <Section title="updates.past" hint="updates.pastHint" set={v.past} platforms={PLATFORMS.slice(0, 2)} installed={v.installed} />
-          </>
-        )}
+        {v && <BuildTable v={v} />}
         <p className="meta up-credit">{t("updates.credit")}</p>
       </div>
     </main>
@@ -103,7 +97,60 @@ function ChosenExecutor({ v }: { v: RobloxVersions }) {
   );
 }
 
-function Section({ title, hint, set, platforms, installed }: {
+/** Every platform's builds in one table: platforms down the side; live, next and the one before across. */
+function BuildTable({ v }: { v: RobloxVersions }) {
+  const copy = (text: string) => writeText(text).then(() => toast(t("updates.copied", { v: text })), toastError);
+  const cols: [Key, Key, RobloxVersions["current"]][] = [
+    ["updates.current", "updates.currentHint", v.current],
+    ["updates.future", "updates.futureHint", v.future],
+    ["updates.past", "updates.pastHint", v.past],
+  ];
+  return (
+    <div className="panel up-table-wrap">
+      <table className="up-table">
+        <thead>
+          <tr>
+            <th scope="col">{t("updates.platform")}</th>
+            {cols.map(([title, hint]) => (
+              <th key={title} scope="col" data-tip={t(hint)}>{t(title)}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {PLATFORMS.map(([key, name]) => (
+            <tr key={key}>
+              <th scope="row">{name}</th>
+              {cols.map(([title, , set]) => {
+                const b = set?.[key] ?? null;
+                const mine = key === "windows" && !!v.installed && b?.version === v.installed;
+                return (
+                  <td key={title} data-mine={mine || undefined}>
+                    {b ? (
+                      <span className="up-cell">
+                        <span className="up-cell-v">
+                          <span className="mono truncate selectable">{b.version}</span>
+                          <IconButton size="sm" icon="copy" label={t("updates.copy")} onClick={() => void copy(b.version)} />
+                        </span>
+                        <span className="meta">
+                          {b.date ?? "—"}
+                          {mine && <span className="up-badge">{t("updates.installedHere")}</span>}
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="meta">—</span>
+                    )}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+export function Section({ title, hint, set, platforms, installed }: {
   title: Key;
   hint: Key;
   set: RobloxVersions["current"];

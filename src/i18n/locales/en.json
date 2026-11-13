@@ -1792,5 +1792,7 @@
   "live.empty": "Clients you launch show here while they run.",
   "live.end": "End this client",
   "home2.tabOverview": "Overview",
-  "home2.tabClients": "Clients"
+  "home2.tabClients": "Clients",
+  "servers.joinTitle": "Join",
+  "updates.platform": "Platform"
 }

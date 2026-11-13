@@ -157,3 +157,53 @@
     }
   }
 }
+
+/* Servers: the game and its servers on the left, Join (who, which server, the button) as a column
+   on the right that stays in view. */
+@layer brand {
+  .srv-send-title {
+    display: none;
+  }
+  @media (min-width: 1200px) {
+    .srv-page {
+      display: grid !important;
+      grid-template-columns: minmax(0, 1fr) 300px;
+      align-items: start;
+      gap: 0 20px !important;
+    }
+    .srv-page > .srv {
+      grid-column: 1;
+      grid-row: 1 / span 2;
+      min-height: calc(100vh - 160px);
+    }
+    .srv-page > .flex-none {
+      grid-column: 2;
+      grid-row: 1 / span 2;
+      position: sticky;
+      top: 0;
+      /* Level with the content under the page bar. */
+      padding-top: calc(64px + 20px - var(--page-pt));
+    }
+    .srv-page .srv-head > form {
+      flex: 0 1 280px !important;
+    }
+    .srv-page .srv-head:has(.page-title) {
+      margin-inline-end: 0 !important;
+    }
+    .srv-send-title {
+      display: block;
+      margin-bottom: 12px;
+      font-size: 15px;
+      font-weight: 600;
+    }
+    .srv-page .srv-send-grid {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-areas: "where" "who" "go";
+      gap: 12px;
+    }
+    .srv-page .srv-send-go,
+    .srv-page .srv-send-go .btn {
+      width: 100%;
+    }
+  }
+}

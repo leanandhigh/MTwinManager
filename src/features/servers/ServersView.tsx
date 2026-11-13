@@ -80,7 +80,7 @@ export function ServersView({ accounts, picked, setPicked, place, setPlace }: {
   };
 
   return (
-    <main className="scroll flex-1 min-w-0 page pb-6 flex flex-col gap-4">
+    <main className="scroll flex-1 min-w-0 page pb-6 flex flex-col gap-4 srv-page">
       <ServerBrowser accounts={accounts} asker={asker?.id} place={place} setPlace={setPlace} onChoice={setChoice} />
       <div className="flex-none flex flex-col">
         {/* The notice's room opens and closes with it. */}
@@ -90,6 +90,7 @@ export function ServersView({ accounts, picked, setPicked, place, setPlace }: {
           </div>
         </Morph>
         <section className="panel srv-send px-4 py-3">
+          <h2 className="srv-send-title">{t("servers.joinTitle")}</h2>
           <div className="srv-send-grid">
             <div className="srv-send-where flex items-center gap-3 min-w-0">
               <p className="relative flex items-center gap-2.5 flex-[0_1_13rem] min-w-0 text-[13px] font-medium">
