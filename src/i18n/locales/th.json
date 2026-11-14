@@ -605,6 +605,7 @@
   "launch.batch.inGameJob": "อยู่ในเกม · job {job}",
   "launch.batch.doneNote": "เสร็จ · หลุดการเชื่อมต่อ",
   "launch.batch.cancelled": "ยกเลิกแล้ว",
+  "launch.batch.failedState": "ไม่สำเร็จ",
   "launch.batch.failedNote": "ไม่สำเร็จ · {message}",
   "launch.batch.disconnected": "หลุดการเชื่อมต่อ",
   "launch.batch.closed": "ปิดแล้ว",

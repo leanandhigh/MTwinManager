@@ -3,17 +3,13 @@ import type { BulkStage } from "../../api";
 import { t, type Key } from "../../i18n";
 import { Button, IconButton } from "../../ui/Button";
 import { Icon } from "../../ui/Icon";
-import { Meter } from "../../ui/Meter";
 import { Collapse, Num, riseIn, STAGGER, Swap } from "../../ui/motion";
 import { TONE_COLOR } from "../../ui/Status";
 import { accountName, Avatar } from "../accounts/shared";
-import { useLaunchActivity, type LaunchRow } from "./launchQueue";
+import { useLaunchActivity } from "./launchQueue";
 import "./launch.css";
 
-const STEPS: Key[] = ["launch.batch.stepTicket", "launch.batch.stepRun", "launch.batch.stepJoin", "launch.batch.stepIn"];
 type Kind = Exclude<BulkStage["kind"], "failed">;
-/** The step in progress; 4 is all done, -1 none. */
-const AT: Record<Kind, number> = { queued: -1, ticket: 0, starting: 1, joining: 2, inGame: 4, done: 4, cancelled: -1 };
 const NOTE: Record<Kind, Key> = {
   queued: "launch.batch.queued",
   ticket: "launch.batch.ticket",
@@ -23,15 +19,6 @@ const NOTE: Record<Kind, Key> = {
   done: "launch.batch.doneNote",
   cancelled: "launch.batch.cancelled",
 };
-
-/** Each of the four pips: done, the live one (it pulses while the launch runs), failed, or to come. */
-function pips(r: LaunchRow, done: boolean) {
-  const s = r.stage;
-  // A started client that failed got past the ticket.
-  const at = s.kind === "failed" ? (r.instanceId ? 1 : 0) : AT[s.kind];
-  const live = s.kind === "failed" ? "fail" : done ? "still" : "live";
-  return STEPS.map((_, i) => (i < at ? "done" : i === at ? live : undefined));
-}
 
 /** The launch on show (useLaunchActivity): a pip per step for each account, the count, the reason it
  * stopped, Cancel while something is left to stop and Dismiss after; it opens to its height and folds
@@ -71,36 +58,29 @@ export function LaunchProgress({ onPick, variant = "full" }: { onPick: (ids: num
   const [tone, shape] = a.failed ? (["attention", "diamond"] as const) : a.ok === n ? (["ok", "dot"] as const) : (["neutral", "ring"] as const);
   const rows = (
     <>
-      <div aria-hidden="true" className="launch-row-grid pt-3 text-xs font-medium text-fg-3">
-        <span />
-        <span className="launch-pips">
-          {STEPS.map((s) => <span key={s} className="truncate">{t(s)}</span>)}
-        </span>
-      </div>
       <ol ref={list} className={`scroll ${island ? "max-h-[300px]" : "max-h-[40vh]"}`}>
         {a.rows.map((r) => {
           const s = r.stage;
+          // Where it is, in words; and under the name, what more there is to say (its server, why it failed).
+          const state = r.rejoining ? t("launch.batch.rejoining") : s.kind === "failed" ? t("launch.batch.failedState") : t(NOTE[s.kind]);
           const note = r.rejoining
-            ? (r.rejoining.waiting ?? t("launch.batch.rejoining"))
+            ? r.rejoining.waiting
             : s.kind === "failed"
-              ? t("launch.batch.failedNote", { message: s.message })
+              ? s.message
               : s.kind === "inGame" && r.job
                 ? t("launch.batch.inGameJob", { job: r.job.slice(0, 8) })
-                : t(NOTE[s.kind]);
+                : null;
           return (
             <li key={r.accountId} className={`launch-row-grid items-center gap-y-1 py-2.5 border-b border-line last:border-b-0 ${s.kind === "cancelled" ? "opacity-55" : ""}`}>
               <span className="flex items-center gap-2.5 min-w-0">
                 {r.account && <Avatar account={r.account} size={20} />}
                 <span className="truncate font-medium">{r.account ? accountName(r.account) : t("launch.accountN", { id: r.accountId })}</span>
               </span>
-              <span aria-hidden="true" className="launch-pips">
-                {pips(r, a.done).map((p, i) => (
-                  <span key={i} className="launch-pip" data-s={p}>
-                    <i />
-                  </span>
-                ))}
+              <span className="lp-state" data-s={r.rejoining ? "rejoining" : s.kind} data-live={(!a.done && !["queued", "inGame", "done", "failed", "cancelled"].includes(s.kind)) || undefined}>
+                <i aria-hidden="true" />
+                {state}
               </span>
-              <span className={`mono col-span-2 ps-[30px] text-xs ${s.kind === "failed" ? "text-attention" : s.kind === "inGame" ? "text-fg" : "text-fg-3"}`}>{note}</span>
+              {note && <span className={`mono col-span-2 ps-[30px] text-xs ${s.kind === "failed" ? "text-attention" : "text-fg-3"}`}>{note}</span>}
             </li>
           );
         })}
@@ -148,7 +128,6 @@ export function LaunchProgress({ onPick, variant = "full" }: { onPick: (ids: num
               </span>
               <span className="text-fg-2 min-w-0">{words}</span>
             </div>
-            <Meter value={a.ok} max={n || 1} label={`${a.title}: ${a.ok}/${n}`} />
           </div>
         </Collapse>
         <span className="sr-only" role="status">{`${a.title}: ${a.ok}/${n} · ${words}`}</span>

@@ -28,7 +28,7 @@
     letter-spacing: -0.02em;
   }
 
-  /* ---- Panels: square-cut, a red tick on the corner ---- */
+  /* ---- Panels: square-cut, a red line across the top that fades out ---- */
   .panel,
   .acc-farm-card,
   .tl-tool,
@@ -58,9 +58,11 @@
     position: absolute;
     top: 0;
     inset-inline-start: 0;
-    width: 16px;
+    inset-inline-end: 0;
     height: 2px;
-    background: var(--tick);
+    /* The whole top edge: red at the start, fading out across. */
+    background: linear-gradient(90deg, var(--tick), color-mix(in srgb, var(--tick) 35%, transparent) 45%, transparent);
+    border-radius: 3px 3px 0 0;
     pointer-events: none;
     z-index: 1;
   }

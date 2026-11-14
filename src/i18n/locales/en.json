@@ -637,6 +637,7 @@
   "launch.batch.inGameJob": "in game · job {job}",
   "launch.batch.doneNote": "done · disconnected",
   "launch.batch.cancelled": "cancelled",
+  "launch.batch.failedState": "Failed",
   "launch.batch.failedNote": "failed · {message}",
   "launch.batch.disconnected": "Disconnected",
   "launch.batch.closed": "Closed",

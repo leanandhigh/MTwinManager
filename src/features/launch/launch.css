@@ -692,3 +692,53 @@
     margin-inline-start: auto;
   }
 }
+
+/* LaunchProgress, in words: each account's state as a coloured word (the live ones pulse), no bars. */
+@layer brand {
+  .launch-row-grid {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .lp-state {
+    --c: var(--fg-3);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    justify-self: end;
+    padding: 2px 8px;
+    border-radius: 2px;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--c);
+    background: color-mix(in srgb, var(--c) 12%, transparent);
+    white-space: nowrap;
+  }
+  .lp-state i {
+    width: 6px;
+    height: 6px;
+    border-radius: 1px;
+    background: currentColor;
+  }
+  .lp-state[data-live] i {
+    animation: lp-pulse 1.1s ease-in-out infinite;
+  }
+  @keyframes lp-pulse {
+    50% {
+      opacity: 0.25;
+    }
+  }
+  .lp-state[data-s="ticket"],
+  .lp-state[data-s="starting"],
+  .lp-state[data-s="joining"],
+  .lp-state[data-s="rejoining"] {
+    --c: #3b8eea;
+  }
+  .lp-state[data-s="inGame"],
+  .lp-state[data-s="done"] {
+    --c: #2fbf71;
+  }
+  .lp-state[data-s="failed"] {
+    --c: #e8a33d;
+  }
+}
