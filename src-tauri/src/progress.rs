@@ -253,7 +253,40 @@ pub struct Progress {
     /// Roblox user id → headshot URL, for the session.
     heads: Mutex<HashMap<i64, String>>,
     web_error: Mutex<Option<String>>,
+    exec: Mutex<Exec>,
+    /// What the page this PC is served must send to run a script (`/api/exec`); in no other page,
+    /// so another site open in the browser can't make the clients run anything.
+    exec_token: String,
 }
+
+/// Scripts sent from the progress website to clients, and how they went.
+#[derive(Default)]
+struct Exec {
+    /// Account key → (id, code) not yet picked up by its reporter.
+    queue: HashMap<String, Vec<(String, String)>>,
+    /// Newest last, at most `EXEC_KEEP`.
+    results: Vec<ExecResult>,
+}
+
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+struct ExecResult {
+    id: String,
+    key: String,
+    name: String,
+    /// The script, cut to its first line, for the list.
+    script: String,
+    /// None while it waits or runs.
+    ok: Option<bool>,
+    picked: bool,
+    output: String,
+    at: i64,
+}
+
+const EXEC_KEEP: usize = 200;
+const MAX_EXEC_CODE: usize = 64 * 1024;
+/// A script no client picked up in this long is reported as such.
+const EXEC_STALE_MS: i64 = 120_000;
 
 impl Progress {
     pub fn new(data_dir: &std::path::Path) -> Self {
@@ -277,6 +310,8 @@ impl Progress {
             images: Mutex::new(HashMap::new()),
             heads: Mutex::new(HashMap::new()),
             web_error: Mutex::new(None),
+            exec: Mutex::new(Exec::default()),
+            exec_token: uuid::Uuid::new_v4().simple().to_string(),
         }
     }
 
@@ -392,6 +427,66 @@ impl Progress {
             ids.extend(list.iter().filter_map(|e| e.image.parse::<i64>().ok()));
         }
         ids.into_iter().filter(|id| *id > 0 && !images.contains_key(id)).take(max).collect()
+    }
+
+    fn exec(&self) -> std::sync::MutexGuard<'_, Exec> {
+        self.exec.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    /// Queues `code` for each of `targets` (account keys that have reported); their ids.
+    fn exec_queue(&self, targets: &[String], code: &str) -> Vec<String> {
+        let names: HashMap<String, String> = self.stored().accounts.values().map(|a| (a.key.clone(), if a.display_name.is_empty() { a.name.clone() } else { a.display_name.clone() })).collect();
+        let first = code.lines().find(|l| !l.trim().is_empty()).unwrap_or_default().chars().take(80).collect::<String>();
+        let mut x = self.exec();
+        let mut ids = Vec::new();
+        for key in targets.iter().filter(|k| names.contains_key(*k)).take(200) {
+            let id = uuid::Uuid::new_v4().simple().to_string()[..12].to_owned();
+            x.queue.entry(key.clone()).or_default().push((id.clone(), code.to_owned()));
+            x.results.push(ExecResult { id: id.clone(), key: key.clone(), name: names[key].clone(), script: first.clone(), ok: None, picked: false, output: String::new(), at: now_ms() });
+            ids.push(id);
+        }
+        let extra = x.results.len().saturating_sub(EXEC_KEEP);
+        x.results.drain(..extra);
+        ids
+    }
+
+    /// What the reporter of `key` is to run now (handed out once).
+    fn exec_take(&self, key: &str) -> Vec<(String, String)> {
+        let mut x = self.exec();
+        let list = x.queue.remove(key).unwrap_or_default();
+        for (id, _) in &list {
+            if let Some(r) = x.results.iter_mut().find(|r| &r.id == id) {
+                r.picked = true;
+            }
+        }
+        list
+    }
+
+    fn exec_done(&self, id: &str, ok: bool, output: &str) {
+        let mut x = self.exec();
+        if let Some(r) = x.results.iter_mut().find(|r| r.id == id) {
+            r.ok = Some(ok);
+            r.output = output.chars().take(4000).collect();
+        }
+    }
+
+    /// The results, newest first; one nobody picked up in `EXEC_STALE_MS` is given up on.
+    fn exec_results(&self) -> String {
+        let now = now_ms();
+        let mut x = self.exec();
+        let mut gone = Vec::new();
+        for r in x.results.iter_mut().filter(|r| r.ok.is_none() && !r.picked && now - r.at > EXEC_STALE_MS) {
+            r.ok = Some(false);
+            r.output = "No client picked it up: is this account's reporter running?".into();
+            gone.push((r.key.clone(), r.id.clone()));
+        }
+        for (key, id) in gone {
+            if let Some(q) = x.queue.get_mut(&key) {
+                q.retain(|(i, _)| *i != id);
+            }
+        }
+        let list: Vec<&ExecResult> = x.results.iter().rev().collect();
+        serde_json::to_string(&list).unwrap_or_else(|_| "[]".into())
     }
 
     /// User ids without a headshot yet (at most `max`).
@@ -648,6 +743,9 @@ struct Request {
     path: String,
     query: HashMap<String, String>,
     host: String,
+    /// `Origin` and `X-Exec-Token`, for the script runner (`/api/exec`).
+    origin: String,
+    exec_token: String,
     body: Vec<u8>,
 }
 
@@ -674,11 +772,14 @@ async fn read_request(stream: &mut TcpStream) -> Option<Request> {
     let target = first.next()?.to_owned();
     let mut length = 0usize;
     let mut host = String::new();
+    let (mut origin, mut exec_token) = (String::new(), String::new());
     for line in lines {
         let Some((k, v)) = line.split_once(':') else { continue };
         match k.trim().to_ascii_lowercase().as_str() {
             "content-length" => length = v.trim().parse().ok()?,
             "host" => host = v.trim().to_owned(),
+            "origin" => origin = v.trim().to_owned(),
+            "x-exec-token" => exec_token = v.trim().to_owned(),
             _ => {}
         }
     }
@@ -700,6 +801,8 @@ async fn read_request(stream: &mut TcpStream) -> Option<Request> {
         path: url.path().to_owned(),
         query: url.query_pairs().map(|(k, v)| (k.into_owned(), v.into_owned())).collect(),
         host,
+        origin,
+        exec_token,
         body,
     })
 }
@@ -766,9 +869,43 @@ async fn serve(handle: &AppHandle, mut stream: TcpStream) {
             let game = req.query.get("game").map(String::as_str).unwrap_or_default();
             respond(&mut stream, "200 OK", JSON, &progress.catalog_for_script(game)).await;
         }
-        ("GET", "/" | "/index.html") => respond(&mut stream, "200 OK", HTML, WEB_PAGE).await,
+        ("GET", "/" | "/index.html") => respond(&mut stream, "200 OK", HTML, &WEB_PAGE.replace("__EXEC_TOKEN__", &progress.exec_token)).await,
         ("GET", "/api/progress") => web_api(handle, &mut stream).await,
         ("GET", "/logo.png" | "/favicon.ico") => logo(&mut stream).await,
+        // A reporter asks what to run; its account's key is "<game>:<user id>".
+        ("GET", "/commands") => {
+            let key = format!("{}:{}", req.query.get("game").map(String::as_str).unwrap_or_default(), req.query.get("user").map(String::as_str).unwrap_or_default());
+            let list: Vec<Value> = progress.exec_take(&key).into_iter().map(|(id, code)| serde_json::json!({ "id": id, "code": code })).collect();
+            respond(&mut stream, "200 OK", JSON, &Value::Array(list).to_string()).await;
+        }
+        ("POST", "/exec-result") | ("GET", "/exec-result") => {
+            let v = if req.method == "POST" {
+                serde_json::from_slice::<Value>(&req.body).ok()
+            } else {
+                req.query.get("d").and_then(|d| serde_json::from_str(d).ok())
+            };
+            if let Some(v) = v {
+                progress.exec_done(v["id"].as_str().unwrap_or_default(), v["ok"].as_bool().unwrap_or(false), v["output"].as_str().unwrap_or_default());
+            }
+            respond(&mut stream, "200 OK", JSON, "{\"ok\":true}").await;
+        }
+        ("POST", "/api/exec") => {
+            // Only the page this PC serves: it carries the token, and its own origin.
+            let local_origin = req.origin.is_empty() || req.origin == format!("http://127.0.0.1:{PORT}") || req.origin == format!("http://localhost:{PORT}");
+            if req.exec_token != progress.exec_token || !local_origin {
+                return respond(&mut stream, "403 Forbidden", TEXT, "forbidden").await;
+            }
+            let v: Value = serde_json::from_slice(&req.body).unwrap_or(Value::Null);
+            let code = v["code"].as_str().unwrap_or_default();
+            if code.trim().is_empty() || code.len() > MAX_EXEC_CODE {
+                return respond(&mut stream, "400 Bad Request", TEXT, "no script, or over 64 KB").await;
+            }
+            let targets: Vec<String> = v["targets"].as_array().into_iter().flatten().filter_map(|t| t.as_str().map(str::to_owned)).collect();
+            let ids = progress.exec_queue(&targets, code);
+            log::info!("progress website: a script queued for {} client(s)", ids.len());
+            respond(&mut stream, "200 OK", JSON, &serde_json::json!({ "ids": ids }).to_string()).await;
+        }
+        ("GET", "/api/exec-results") => respond(&mut stream, "200 OK", JSON, &progress.exec_results()).await,
         _ => respond(&mut stream, "404 Not Found", TEXT, "not found").await,
     }
 }
@@ -818,7 +955,8 @@ async fn serve_web(handle: &AppHandle, mut stream: TcpStream) {
         return respond(&mut stream, "403 Forbidden", TEXT, "open the link MTwin Manager shows (it carries the key)").await;
     }
     match (req.method.as_str(), req.path.as_str()) {
-        ("GET", "/" | "/index.html") => respond(&mut stream, "200 OK", HTML, WEB_PAGE).await,
+        // Read-only on the network: no token, so no script runner.
+        ("GET", "/" | "/index.html") => respond(&mut stream, "200 OK", HTML, &WEB_PAGE.replace("__EXEC_TOKEN__", "")).await,
         ("GET", "/api/progress") => web_api(handle, &mut stream).await,
         _ => respond(&mut stream, "404 Not Found", TEXT, "not found").await,
     }

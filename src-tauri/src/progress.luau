@@ -345,4 +345,51 @@ task.spawn(function()
 	end
 end)
 
-print("[Progress] reporting to MTwin Manager at http://" .. host .. " as " .. tostring(config.PC_NAME or "Unnamed PC"))
+-- ---------- scripts sent from the progress website (this PC's page only) ----------
+
+-- Runs one script, its print and warn going into the result instead of the console.
+local function exec(code)
+	local out = {}
+	local function say(...)
+		local parts = table.pack(...)
+		for i = 1, parts.n do parts[i] = tostring(parts[i]) end
+		table.insert(out, table.concat(parts, " ", 1, parts.n))
+	end
+	local fn, err = loadstring(code, "Script")
+	if not fn then return false, tostring(err) end
+	if setfenv then
+		setfenv(fn, setmetatable({ print = say, warn = say }, { __index = getfenv(0) }))
+	end
+	local ok, res = pcall(fn)
+	if not ok then
+		table.insert(out, tostring(res))
+	elseif res ~= nil then
+		table.insert(out, tostring(res))
+	end
+	return ok, table.concat(out, "\n"):sub(1, 4000)
+end
+
+local function sendResult(id, ok, output)
+	local body = HttpService:JSONEncode({ id = id, ok = ok, output = output })
+	local url = "http://" .. host .. "/exec-result"
+	if httpRequest then
+		pcall(httpRequest, { Url = url, Method = "POST", Headers = { ["Content-Type"] = "application/json" }, Body = body })
+	else
+		pcall(function() game:HttpGet(url .. "?d=" .. HttpService:UrlEncode(body)) end)
+	end
+end
+
+task.spawn(function()
+	while env.ProgressViewerRun == runId do
+		local list = getJson("/commands?game=" .. gameId .. "&user=" .. tostring(player.UserId))
+		if type(list) == "table" then
+			for _, cmd in ipairs(list) do
+				if type(cmd) == "table" and type(cmd.code) == "string" then
+					local ok, output = exec(cmd.code)
+					sendResult(cmd.id, ok, output)
+				end
+			end
+		end
+		task.wait(2)
+	end
+end)
