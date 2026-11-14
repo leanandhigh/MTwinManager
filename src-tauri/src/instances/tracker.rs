@@ -452,9 +452,15 @@ impl Tracker {
             applied_limits: Limits::default(),
         };
         let mut entries = self.entries();
-        // The account has a new client: nothing is waiting to bring back an older one any more.
+        // The account has a new client: nothing is waiting to bring back an older one any more, and an
+        // older one started directly whose process is already gone ends now (as closed) instead of
+        // waiting out `REBIND_MS` as "Starting".
         for e in entries.iter_mut().filter(|e| e.inst.account_id == info.account_id) {
             e.inst.relaunch_problem = None;
+            if e.adopted && !e.alive && e.inst.state != InstanceState::Exited {
+                log::info!("instance {}: its process is gone and the account launched again; ended", e.inst.id);
+                e.closing = true;
+            }
         }
         entries.push(Entry::new(inst.clone(), info.browser_tracker_id, info.pid_start, !info.via_bootstrapper));
         inst
@@ -681,6 +687,10 @@ impl Tracker {
         self.entries().iter().any(|e| {
             e.inst.account_id == account_id
                 && matches!(e.inst.state, InstanceState::Starting | InstanceState::Joining | InstanceState::InGame)
+                // A client started directly whose process is gone is waited on for a while (Roblox's
+                // updater may bring it back under a new pid), but it isn't running: a new launch of the
+                // account goes ahead instead of being refused as "already running".
+                && !(e.adopted && !e.alive)
         })
     }
 
