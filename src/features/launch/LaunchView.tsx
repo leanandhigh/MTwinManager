@@ -1,13 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from "react";
 import { flushSync } from "react-dom";
-import { AnimatePresence, motion } from "motion/react";
 import { type AccountSummary, type Favourite, type JoinCandidate, type SameServer } from "../../api";
 import { publicBlock, useBulk, useFavourites, useInstances, useMultiStatus, useNetwork, useRobloxClient, useSettings } from "../../data";
 import { fmtNum, t } from "../../i18n";
 import { announce, overlayOpen } from "../../ui/a11y";
 import { Button, IconButton } from "../../ui/Button";
 import { Icon } from "../../ui/Icon";
-import { Collapse, Morph, SPRING, Swap, TWEEN } from "../../ui/motion";
+import { Collapse, Morph } from "../../ui/motion";
 import { requestNavigation } from "../../app/navigation";
 import { accountName, Avatar } from "../accounts/shared";
 import { AccountPicker } from "./AccountPicker";
@@ -39,17 +38,6 @@ function useWide(ref: RefObject<HTMLElement | null>) {
     return () => ro.disconnect();
   }, [ref]);
   return wide;
-}
-
-/** A step's number; once it is done it turns into a check (a shape, not only a fill). */
-function Step({ n, done = false }: { n: number; done?: boolean }) {
-  return (
-    <span aria-hidden="true" className={`num ${done ? "num-done" : ""}`}>
-      <Swap k={done ? "done" : "n"} variant="blur">
-        {done ? <Icon name="check" size={14} /> : n}
-      </Swap>
-    </span>
-  );
 }
 
 type Chip = { key: string; text: string; edit?: string };
@@ -219,136 +207,95 @@ export function LaunchView({ accounts, picked, setPicked, sameServer, draft, set
             {onClose && <IconButton icon="x" label={t("common.close")} shortcut="Esc" onClick={onClose} />}
           </header>
         )}
-        <div className="play-grid">
-          {!embedded && <section aria-labelledby="play-who" className="panel play-col play-who">
-            <div className="play-head">
-              <Step n={1} done={chosen.length > 0} />
-              <h2 id="play-who" className="section-title">{t("play.who")}</h2>
+        {/* One flow, top to bottom: where to, who plays, and a dock with what will happen and Play. */}
+        <div className="pl">
+          <section aria-labelledby="play-where" className="pl-where">
+            <div className="pl-head">
+              <span className="pl-k">1</span>
+              <h2 id="play-where" className="section-title">{t("play.where")}</h2>
+              <Button variant="ghost" size="md" icon="accounts" className="ms-auto" onClick={() => setJoinOpen(true)}>{t("launch.joinSomeone")}</Button>
             </div>
-            <Collapse open={folded}>
-              <button
-                type="button"
-                className="play-who-sum"
-                aria-expanded={false}
-                onClick={openWho}
-              >
-                <span className="play-faces">
-                  {chosen.slice(0, 3).map((a) => (
-                    <Avatar key={a.id} account={a} size={26} />
-                  ))}
-                </span>
-                <span className="truncate">{names}</span>
-                <Icon name="chevron" size={14} className="ms-auto text-fg-3" />
-              </button>
-            </Collapse>
-            <Collapse open={!folded} className="flex flex-col min-h-0">
-              <AccountPicker variant="tiles" accounts={accounts} picked={picked} onPicked={setPicked} label={t("play.who")} onAdd={onAdd} className="play-picker min-h-0" />
-            </Collapse>
-          </section>}
+            <TargetField
+              draft={draft}
+              setDraft={setDraft}
+              autoFocus
+              action={
+                <Button size="md" className="flex-none" disabled={!usableTarget} onClick={() => setSaveOpen(true)}>
+                  <Icon name="star" size={14} fill={!!fav} />
+                  {fav ? t("launch.editFavourite") : t("launch.saveAsFavourite")}
+                </Button>
+              }
+            />
+            <FavouritesRow accounts={accounts} active={draft.favId} onPick={onPickFavourite} />
+          </section>
 
-          <div className="panel play-col">
-            <div className="play-scroll">
-              <section aria-labelledby="play-where" className="flex flex-col gap-4">
-                <div className="play-head">
-                  <Step n={2} done={usableTarget} />
-                  <h2 id="play-where" className="section-title flex-[1_1_120px]">{t("play.where")}</h2>
-                  <span className="flex flex-wrap gap-1">
-                    <Button variant="ghost" size="md" icon="accounts" onClick={() => setJoinOpen(true)}>{t("launch.joinSomeone")}</Button>
-                  </span>
-                </div>
-                <FavouritesRow accounts={accounts} active={draft.favId} onPick={onPickFavourite} />
-                <TargetField
-                  draft={draft}
-                  setDraft={setDraft}
-                  autoFocus
-                  action={
-                    <Button size="md" className="flex-none" disabled={!usableTarget} onClick={() => setSaveOpen(true)}>
-                      <Icon name="star" size={14} fill={!!fav} />
-                      {fav ? t("launch.editFavourite") : t("launch.saveAsFavourite")}
-                    </Button>
-                  }
-                />
-              </section>
+          {!embedded && (
+            <section aria-labelledby="play-who" className="pl-who">
+              <div className="pl-head">
+                <span className="pl-k">2</span>
+                <h2 id="play-who" className="section-title">{t("play.who")}</h2>
+              </div>
+              <AccountPicker variant="tiles" accounts={accounts} picked={picked} onPicked={setPicked} label={t("play.who")} onAdd={onAdd} className="pl-picker" />
+            </section>
+          )}
 
-              <section aria-labelledby="play-ready" className="play-ready">
-                <div className="play-head">
-                  <Step n={3} />
-                  <h2 id="play-ready" className="section-title">{t("play.ready")}</h2>
-                </div>
-                <Collapse open={chips.length > 0}>
-                  <div className="play-chips">
-                    <AnimatePresence mode="popLayout" initial={false}>
-                      {chips.map((c) => (
-                        <motion.span
-                          key={c.key}
-                          layout="position"
-                          className="inline-flex max-w-full"
-                          initial={{ opacity: 0, scale: 0.9 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.9, transition: TWEEN.exit }}
-                          transition={SPRING.snappy}
-                        >
-                          {c.edit ? (
-                            <button type="button" className="chip chip-sm max-w-full" onClick={() => edit(c.edit!)}>
-                              <span className="truncate">{c.text}</span>
-                            </button>
-                          ) : (
-                            <span className="tag max-w-full min-h-[var(--h-sm)] px-2.5">
-                              <span className="truncate">{c.text}</span>
-                            </span>
-                          )}
-                        </motion.span>
-                      ))}
-                    </AnimatePresence>
+          <div ref={foot} className="pl-dock">
+            <div className="pl-dock-line">
+              <span className="play-faces">
+                {chosen.slice(0, 4).map((a) => (
+                  <Avatar key={a.id} account={a} size={26} />
+                ))}
+              </span>
+              <span className="pl-dock-who">{chosen.length ? names : t("play.pickFirst")}</span>
+              <div className="pl-dock-chips">
+                {chips.map((c) =>
+                  c.edit ? (
+                    <button key={c.key} type="button" className="chip chip-sm" onClick={() => edit(c.edit!)}>
+                      <span className="truncate">{c.text}</span>
+                    </button>
+                  ) : (
+                    <span key={c.key} className="tag min-h-[var(--h-sm)] px-2.5"><span className="truncate">{c.text}</span></span>
+                  ),
+                )}
+                <button type="button" className="linkbtn text-[12.5px]" onClick={() => requestNavigation("settings", "launching")}>
+                  {t("play.optionsOpen")}
+                </button>
+              </div>
+            </div>
+            {/* Whatever stands in the launch's way, with the way out, right above the button. */}
+            <Morph axis="height">
+              <div className="flex flex-col gap-2.5 has-[.notice,.alert]:pb-1">
+                <MultiNotice wanted={bulk} replaces={replaces} />
+                {client && !client.path && (
+                  <div className="notice enter" data-tone="attention">
+                    <p className="alert flex-[1_1_240px] min-w-0">{t("settings.robloxMissing")}</p>
                   </div>
-                </Collapse>
-                {/* How servers are picked, the FPS cap for these launches and the window layout are in
-                    Settings > Launching > Play page launches. */}
-                <p className="text-[12.5px] text-fg-3">
-                  {t("play.optionsMoved")}{" "}
-                  <button type="button" className="linkbtn" onClick={() => requestNavigation("settings", "launching")}>
-                    {t("play.optionsOpen")}
-                  </button>
-                </p>
-              </section>
-            </div>
-
-            <div ref={foot} className="play-go">
-              {/* Whatever stands in the launch's way, with the way out, right above the button. */}
-              <Morph axis="height">
-                <div className="flex flex-col gap-2.5 has-[.notice,.alert]:pb-1">
-                  <MultiNotice wanted={bulk} replaces={replaces} />
-                  {client && !client.path && (
-                    <div className="notice enter" data-tone="attention">
-                      <p className="alert flex-[1_1_240px] min-w-0">{t("settings.robloxMissing")}</p>
-                    </div>
-                  )}
-                  {!bulk && account && move.liveOf(account) && (
-                    <div className="notice enter">
-                      <p className="flex-[1_1_240px] min-w-0 text-fg-2">{t("move.notice", { name: accountName(account) })}</p>
-                    </div>
-                  )}
-                  {canLaunch && bulk && client?.outdated && (
-                    // Not blocking: Roblox updates itself on the first launch, which can end the clients after it.
-                    <p className="alert enter text-[13px]" data-tip={t("launch.robloxVersions", { installed: client.version ?? "", latest: client.latest ?? "" })}>
-                      {t("launch.robloxOutdated")}
-                    </p>
-                  )}
-                </div>
-              </Morph>
-              <Collapse open={!inPlace} className="-mx-2 px-2">
-                <LaunchButton
-                  big
-                  shortcut
-                  label={!account ? t("play.pickFirst") : !usableTarget && !pending ? t("play.chooseWhere") : bulk ? t("launch.launchMany", { count: chosen.length }) : t("launch.launchAs", { name: accountName(account) })}
-                  disabled={!canLaunch}
-                  reason={reason}
-                  noted={noted}
-                  onLaunch={launch}
-                />
-              </Collapse>
-              <LaunchProgress onPick={setPicked} />
-            </div>
+                )}
+                {!bulk && account && move.liveOf(account) && (
+                  <div className="notice enter">
+                    <p className="flex-[1_1_240px] min-w-0 text-fg-2">{t("move.notice", { name: accountName(account) })}</p>
+                  </div>
+                )}
+                {canLaunch && bulk && client?.outdated && (
+                  // Not blocking: Roblox updates itself on the first launch, which can end the clients after it.
+                  <p className="alert enter text-[13px]" data-tip={t("launch.robloxVersions", { installed: client.version ?? "", latest: client.latest ?? "" })}>
+                    {t("launch.robloxOutdated")}
+                  </p>
+                )}
+              </div>
+            </Morph>
+            <Collapse open={!inPlace} className="-mx-2 px-2">
+              <LaunchButton
+                big
+                shortcut
+                label={!account ? t("play.pickFirst") : !usableTarget && !pending ? t("play.chooseWhere") : bulk ? t("launch.launchMany", { count: chosen.length }) : t("launch.launchAs", { name: accountName(account) })}
+                disabled={!canLaunch}
+                reason={reason}
+                noted={noted}
+                onLaunch={launch}
+              />
+            </Collapse>
+            <LaunchProgress onPick={setPicked} />
           </div>
         </div>
       </div>
