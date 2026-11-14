@@ -1,0 +1,193 @@
+/* MTwin Grid: MTwin Manager's own look, over every view's styles (the `skin` layer comes after
+   `brand`). Square-cut shapes, a red tick on each panel's corner, a faint dot grid behind the pages,
+   uppercase labels with a tick, square switches and checkboxes, underline-pressed chips, banded
+   table heads and striped rows, flat toolbars. Windows' own Segoe UI Variable and Cascadia faces. */
+@layer skin {
+  :root {
+    --font-ui: "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI", "Anuphan Variable", "Leelawadee UI", system-ui, sans-serif;
+    --font-code: "Cascadia Mono", "Cascadia Code", Consolas, "Anuphan Variable", ui-monospace, monospace;
+    --r-pill: 3px;
+    --r-xl: 4px;
+    --r-lg: 3px;
+    --r-md: 3px;
+    --r-sm: 3px;
+    --r-xs: 2px;
+    --tick: var(--accent);
+  }
+
+  /* ---- The pages: a faint dot grid behind them ---- */
+  .shell-body > main,
+  .shell-body main.page,
+  main.page {
+    background-image: radial-gradient(color-mix(in srgb, var(--fg) 9%, transparent) 1px, transparent 1.3px);
+    background-size: 20px 20px;
+    background-attachment: local;
+  }
+  .page-title {
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  /* ---- Panels: square-cut, a red tick on the corner ---- */
+  .panel,
+  .acc-farm-card,
+  .tl-tool,
+  .fav-card,
+  .ex-card,
+  .pl-where,
+  .pl-who,
+  .home-card,
+  .hv-stat,
+  .hv-game,
+  .hv-person,
+  .pg-strip,
+  .mon-strip {
+    position: relative;
+    border-radius: 3px !important;
+  }
+  .panel::before,
+  .acc-farm-card::before,
+  .tl-tool::before,
+  .ex-card::before,
+  .pl-where::before,
+  .pl-who::before,
+  .hv-stat::before,
+  .hv-game::before,
+  .home-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    inset-inline-start: 0;
+    width: 16px;
+    height: 2px;
+    background: var(--tick);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* ---- Labels: uppercase, tracked, a tick before ---- */
+  .st-group-title,
+  .label,
+  .section-title.pg-section,
+  .pl-head .section-title,
+  .hv-h,
+  .ex-card-head h2,
+  .sb-heading {
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    font-size: 11.5px !important;
+    font-weight: 700 !important;
+    color: var(--fg-2);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .st-group-title::before,
+  .hv-h::before,
+  .section-title.pg-section::before,
+  .ex-card-head h2::before {
+    content: "";
+    width: 3px;
+    height: 12px;
+    background: var(--tick);
+  }
+
+  /* ---- Buttons: square-cut, a bevel on the filled ones ---- */
+  .btn {
+    border-radius: 3px;
+    font-weight: 600;
+  }
+  .btn-primary {
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18), inset 0 -2px 0 rgb(0 0 0 / 0.22);
+  }
+
+  /* ---- Chips: rectangles; pressed is underlined, not filled ---- */
+  .chip {
+    border-radius: 3px;
+  }
+  .chip[aria-pressed="true"],
+  .chip[data-on] {
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
+    color: var(--fg);
+    box-shadow: inset 0 0 0 1px var(--line), inset 0 -2px 0 var(--accent);
+  }
+  .tag {
+    border-radius: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 10.5px !important;
+    font-weight: 700;
+  }
+
+  /* ---- Switches: a square track and thumb ---- */
+  .switch {
+    width: 38px;
+    height: 20px;
+    border-radius: 2px;
+  }
+  .switch::after {
+    top: 3px;
+    inset-inline-start: 3px;
+    width: 14px;
+    height: 14px;
+    border-radius: 1px;
+  }
+  .switch[aria-checked="true"]::after {
+    translate: 18px 0;
+  }
+  :root[dir="rtl"] .switch[aria-checked="true"]::after {
+    translate: -18px 0;
+  }
+  .cb {
+    border-radius: 2px;
+  }
+
+  /* ---- Fields: square-cut, a red underline when focused ---- */
+  .field,
+  .select-trigger {
+    border-radius: 3px;
+  }
+  .field:focus-visible,
+  .field:focus {
+    box-shadow: inset 0 0 0 1px var(--line), inset 0 -2px 0 var(--accent) !important;
+    outline: none;
+  }
+
+  /* ---- Tables: a banded head with uppercase labels, striped rows ---- */
+  thead th {
+    background: color-mix(in srgb, var(--fg) 4%, var(--surface-1, transparent)) !important;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 10.5px !important;
+    font-weight: 700;
+    color: var(--fg-3);
+  }
+  tbody tr:nth-child(even) > td {
+    background-color: color-mix(in srgb, var(--fg) 2.5%, transparent);
+  }
+
+  /* ---- Toolbars: flat, square-cut ---- */
+  .pill-toolbar {
+    border-radius: 3px !important;
+    box-shadow: inset 0 0 0 1px var(--line) !important;
+    background: var(--surface-1) !important;
+  }
+
+  /* ---- Top bar tabs: a block under the current one ---- */
+  .tn-tab {
+    border-radius: 3px;
+  }
+  .tn-tab[aria-current="page"] {
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+  }
+
+  /* ---- Dialogs and menus: square-cut ---- */
+  .dlg,
+  dialog,
+  [popover] {
+    border-radius: 4px !important;
+  }
+  .status-pill {
+    border-radius: 2px;
+  }
+}

@@ -209,6 +209,8 @@ export function LaunchView({ accounts, picked, setPicked, sameServer, draft, set
         )}
         {/* One flow, top to bottom: where to, who plays, and a dock with what will happen and Play. */}
         <div className="pl">
+          {/* A launch under way, first: the dock under it stays short enough to leave the squad in view. */}
+          <LaunchProgress onPick={setPicked} />
           <section aria-labelledby="play-where" className="pl-where">
             <div className="pl-head">
               <span className="pl-k">1</span>
@@ -295,7 +297,6 @@ export function LaunchView({ accounts, picked, setPicked, sameServer, draft, set
                 onLaunch={launch}
               />
             </Collapse>
-            <LaunchProgress onPick={setPicked} />
           </div>
         </div>
       </div>

@@ -1,7 +1,7 @@
 /* MTwin Manager's styles. Layer order first: our layers wrap Tailwind's, and utilities sit above them so a
    view can always adjust with a class; only the forced-colours rules (a11y) outrank utilities. Each
    feature's own sheet (features/<view>/<view>.css) sits in `views`. Tokens: styles/tokens.css. */
-@layer tokens, theme, base, components, views, brand, utilities, a11y;
+@layer tokens, theme, base, components, views, brand, skin, utilities, a11y;
 
 @import "tailwindcss";
 @import "./styles/tokens.css";
@@ -15,6 +15,7 @@
 @import "./styles/a11y.css";
 @import "./styles/motion.css";
 @import "./styles/mtwin.css";
+@import "./styles/skin.css";
 
 /* Utilities: bg-surface, text-fg-2, border-edge, text-ok ... Only the colours in use are mapped;
    Tailwind's own palette is off: colour comes from tokens. */
