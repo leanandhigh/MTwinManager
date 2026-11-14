@@ -223,7 +223,7 @@
     <div id="list"></div>
     <section class="inv" id="inv" hidden>
     <div class="inv-head">
-      <div><h2>Inventory</h2><div class="sum" id="invSum"></div></div>
+      
       <div class="inv-tools">
         <select id="invWho" aria-label="Account"></select>
         <input type="search" id="invQ" placeholder="Search items…" autocomplete="off">
@@ -529,8 +529,6 @@
     const shown = items
       .filter((it) => (it.category || "Other") === invTab && (!q || (it.name + " " + it.rarity).toLowerCase().includes(q)))
       .sort((x, y) => rarityRank(x.rarity) - rarityRank(y.rarity) || y.count - x.count || x.name.localeCompare(y.name));
-    const total = items.reduce((n, it) => n + it.count, 0);
-    $("invSum").innerHTML = `<b>${num(items.length)}</b> unique · ${num(total)} total`;
     const pages = Math.max(1, Math.ceil(shown.length / PER_PAGE));
     invPage = Math.min(invPage, pages - 1);
     const page = shown.slice(invPage * PER_PAGE, invPage * PER_PAGE + PER_PAGE);

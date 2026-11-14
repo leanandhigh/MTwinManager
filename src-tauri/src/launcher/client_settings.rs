@@ -185,10 +185,23 @@ fn for_launch([fps_now, quality, saved]: Values, fps: u32, low: bool) -> Values 
 // lowest graphics) gets their previous one back. The opposite guess would leave an alt's cap and
 // graphics on the user's own Roblox for good; telling writers apart needs Roblox to mark them.
 fn settle_values(kept: &mut Kept, now: Values) -> Values {
+    // An FPS cap a launch wrote is never the user's own, however it got recorded as theirs (a cap
+    // already in the file when MTwin Manager first looked, from an older version or a launch that
+    // never put it back): the user's own is then Roblox's default (no cap in the file), or that cap
+    // would stay on every Roblox started any other way, for good.
+    let ours_fps = |v: Option<i64>| v.is_some_and(|v| kept.ours[0].contains(&v));
     let Some(mut user) = kept.user else {
-        kept.user = Some(now);
-        return now;
+        let mut first = now;
+        if ours_fps(first[0]) {
+            first[0] = None;
+        }
+        kept.user = Some(first);
+        return first;
     };
+    if ours_fps(user[0]) {
+        log::info!("Roblox settings: the FPS cap {:?} kept as the user's own was a launch's; Roblox's default instead", user[0]);
+        user[0] = None;
+    }
     let mut want = now;
     for i in 0..KEYS.len() {
         if now[i] == user[i] {
@@ -682,6 +695,20 @@ mod tests {
         let back: Kept = serde_json::from_str(&serde_json::to_string(&kept()).unwrap()).unwrap();
         assert_eq!(back, kept());
     }
+    #[test]
+    fn a_cap_a_launch_wrote_is_never_the_users_own() {
+        // Recorded as the user's own (a cap left in the file before), then known as a launch's.
+        let mut k = Kept { user: Some([Some(10), Some(19), Some(9)]), ours: [vec![10], vec![], vec![]] };
+        assert_eq!(settle_values(&mut k, [Some(10), Some(19), Some(9)]), [None, Some(19), Some(9)], "no cap in the file: Roblox's default");
+        assert_eq!(k.user, Some([None, Some(19), Some(9)]));
+        // The first look, with a launch's cap in the file.
+        let mut k = Kept { user: None, ours: [vec![15], vec![], vec![]] };
+        assert_eq!(settle_values(&mut k, [Some(15), Some(19), Some(9)]), [None, Some(19), Some(9)]);
+        // The user's own cap stays.
+        let mut k = Kept { user: Some([Some(144), Some(19), Some(9)]), ours: [vec![10], vec![], vec![]] };
+        assert_eq!(settle_values(&mut k, [Some(144), Some(19), Some(9)]), [Some(144), Some(19), Some(9)]);
+    }
+
 
     #[test]
     fn launches_and_closing_clients_leave_the_users_settings() {
