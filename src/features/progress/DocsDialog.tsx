@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { t, type Key } from "../../i18n";
-import { IconButton } from "../../ui/Button";
+import { Icon, type IconName } from "../../ui/Icon";
 import { Dialog } from "../../ui/Dialog";
 import { toastError } from "../../ui/Toast";
 
@@ -107,66 +107,221 @@ const HELPERS: [string, Key][] = [
   ["P.player · P.require(m) · P.report", "progress.docsHP"],
 ];
 
-function Code({ code }: { code: string }) {
+/** Lua, coloured: comments, strings, numbers, keywords and calls (pure; the text is escaped by React). */
+const KEYWORDS = new Set(["local", "function", "end", "if", "then", "else", "elseif", "for", "in", "do", "while", "repeat", "until", "return", "not", "and", "or", "nil", "true", "false"]);
+function highlight(code: string): ReactNode[] {
+  const out: ReactNode[] = [];
+  const re = /(--[^\n]*)|("(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*')|(\b\d[\d.]*\b)|([A-Za-z_][A-Za-z0-9_]*)(\s*\()?/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  let k = 0;
+  while ((m = re.exec(code))) {
+    if (m.index > last) out.push(code.slice(last, m.index));
+    if (m[1]) out.push(<span key={k++} className="lx-c">{m[1]}</span>);
+    else if (m[2]) out.push(<span key={k++} className="lx-s">{m[2]}</span>);
+    else if (m[3]) out.push(<span key={k++} className="lx-n">{m[3]}</span>);
+    else if (m[4]) {
+      const cls = KEYWORDS.has(m[4]) ? "lx-k" : m[5] ? "lx-f" : undefined;
+      out.push(cls ? <span key={k++} className={cls}>{m[4]}</span> : m[4]);
+      if (m[5]) out.push(m[5]);
+    }
+    last = re.lastIndex;
+  }
+  if (last < code.length) out.push(code.slice(last));
+  return out;
+}
+
+function Code({ code, file }: { code: string; file?: string }) {
   const [copied, setCopied] = useState(false);
   return (
-    <div className="pg-doc-code">
-      <pre className="pg-code" dir="ltr">{code}</pre>
-      <IconButton
-        size="sm"
-        icon={copied ? "check" : "copy"}
-        className="pg-doc-copy"
-        label={t(copied ? "progress.copied" : "progress.docsCopy")}
-        onClick={() =>
-          writeText(code).then(() => {
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1500);
-          }, toastError)
-        }
-      />
+    <figure className="dx-code">
+      <figcaption>
+        <span className="dx-lang">Lua</span>
+        {file && <span className="dx-file">{file}</span>}
+        <button
+          type="button"
+          className="dx-copy"
+          onClick={() =>
+            writeText(code).then(() => {
+              setCopied(true);
+              setTimeout(() => setCopied(false), 1500);
+            }, toastError)
+          }
+        >
+          <Icon name={copied ? "check" : "copy"} size={13} />
+          {t(copied ? "progress.copied" : "progress.docsCopy")}
+        </button>
+      </figcaption>
+      <pre dir="ltr">
+        <code>{highlight(code)}</code>
+      </pre>
+    </figure>
+  );
+}
+
+function Callout({ kind, children }: { kind: "note" | "tip" | "warn"; children: ReactNode }) {
+  const icon: IconName = kind === "warn" ? "alert" : kind === "tip" ? "bolt" : "info";
+  return (
+    <div className="dx-call" data-kind={kind}>
+      <Icon name={icon} size={15} />
+      <div>{children}</div>
     </div>
   );
 }
 
-function Section({ title, text, code }: { title: Key; text?: Key; code?: string }) {
+type Page = { id: string; title: Key; icon: IconName };
+const NAV: { group: Key; pages: Page[] }[] = [
+  {
+    group: "progress.docsNavStart",
+    pages: [
+      { id: "overview", title: "progress.docsNavOverview", icon: "book" },
+      { id: "loader", title: "progress.docsLoader", icon: "download" },
+      { id: "every", title: "progress.docsEvery", icon: "globe" },
+      { id: "game", title: "progress.docsGame", icon: "code" },
+    ],
+  },
+  {
+    group: "progress.docsNavRecipes",
+    pages: [
+      { id: "values", title: "progress.docsValues", icon: "coin" },
+      { id: "module", title: "progress.docsModule", icon: "database" },
+      { id: "items", title: "progress.docsItems", icon: "star" },
+      { id: "remote", title: "progress.docsRemote", icon: "link" },
+    ],
+  },
+  {
+    group: "progress.docsNavReference",
+    pages: [
+      { id: "helpers", title: "progress.docsHelpers", icon: "tools" },
+      { id: "paths", title: "progress.docsPaths", icon: "folder" },
+      { id: "pictures", title: "progress.docsPictures", icon: "eye" },
+      { id: "order", title: "progress.docsOrder", icon: "sliders" },
+    ],
+  },
+];
+
+function Section({ id, title, children }: { id: string; title: Key; children: ReactNode }) {
   return (
-    <section className="pg-doc">
-      <h3 className="section-title">{t(title)}</h3>
-      {text && <p className="text-fg-2">{t(text)}</p>}
-      {code && <Code code={code} />}
+    <section id={`dx-${id}`} data-dx={id} className="dx-sec">
+      <h2>
+        <a href={`#dx-${id}`} onClick={(e) => e.preventDefault()} aria-hidden="true" tabIndex={-1}>#</a>
+        {t(title).replace(/^\d+\.\s*/, "")}
+      </h2>
+      {children}
     </section>
   );
 }
 
-/** How to set Progress up: the loader, the Every game script and a game's own, with every helper. */
+/** How to set Progress up, laid out as a docs site: a sidebar of pages in three groups (where you are
+ * is marked as you scroll), start-here cards, coloured code with a copy button, notes and tips, and
+ * the helpers as a reference. */
 export function DocsDialog({ open, onClose, host }: { open: boolean; onClose: () => void; host: string }) {
+  const main = useRef<HTMLDivElement>(null);
+  const [at, setAt] = useState("overview");
+  useEffect(() => {
+    const el = main.current;
+    if (!open || !el) return;
+    const spy = () => {
+      const top = el.getBoundingClientRect().top + 24;
+      let cur = "overview";
+      for (const s of el.querySelectorAll<HTMLElement>("[data-dx]")) if (s.getBoundingClientRect().top <= top) cur = s.dataset.dx!;
+      setAt(cur);
+    };
+    el.addEventListener("scroll", spy, { passive: true });
+    return () => el.removeEventListener("scroll", spy);
+  }, [open]);
+  const go = (id: string) => {
+    const el = main.current?.querySelector<HTMLElement>(`[data-dx="${id}"]`);
+    const box = main.current;
+    if (el && box) box.scrollTo({ top: el.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop - 4, behavior: "smooth" });
+    setAt(id);
+  };
+  const steps: { id: string; title: Key; text: Key; icon: IconName }[] = [
+    { id: "loader", title: "progress.docsLoader", text: "progress.docsCardLoader", icon: "download" },
+    { id: "every", title: "progress.docsEvery", text: "progress.docsCardEvery", icon: "globe" },
+    { id: "game", title: "progress.docsGame", text: "progress.docsCardGame", icon: "code" },
+  ];
   return (
-    <Dialog open={open} onClose={onClose} title={t("progress.docs")} width={780}>
-      <div className="dlg-body pg-docs">
-        <p className="text-fg-2">{t("progress.docsLead")}</p>
-        <Section title="progress.docsLoader" text="progress.docsLoaderText" code={loader(host)} />
-        <Section title="progress.docsEvery" text="progress.docsEveryText" code={EVERY_GAME} />
-        <Section title="progress.docsGame" text="progress.docsGameText" />
-        <Section title="progress.docsValues" code={VALUES} />
-        <Section title="progress.docsModule" code={MODULE} />
-        <Section title="progress.docsItems" code={ITEMS} />
-        <Section title="progress.docsRemote" code={REMOTE} />
-        <section className="pg-doc">
-          <h3 className="section-title">{t("progress.docsHelpers")}</h3>
-          <table className="pg-doc-table">
-            <tbody>
-              {HELPERS.map(([sig, what]) => (
-                <tr key={sig}>
-                  <td className="mono" dir="ltr">{sig}</td>
-                  <td className="text-fg-2">{t(what)}</td>
-                </tr>
+    <Dialog open={open} onClose={onClose} title={t("progress.docs")} width={1080}>
+      <div className="dx">
+        <nav className="dx-nav" aria-label={t("progress.docs")}>
+          {NAV.map((g) => (
+            <div key={g.group} className="dx-group">
+              <span className="dx-group-k">{t(g.group)}</span>
+              {g.pages.map((p) => (
+                <button key={p.id} type="button" className="dx-link" aria-current={at === p.id ? "location" : undefined} onClick={() => go(p.id)}>
+                  {t(p.title).replace(/^\d+\.\s*/, "")}
+                </button>
               ))}
-            </tbody>
-          </table>
-        </section>
-        <Section title="progress.docsPaths" text="progress.docsPathsText" />
-        <Section title="progress.docsPictures" text="progress.docsPicturesText" />
-        <Section title="progress.docsOrder" text="progress.docsOrderText" />
+            </div>
+          ))}
+        </nav>
+        <div ref={main} className="dx-main">
+          <section data-dx="overview" className="dx-sec dx-hero">
+            <span className="dx-eyebrow">{t("progress.docsEyebrow")}</span>
+            <h1>{t("progress.docsTitle")}</h1>
+            <p className="dx-lead">{t("progress.docsLead")}</p>
+            <div className="dx-cards">
+              {steps.map((c, i) => (
+                <button key={c.id} type="button" className="dx-card" onClick={() => go(c.id)}>
+                  <span className="dx-card-n">{i + 1}</span>
+                  <Icon name={c.icon} size={16} />
+                  <b>{t(c.title).replace(/^\d+\.\s*/, "")}</b>
+                  <span>{t(c.text)}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <Section id="loader" title="progress.docsLoader">
+            <p>{t("progress.docsLoaderText")}</p>
+            <Code code={loader(host)} file="autoexec/progress.lua" />
+            <Callout kind="tip">{t("progress.docsTipPc")}</Callout>
+          </Section>
+          <Section id="every" title="progress.docsEvery">
+            <p>{t("progress.docsEveryText")}</p>
+            <Code code={EVERY_GAME} file="Every game" />
+          </Section>
+          <Section id="game" title="progress.docsGame">
+            <p>{t("progress.docsGameText")}</p>
+            <Callout kind="note">{t("progress.docsNoteDex")}</Callout>
+          </Section>
+
+          <Section id="values" title="progress.docsValues">
+            <Code code={VALUES} file="This game" />
+            <Callout kind="tip">{t("progress.docsTipSuffix")}</Callout>
+          </Section>
+          <Section id="module" title="progress.docsModule">
+            <Code code={MODULE} file="This game" />
+          </Section>
+          <Section id="items" title="progress.docsItems">
+            <Code code={ITEMS} file="This game" />
+          </Section>
+          <Section id="remote" title="progress.docsRemote">
+            <Code code={REMOTE} file="This game" />
+            <Callout kind="warn">{t("progress.docsWarnRemote")}</Callout>
+          </Section>
+
+          <Section id="helpers" title="progress.docsHelpers">
+            <div className="dx-ref">
+              {HELPERS.map(([sig, what]) => (
+                <div key={sig} className="dx-ref-row">
+                  <code dir="ltr">{sig}</code>
+                  <span>{t(what)}</span>
+                </div>
+              ))}
+            </div>
+          </Section>
+          <Section id="paths" title="progress.docsPaths">
+            <p>{t("progress.docsPathsText")}</p>
+          </Section>
+          <Section id="pictures" title="progress.docsPictures">
+            <p>{t("progress.docsPicturesText")}</p>
+          </Section>
+          <Section id="order" title="progress.docsOrder">
+            <p>{t("progress.docsOrderText")}</p>
+          </Section>
+        </div>
       </div>
     </Dialog>
   );
