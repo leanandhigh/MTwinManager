@@ -1,17 +1,14 @@
-import { useEffect, useLayoutEffect, useRef, useState, type Dispatch, type ReactNode, type RefObject, type SetStateAction } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from "react";
 import { flushSync } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
-import { api, type AccountSummary, type Favourite, type JoinCandidate, type SameServer } from "../../api";
-import { publicBlock, useBulk, useFavourites, useInstances, useMultiStatus, useNetwork, useRobloxClient, useSetSettings, useSettings } from "../../data";
+import { type AccountSummary, type Favourite, type JoinCandidate, type SameServer } from "../../api";
+import { publicBlock, useBulk, useFavourites, useInstances, useMultiStatus, useNetwork, useRobloxClient, useSettings } from "../../data";
 import { fmtNum, t } from "../../i18n";
 import { announce, overlayOpen } from "../../ui/a11y";
-import { Disclosure } from "../../ui/Bits";
 import { Button, IconButton } from "../../ui/Button";
-import { NumberField, OffOrNumberField, Segmented, Switch } from "../../ui/controls";
 import { Icon } from "../../ui/Icon";
 import { Collapse, Morph, SPRING, Swap, TWEEN } from "../../ui/motion";
-import { RANGES } from "../../ui/ranges";
-import { toastError } from "../../ui/Toast";
+import { requestNavigation } from "../../app/navigation";
 import { accountName, Avatar } from "../accounts/shared";
 import { AccountPicker } from "./AccountPicker";
 import { FavouriteDialog, FavouritesRow } from "./Favourites";
@@ -27,8 +24,6 @@ import { draftFor, draftForUser, readDraft, resolveTarget, type Draft } from "./
 import "./launch.css";
 
 
-/** How long the layout preview stays on screen (`PREVIEW_FOR` in src-tauri/src/commands.rs). */
-const PREVIEW_MS = 6000;
 /** The composer's width that fits Who beside Where and Ready. */
 const WIDE = 880;
 
@@ -57,37 +52,10 @@ function Step({ n, done = false }: { n: number; done?: boolean }) {
   );
 }
 
-/** One option: its name with a one-line hint (or a longer "More about" behind a toggle), and its controls. */
-function Option({ id, label, hint, more, children, below }: { id: string; label: string; hint?: string; more?: string; children: ReactNode; below?: ReactNode }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div id={id} className="play-opt">
-      <div className="play-opt-line">
-        <div className="play-opt-text">
-          <p className="flex items-center gap-1 min-h-7 font-medium">
-            {label}
-            {more && (
-              <IconButton icon="info" size="sm" label={t("settings.moreAbout", { label })} aria-expanded={open} aria-controls={open ? `${id}-more` : undefined} onClick={() => setOpen(!open)} />
-            )}
-          </p>
-          {hint && <p className="text-[13px] text-fg-3">{hint}</p>}
-        </div>
-        <div className="flex flex-wrap items-center gap-2.5">{children}</div>
-      </div>
-      {more && (
-        <Collapse open={open}>
-          <p id={`${id}-more`} className="play-opt-more">{more}</p>
-        </Collapse>
-      )}
-      {below}
-    </div>
-  );
-}
-
 type Chip = { key: string; text: string; edit?: string };
 
 /** Play: who plays (left), where and the launch (right). Two columns when there is room, else stacked. */
-export function LaunchView({ accounts, picked, setPicked, sameServer, setSameServer, draft, setDraft, onAdd, onPickFavourite, onClose, embedded }: {
+export function LaunchView({ accounts, picked, setPicked, sameServer, draft, setDraft, onAdd, onPickFavourite, onClose, embedded }: {
   accounts: AccountSummary[];
   picked: number[];
   setPicked: Dispatch<SetStateAction<number[]>>;
@@ -110,19 +78,10 @@ export function LaunchView({ accounts, picked, setPicked, sameServer, setSameSer
   const network = useNetwork().data;
   const delayMs = settings?.launchDelayMs ?? 6000;
   const layout = settings?.windowLayout ?? "off";
-  const setSettings = useSetSettings();
   const activity = useLaunchActivity();
   const [joinOpen, setJoinOpen] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
-  const [fps, setFps] = useSessionFps();
-  // Open when one of them is set: it applies to the next launch, so it stays in sight.
-  const [optionsOpen, setOptionsOpen] = useState(() => fps > 0 || sameServer !== "off");
-  // One choice, two switches: all in one server, or each in a different one.
-  const together = sameServer === "pickFirst" || sameServer === "followFirst";
-  const spread = sameServer !== "off" && !together;
-  const [delayError, setDelayError] = useState<string | null>(null);
   const root = useRef<HTMLDivElement>(null);
-  const options = useRef<HTMLDivElement>(null);
   const foot = useRef<HTMLDivElement>(null);
   const wide = useWide(root);
 
@@ -173,23 +132,6 @@ export function LaunchView({ accounts, picked, setPicked, sameServer, setSameSer
   // A launch of several under way has the button's place; one account's shows under it.
   const inPlace = !!activity && !activity.done && activity.rows.length > 1;
 
-  // While the layout preview is on screen (it goes by itself after PREVIEW_MS, as the backend's timer).
-  const [previewing, setPreviewing] = useState(false);
-  const previewTimer = useRef(0);
-  useEffect(() => () => clearTimeout(previewTimer.current), []);
-  /** The picked accounts' spots, in launch (list) order, drawn over the screen for a few seconds. */
-  const previewLayout = () =>
-    void api.layoutPreview(chosen.map((a) => a.id), t("launch.layoutPreviewRunning")).then(() => {
-      setPreviewing(true);
-      clearTimeout(previewTimer.current);
-      previewTimer.current = window.setTimeout(() => setPreviewing(false), PREVIEW_MS);
-    }, toastError);
-  const stopPreview = () => {
-    clearTimeout(previewTimer.current);
-    setPreviewing(false);
-    void api.layoutPreviewStop().catch(toastError);
-  };
-
   // The FPS cap is read now: a value committed by this click's blur counts.
   const launch = () => {
     if (!account) return;
@@ -237,20 +179,19 @@ export function LaunchView({ accounts, picked, setPicked, sameServer, setSameSer
 
   // What this launch will do, each chip a way to the option it reads.
   const layoutOn = layout !== "off" && (bulk || !account?.fullQuality);
+  const [fps] = useSessionFps();
+  const together = sameServer === "pickFirst" || sameServer === "followFirst";
+  const spread = sameServer !== "off" && !together;
   const chips = [
     usableTarget && look ? { key: "target", text: `${look.kind} · ${look.detail}`, edit: "#launch-target" } : null,
-    bulk ? { key: "delay", text: t("play.apart", { s: fmtNum(delayMs / 1000) }), edit: "#play-opt-delay input" } : null,
-    fps > 0 ? { key: "fps", text: t("dashboard.fps", { fps }), edit: "#play-opt-fps input" } : null,
-    bulk && together ? { key: "same", text: t("launch.sameServer"), edit: "#play-opt-same [role=switch]" } : null,
-    bulk && spread ? { key: "spread", text: t("launch.spread"), edit: "#play-opt-spread [role=switch]" } : null,
-    layoutOn ? { key: "layout", text: `${t("launch.layout")} · ${t(layout === "fit" ? "launch.layoutFit" : "launch.layoutTiny")}`, edit: "#play-opt-layout [aria-pressed=true]" } : null,
+    bulk ? { key: "delay", text: t("play.apart", { s: fmtNum(delayMs / 1000) }) } : null,
+    fps > 0 ? { key: "fps", text: t("dashboard.fps", { fps }) } : null,
+    bulk && together ? { key: "same", text: t("launch.sameServer") } : null,
+    bulk && spread ? { key: "spread", text: t("launch.spread") } : null,
+    layoutOn ? { key: "layout", text: `${t("launch.layout")} · ${t(layout === "fit" ? "launch.layoutFit" : "launch.layoutTiny")}` } : null,
     settings?.lowGraphics && !account?.fullQuality ? { key: "low", text: t("settings.lowGraphics") } : null,
   ].filter((c): c is Chip => c !== null);
-  const edit = (selector: string) => {
-    const details = options.current?.querySelector("details");
-    if (details && selector !== "#launch-target") details.open = true;
-    document.querySelector<HTMLElement>(selector)?.focus();
-  };
+  const edit = (selector: string) => document.querySelector<HTMLElement>(selector)?.focus();
   const names = chosen.slice(0, 2).map(accountName).join(", ") + (chosen.length > 2 ? ` +${chosen.length - 2}` : "");
 
   return (
@@ -361,109 +302,14 @@ export function LaunchView({ accounts, picked, setPicked, sameServer, setSameSer
                     </AnimatePresence>
                   </div>
                 </Collapse>
-                <div ref={options}>
-                  <Disclosure className="play-options" summary={optionsOpen ? t("play.fewerOptions") : t("play.moreOptions")} defaultOpen={optionsOpen} onToggle={setOptionsOpen}>
-                    <div role="group" aria-labelledby="play-this" className="play-opt-group">
-                      <h3 id="play-this" className="play-opt-head">{t("play.thisLaunch")}</h3>
-                      <Option id="play-opt-fps" label={t("launch.fpsCap")} hint={t("launch.fpsHint")}>
-                        <OffOrNumberField label={t("launch.fpsCap")} value={fps} range={RANGES.fpsCap} unit="FPS" short="FPS" onCommit={setFps} />
-                      </Option>
-                      <Option
-                        id="play-opt-same"
-                        label={t("launch.sameServer")}
-                        hint={t("play.sameServerHint")}
-                        below={
-                          <Collapse open={together}>
-                            <div className="pt-2.5">
-                              <Segmented
-                                label={t("launch.findServer")}
-                                value={together ? sameServer : "pickFirst"}
-                                options={[{ value: "pickFirst", label: t("launch.pickServer") }, { value: "followFirst", label: t("launch.followFirst") }]}
-                                onChange={setSameServer}
-                              />
-                            </div>
-                          </Collapse>
-                        }
-                      >
-                        <Switch label={t("launch.sameServer")} checked={together} onChange={(on) => setSameServer(on ? "pickFirst" : "off")} />
-                      </Option>
-                      <Option
-                        id="play-opt-spread"
-                        label={t("launch.spread")}
-                        hint={t("play.spreadHint")}
-                        below={
-                          <Collapse open={spread}>
-                            <div className="pt-2.5">
-                              <Segmented
-                                label={t("launch.findServer")}
-                                value={spread ? sameServer : "randomPublic"}
-                                options={[
-                                  { value: "ownPrivate", label: t("launch.spreadOwn") },
-                                  { value: "randomPublic", label: t("launch.spreadRandom") },
-                                  { value: "closest", label: t("launch.spreadClosest") },
-                                  { value: "mostFull", label: t("servers.orderMostFull") },
-                                  { value: "mostEmpty", label: t("servers.orderMostEmpty") },
-                                ]}
-                                onChange={setSameServer}
-                              />
-                            </div>
-                          </Collapse>
-                        }
-                      >
-                        <Switch label={t("launch.spread")} checked={spread} onChange={(on) => setSameServer(on ? "randomPublic" : "off")} />
-                      </Option>
-                    </div>
-                    <div role="group" aria-labelledby="play-every" className="play-opt-group">
-                      <h3 id="play-every" className="play-opt-head">{t("play.everyLaunch")}</h3>
-                      <Option
-                        id="play-opt-delay"
-                        label={t("launch.stagger")}
-                        hint={t("play.staggerHint")}
-                        below={
-                          delayError && (
-                            <p id="play-opt-delay-error" role="alert" className="pt-1.5 text-xs text-attention">
-                              {delayError}
-                            </p>
-                          )
-                        }
-                      >
-                        <NumberField
-                          name={t("launch.stagger")}
-                          onInvalid={setDelayError}
-                          describedBy={delayError ? "play-opt-delay-error" : undefined}
-                          unit={t("launch.seconds")}
-                          short={t("launch.secondsShort")}
-                          min={2}
-                          max={60}
-                          step={0.5}
-                          value={delayMs / 1000}
-                          onCommit={(s) => setSettings.mutate({ launchDelayMs: Math.round(s * 1000) })}
-                        />
-                      </Option>
-                      <Option id="play-opt-layout" label={t("launch.layout")} more={t("launch.layoutHint")}>
-                        <Segmented
-                          label={t("launch.layout")}
-                          value={layout}
-                          options={[
-                            { value: "off", label: t("launch.layoutOff") },
-                            { value: "fit", label: t("launch.layoutFit") },
-                            { value: "tiny", label: t("launch.layoutTiny") },
-                          ]}
-                          // Picking Fit or Tiny shows where the windows will go right away.
-                          onChange={(windowLayout) => setSettings.mutate({ windowLayout }, { onSuccess: () => windowLayout !== "off" && chosen.length > 0 && previewLayout() })}
-                        />
-                        {layout !== "off" && (
-                          <Button size="md" className="enter" icon={previewing ? "eyeOff" : "eye"} data-tip={previewing ? undefined : t("launch.layoutPreviewHint")} onClick={previewing ? stopPreview : previewLayout}>
-                            {previewing ? t("launch.layoutPreviewStop") : t("launch.layoutPreview")}
-                          </Button>
-                        )}
-                      </Option>
-                      <Option id="play-opt-rejoin" label={t("launch.autoRejoin")} hint={t("play.autoRejoinHint")}>
-                        <Switch label={t("launch.autoRejoin")} checked={settings?.autoRejoin ?? false} onChange={(autoRejoin) => setSettings.mutate({ autoRejoin })} />
-                      </Option>
-                    </div>
-                  </Disclosure>
-                </div>
+                {/* How servers are picked, the FPS cap for these launches and the window layout are in
+                    Settings > Launching > Play page launches. */}
+                <p className="text-[12.5px] text-fg-3">
+                  {t("play.optionsMoved")}{" "}
+                  <button type="button" className="linkbtn" onClick={() => requestNavigation("settings", "launching")}>
+                    {t("play.optionsOpen")}
+                  </button>
+                </p>
               </section>
             </div>
 

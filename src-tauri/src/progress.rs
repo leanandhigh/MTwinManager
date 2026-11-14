@@ -353,7 +353,45 @@ impl Progress {
                 })
             })
             .collect();
-        serde_json::json!({ "now": now, "onlineMs": ONLINE_MS, "accounts": rows }).to_string()
+        // Pictures known so far for the decal ids of items and values (by id), and the Catalog's
+        // own for items that have none of their own.
+        let images = self.images.lock().unwrap_or_else(|e| e.into_inner());
+        let mut pics = serde_json::Map::new();
+        for a in &accounts {
+            let catalog = s.catalog.get(&a.game_id);
+            let ids = a.items.iter().map(|i| {
+                if i.image.is_empty() { catalog.and_then(|c| c.iter().find(|e| e.id == i.id)).map_or("", |e| e.image.as_str()) } else { i.image.as_str() }
+            });
+            for id in ids.chain(a.values.iter().map(|v| v.image.as_str())) {
+                if let Ok(n) = id.parse::<i64>()
+                    && let Some(Some(url)) = images.get(&n)
+                {
+                    pics.insert(id.to_owned(), Value::String(url.clone()));
+                }
+            }
+        }
+        let catalog: serde_json::Map<String, Value> = s
+            .catalog
+            .iter()
+            .map(|(game, list)| (game.clone(), Value::Object(list.iter().filter(|e| !e.image.is_empty()).map(|e| (e.id.clone(), Value::String(e.image.clone()))).collect())))
+            .collect();
+        serde_json::json!({ "now": now, "onlineMs": ONLINE_MS, "accounts": rows, "images": pics, "catalogImages": catalog }).to_string()
+    }
+
+    /// Decal ids of items and values (and their Catalog pictures) not looked up yet (at most `max`).
+    fn missing_images(&self, max: usize) -> Vec<i64> {
+        let s = self.stored();
+        let images = self.images.lock().unwrap_or_else(|e| e.into_inner());
+        let mut ids: HashSet<i64> = HashSet::new();
+        for a in s.accounts.values() {
+            for id in a.items.iter().map(|i| i.image.as_str()).chain(a.values.iter().map(|v| v.image.as_str())) {
+                ids.extend(id.parse::<i64>().ok());
+            }
+        }
+        for list in s.catalog.values() {
+            ids.extend(list.iter().filter_map(|e| e.image.parse::<i64>().ok()));
+        }
+        ids.into_iter().filter(|id| *id > 0 && !images.contains_key(id)).take(max).collect()
     }
 
     /// User ids without a headshot yet (at most `max`).
@@ -743,6 +781,22 @@ async fn web_api(handle: &AppHandle, stream: &mut TcpStream) {
         match s.api.headshots(&missing).await {
             Ok(found) => s.progress.heads.lock().unwrap_or_else(|e| e.into_inner()).extend(found),
             Err(e) => log::debug!("progress web: headshots: {e}"),
+        }
+    }
+    let missing = s.progress.missing_images(100);
+    if !missing.is_empty() {
+        let (found, complete) = s.api.asset_icons(&missing).await;
+        let mut cache = s.progress.images.lock().unwrap_or_else(|e| e.into_inner());
+        for id in &missing {
+            match found.get(id) {
+                Some(url) => {
+                    cache.insert(*id, Some(url.clone()));
+                }
+                None if complete => {
+                    cache.insert(*id, None);
+                }
+                None => {}
+            }
         }
     }
     respond(stream, "200 OK", JSON, &s.progress.web_json()).await;

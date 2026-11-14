@@ -39,7 +39,9 @@ export type Field =
   | "vault.mode"
   | "local:sounds"
   | "local:motion"
-  | "local:previewFps";
+  | "local:previewFps"
+  | "local:playFps"
+  | "local:sameServer";
 
 /** `unit` names the number for screen readers; `short` is the suffix on screen. */
 type Units = { unit: Label; short: Label };
@@ -221,8 +223,13 @@ const LINK_ENTRIES: readonly Entry[] = [
   { id: "acct.launchArgs", place: accounts, label: "accounts.detail.launchArgs", control: LINK, aliases: ["args"] },
   { id: "acct.fpsCap", place: accounts, label: "accounts.detail.fpsCap", hint: "accounts.detail.fpsCapHint", control: LINK, aliases: ["fps"] },
   { id: "acct.customFlags", place: accounts, label: "flags.title", hint: "flags.accountHint", control: LINK, aliases: ["fflags", "fastflags", "flags"] },
-  { id: "launch.windowLayout", place: { view: "launch", link: true }, label: "launch.layout", hint: "launch.layoutHint", field: "windowLayout", control: LINK, aliases: ["tile", "fit", "tiny"] },
-  { id: "launch.fpsCap", place: { view: "launch", link: true }, label: "launch.fpsCap", hint: "launch.fpsHint", control: LINK, aliases: ["fps"] },
+  {
+    id: "windowLayout", place: launching, label: "launch.layout", more: "launch.layoutHint", field: "windowLayout",
+    control: { kind: "segmented", options: [{ value: "off", label: "launch.layoutOff" }, { value: "fit", label: "launch.layoutFit" }, { value: "tiny", label: "launch.layoutTiny" }] },
+    aliases: ["tile", "fit", "tiny", "layout"],
+  },
+  { id: "playFps", place: launching, label: "settings.playFps", hint: "settings.playFpsHint", field: "local:playFps", control: CUSTOM, aliases: ["fps", "cap"] },
+  { id: "sameServer", place: launching, label: "settings.servers", hint: "settings.serversHint", field: "local:sameServer", control: CUSTOM, aliases: ["same server", "different servers", "spread", "together"] },
   { id: "client.antiAfk", place: { view: "dashboard", link: true }, label: "launch.limits.antiAfkClient", control: LINK, aliases: ["afk"] },
 ];
 

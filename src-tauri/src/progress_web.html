@@ -76,6 +76,65 @@
   .group h2 { font-size: 15px; margin: 0; }
   .group span { color: var(--fg3); font-size: 12.5px; }
   button.theme { display: grid; place-items: center; height: 30px; width: 30px; border-radius: 8px; border: 1px solid var(--line); background: var(--s1); color: var(--fg2); cursor: pointer; }
+  .hbtn { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--s1); color: var(--fg2); font: inherit; font-size: 12.5px; cursor: pointer; }
+  .hbtn[data-on] { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, var(--line)); }
+  .games { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; align-items: center; }
+  .games .label { color: var(--fg3); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; margin-right: 4px; }
+  .gchip { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--s1); color: var(--fg2); font: inherit; font-size: 13px; cursor: pointer; }
+  .gchip[aria-pressed="true"] { color: var(--fg); border-color: color-mix(in srgb, var(--accent) 60%, var(--line)); background: color-mix(in srgb, var(--accent) 12%, var(--s1)); }
+  .gchip b { font-weight: 600; color: var(--fg3); font-size: 11.5px; }
+  /* Inventory */
+  .inv { margin-top: 34px; padding-top: 22px; border-top: 1px solid var(--line); }
+  .inv-head { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin-bottom: 12px; }
+  .inv-head h2 { margin: 0; font-size: 11.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg2); }
+  .inv-head .sum { color: var(--fg2); font-size: 13px; margin-top: 4px; }
+  .inv-head .sum b { color: var(--fg); font-size: 15px; }
+  .inv-tools { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+  .inv-tools input, .inv-tools select { height: 34px; border-radius: 8px; border: 1px solid var(--line); background: var(--s1); color: var(--fg); font: inherit; font-size: 13px; padding: 0 10px; }
+  .inv-tabs { display: flex; gap: 4px; flex-wrap: wrap; border-bottom: 1px solid var(--line); margin-bottom: 14px; }
+  .inv-tab { background: none; border: 0; border-bottom: 2px solid transparent; color: var(--fg3); font: inherit; font-size: 13px; padding: 8px 10px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+  .inv-tab[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--accent); font-weight: 600; }
+  .inv-tab b { font-size: 11px; padding: 0 6px; border-radius: 999px; background: var(--s2); color: var(--fg3); font-weight: 600; }
+  .inv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .icard { --r: #8a8a94; position: relative; border-radius: 8px; padding: 10px; background: color-mix(in srgb, var(--r) 8%, var(--s1)); border: 1px solid color-mix(in srgb, var(--r) 45%, var(--line)); display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; }
+  .icard .rar { align-self: flex-start; font-size: 9.5px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; color: #fff; background: var(--r); max-width: 70%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .icard .cnt { position: absolute; top: 9px; right: 9px; font-size: 11px; font-weight: 700; color: var(--fg2); background: var(--s2); border-radius: 999px; padding: 1px 7px; }
+  .icard .pic { width: 84px; height: 84px; object-fit: contain; border-radius: 6px; }
+  .icard .nopic { width: 84px; height: 84px; border-radius: 6px; background: var(--s2); display: grid; place-items: center; color: var(--fg3); font-weight: 700; font-size: 20px; }
+  .icard .nm { font-size: 12.5px; font-weight: 600; color: var(--r); text-align: center; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .icard .who { font-size: 11px; color: var(--fg3); }
+  .inv-foot { display: flex; align-items: center; gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); color: var(--fg2); font-size: 13px; }
+  .inv-foot .pager { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .pbtn { height: 32px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--s1); color: var(--fg); font: inherit; font-size: 13px; cursor: pointer; }
+  .pbtn:disabled { opacity: 0.45; cursor: default; }
+  /* Google Sheet dialog */
+  dialog { border: 1px solid var(--line); border-radius: 12px; background: var(--s1); color: var(--fg); padding: 0; width: min(480px, calc(100vw - 32px)); }
+  dialog::backdrop { background: rgb(0 0 0 / 0.55); }
+  .dlg-h { display: flex; align-items: center; gap: 12px; padding: 18px 20px 6px; }
+  .dlg-h .ic { width: 38px; height: 38px; border-radius: 9px; display: grid; place-items: center; background: color-mix(in srgb, #2fbf71 16%, transparent); color: #2fbf71; }
+  .dlg-h b { display: block; font-size: 16px; }
+  .dlg-h span { color: var(--fg2); font-size: 12.5px; }
+  .dlg-h .x { margin-left: auto; background: none; border: 0; color: var(--fg2); font-size: 20px; cursor: pointer; }
+  .dlg-b { padding: 12px 20px; display: flex; flex-direction: column; gap: 12px; }
+  .dlg-b label { font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg2); font-weight: 600; }
+  .dlg-b input { height: 38px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); font: 13px ui-monospace, Consolas, monospace; padding: 0 12px; }
+  .dlg-b .hint { color: var(--fg3); font-size: 12px; margin-top: -6px; }
+  .dlg-b .hint a { color: #2fbf71; }
+  .schema { border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+  .schema-h { display: flex; align-items: center; gap: 8px; }
+  .schema-h b { font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; }
+  .schema-h .n { font-size: 11px; background: var(--s2); border-radius: 6px; padding: 1px 6px; color: var(--fg2); }
+  .schema-h .sp { margin-left: auto; display: flex; gap: 6px; }
+  .cols { display: flex; flex-wrap: wrap; gap: 6px; }
+  .cols span { font: 12px ui-monospace, Consolas, monospace; background: var(--s2); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
+  .steps { margin: 0; padding: 10px 0 0; border-top: 1px solid var(--line); list-style: none; display: flex; flex-direction: column; gap: 8px; font-size: 12.5px; color: var(--fg2); counter-reset: s; }
+  .steps li::before { counter-increment: s; content: counter(s); display: inline-grid; place-items: center; width: 18px; height: 18px; margin-right: 8px; border-radius: 50%; background: color-mix(in srgb, #2fbf71 18%, transparent); color: #2fbf71; font-size: 11px; font-weight: 700; }
+  .dlg-msg { font-size: 12.5px; }
+  .dlg-msg.ok { color: var(--ok); } .dlg-msg.bad { color: var(--accent); }
+  .dlg-f { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 20px 18px; border-top: 1px solid var(--line); }
+  .btn2 { height: 36px; padding: 0 16px; border-radius: 8px; border: 1px solid var(--line); background: var(--s2); color: var(--fg); font: inherit; font-size: 13px; cursor: pointer; }
+  .btn2.go { background: #2f8f5b; border-color: #2f8f5b; color: #fff; }
+  .btn2.sm { height: 30px; padding: 0 10px; font-size: 12.5px; }
   @media (max-width: 520px) {
     header { display: grid; grid-template-columns: 1fr auto; row-gap: 6px; }
     .live { grid-column: 1 / -1; grid-row: 2; margin-left: 0; }
@@ -87,9 +146,11 @@
   <header>
     <div class="brand"><img class="mark" src="/logo.png" alt="" width="30" height="30"><span>MTwin Progress</span></div>
     <span class="live"><span id="dot" class="dot"></span><span id="status">Connecting…</span></span>
+    <button class="hbtn" id="sheetBtn" type="button" title="Google Sheet"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M2 6h12M2 10h12M6 6v8"/></svg><span id="sheetLabel">Google Sheet</span></button>
     <button class="theme" id="theme" type="button" title="Light / dark" aria-label="Light / dark"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 2a6 6 0 0 1 0 12z" fill="currentColor"/></svg></button>
   </header>
   <section class="stats" id="stats"></section>
+  <div class="games" id="games" role="group" aria-label="Games"></div>
   <div class="bar">
     <input type="search" id="q" placeholder="Search accounts, items, values…" autocomplete="off">
     <div class="chips" role="group" aria-label="Show">
@@ -106,7 +167,34 @@
   </div>
   <div class="totals" id="totals"></div>
   <main id="list"></main>
+  <section class="inv" id="inv" hidden>
+    <div class="inv-head">
+      <div><h2>Inventory</h2><div class="sum" id="invSum"></div></div>
+      <div class="inv-tools">
+        <select id="invWho" aria-label="Account"></select>
+        <input type="search" id="invQ" placeholder="Search items…" autocomplete="off">
+      </div>
+    </div>
+    <div class="inv-tabs" id="invTabs" role="tablist"></div>
+    <div class="inv-grid" id="invGrid"></div>
+    <div class="inv-foot"><span id="invShowing"></span><div class="pager"><button class="pbtn" id="invPrev" type="button">Prev</button><span id="invPage"></span><button class="pbtn" id="invNext" type="button">Next</button></div></div>
+  </section>
 </div>
+<dialog id="sheet">
+  <div class="dlg-h"><span class="ic"><svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M2 6h12M2 10h12M6 6v8"/></svg></span><span><b>Google Sheet</b><span>Push your accounts summary to a Google Sheet</span></span><button class="x" id="sheetClose" type="button" aria-label="Close">×</button></div>
+  <div class="dlg-b">
+    <label for="sheetUrl">API URL</label>
+    <input id="sheetUrl" placeholder="https://sheetdb.io/api/v1/..." autocomplete="off" spellcheck="false">
+    <div class="hint">Get a URL from <a href="https://sheetdb.io" target="_blank" rel="noopener">sheetdb.io</a> and enable Create and Delete permissions.</div>
+    <div class="schema">
+      <div class="schema-h"><b>Sheet schema</b><span class="n" id="colN"></span><span class="sp"><button class="btn2 sm" id="sheetCopy" type="button">Copy</button><button class="btn2 sm" id="sheetVerify" type="button">Verify</button></span></div>
+      <div class="cols" id="cols"></div>
+      <ol class="steps"><li>Click <b>Copy</b>, then paste into cell <b>A1</b> of your sheet</li><li>Paste your SheetDB URL above</li><li>Click <b>Verify</b>, then <b>Save</b>. While this page is open it updates the sheet every minute.</li></ol>
+    </div>
+    <div class="dlg-msg" id="sheetMsg"></div>
+  </div>
+  <div class="dlg-f"><button class="btn2" id="sheetOff" type="button">Turn off</button><button class="btn2" id="sheetCancel" type="button">Cancel</button><button class="btn2 go" id="sheetSave" type="button">Save</button></div>
+</dialog>
 <script>
 (() => {
   const key = new URLSearchParams(location.search).get("key");
@@ -172,7 +260,9 @@
   function render() {
     if (!data) return;
     const q = $("q").value.trim().toLowerCase();
-    const all = data.accounts;
+    renderGames(data.accounts);
+    // Only the games picked (all of them unless some were turned off).
+    const all = data.accounts.filter((a) => !hiddenGames.has(a.gameId));
     let rows = all.filter((a) => (show === "all" || (show === "online") === a.online) && matches(a, q));
     const sort = $("sort").value;
     const by = {
@@ -198,6 +288,7 @@
     const sums = new Map();
     for (const a of rows) for (const v of a.values) sums.set(v.name, (sums.get(v.name) || 0) + v.amount);
     $("totals").innerHTML = [...sums].slice(0, 12).map(([n, v]) => `<span class="total">Σ ${esc(n)} <b>${num(v)}</b></span>`).join("");
+    renderInv(all);
 
     if (!all.length) {
       $("list").innerHTML = `<div class="empty">No reports yet. Run the Progress script in your executor (MTwin Manager → Progress → Get script), and accounts show up here every 10 seconds.</div>`;
@@ -219,6 +310,162 @@
       $("list").innerHTML = `<div class="grid">${rows.map(card).join("")}</div>`;
     }
   }
+
+  // ---- Games: each one shown or hidden (kept in this browser) ----
+  let hiddenGames = new Set();
+  try { hiddenGames = new Set(JSON.parse(localStorage.getItem("mtwin.webHiddenGames") || "[]")); } catch {}
+  const saveHidden = () => { try { localStorage.setItem("mtwin.webHiddenGames", JSON.stringify([...hiddenGames])); } catch {} };
+  function renderGames(accounts) {
+    const games = new Map();
+    for (const a of accounts) {
+      const g = games.get(a.gameId) || { name: a.gameName || "Unknown game", n: 0 };
+      g.n++;
+      games.set(a.gameId, g);
+    }
+    if (games.size < 2) { $("games").innerHTML = ""; return; }
+    const allOn = [...games.keys()].every((id) => !hiddenGames.has(id));
+    $("games").innerHTML = `<span class="label">Games</span><button class="gchip" type="button" data-game="*" aria-pressed="${allOn}">All</button>` +
+      [...games].sort((x, y) => x[1].name.localeCompare(y[1].name)).map(([id, g]) => `<button class="gchip" type="button" data-game="${esc(id)}" aria-pressed="${!hiddenGames.has(id)}">${esc(g.name)} <b>${g.n}</b></button>`).join("");
+    $("games").querySelectorAll("[data-game]").forEach((b) => (b.onclick = () => {
+      const id = b.dataset.game;
+      if (id === "*") hiddenGames = new Set();
+      else if (hiddenGames.has(id)) hiddenGames.delete(id);
+      else {
+        hiddenGames.add(id);
+        // Never all hidden: the last one turned off shows them all again.
+        if ([...games.keys()].every((g) => hiddenGames.has(g))) hiddenGames = new Set();
+      }
+      saveHidden();
+      invPage = 0;
+      render();
+    }));
+  }
+
+  // ---- Inventory: items of the accounts shown, by category ----
+  const RARITY = [["secret", "#ff3d6e"], ["exotic", "#e0409a"], ["divine", "#f5d142"], ["celestial", "#7fd8ff"], ["mythic", "#e5484d"], ["legend", "#f0a020"], ["epic", "#a77bf3"], ["rare", "#3b8eea"], ["uncommon", "#2fbf71"], ["common", "#8a8a94"]];
+  const rarityColour = (r) => { const l = (r || "").toLowerCase(); return (RARITY.find(([k]) => l.includes(k)) || [null, "#8a8a94"])[1]; };
+  const rarityRank = (r) => { const l = (r || "").toLowerCase(); const i = RARITY.findIndex(([k]) => l.includes(k)); return i < 0 ? RARITY.length : i; };
+  let invTab = null, invPage = 0, invWho = "*";
+  const PER_PAGE = 24;
+  $("invQ").oninput = () => { invPage = 0; render(); };
+  $("invWho").onchange = () => { invWho = $("invWho").value; invPage = 0; render(); };
+  $("invPrev").onclick = () => { invPage = Math.max(0, invPage - 1); render(); };
+  $("invNext").onclick = () => { invPage++; render(); };
+  function pic(gameId, item) {
+    const id = item.image || (data.catalogImages && data.catalogImages[gameId] && data.catalogImages[gameId][item.id]) || "";
+    return (data.images && data.images[id]) || null;
+  }
+  function renderInv(accounts) {
+    const who = accounts.filter((a) => a.items.length);
+    if (!who.length) { $("inv").hidden = true; return; }
+    $("inv").hidden = false;
+    if (invWho !== "*" && !who.some((a) => a.key === invWho)) invWho = "*";
+    $("invWho").innerHTML = `<option value="*">All accounts</option>` + who.map((a) => `<option value="${esc(a.key)}"${a.key === invWho ? " selected" : ""}>${esc(a.displayName || a.name)}</option>`).join("");
+    const merged = new Map();
+    for (const a of who) {
+      if (invWho !== "*" && a.key !== invWho) continue;
+      for (const it of a.items) {
+        const k = a.gameId + "\u0000" + it.id;
+        const m = merged.get(k) || { ...it, count: 0, owners: 0, gameId: a.gameId, src: pic(a.gameId, it) };
+        m.count += it.count || 1;
+        m.owners++;
+        merged.set(k, m);
+      }
+    }
+    const items = [...merged.values()];
+    const cats = new Map();
+    for (const it of items) cats.set(it.category || "Other", (cats.get(it.category || "Other") || 0) + 1);
+    const tabs = [...cats].sort((x, y) => y[1] - x[1]);
+    if (!invTab || !cats.has(invTab)) invTab = tabs.length ? tabs[0][0] : null;
+    $("invTabs").innerHTML = tabs.map(([c, n]) => `<button class="inv-tab" role="tab" type="button" data-tab="${esc(c)}" aria-selected="${c === invTab}">${esc(c)} <b>${n}</b></button>`).join("");
+    $("invTabs").querySelectorAll("[data-tab]").forEach((b) => (b.onclick = () => { invTab = b.dataset.tab; invPage = 0; render(); }));
+    const q = $("invQ").value.trim().toLowerCase();
+    const shown = items
+      .filter((it) => (it.category || "Other") === invTab && (!q || (it.name + " " + it.rarity).toLowerCase().includes(q)))
+      .sort((x, y) => rarityRank(x.rarity) - rarityRank(y.rarity) || y.count - x.count || x.name.localeCompare(y.name));
+    const total = items.reduce((n, it) => n + it.count, 0);
+    $("invSum").innerHTML = `<b>${num(items.length)}</b> unique · ${num(total)} total`;
+    const pages = Math.max(1, Math.ceil(shown.length / PER_PAGE));
+    invPage = Math.min(invPage, pages - 1);
+    const page = shown.slice(invPage * PER_PAGE, invPage * PER_PAGE + PER_PAGE);
+    $("invGrid").innerHTML = page.length
+      ? page.map((it) => `<div class="icard" style="--r:${rarityColour(it.rarity)}">${it.rarity ? `<span class="rar">${esc(it.rarity)}</span>` : ""}<span class="cnt">${num(it.count)}</span>${it.src ? `<img class="pic" src="${esc(it.src)}" alt="" loading="lazy">` : `<span class="nopic">${esc((it.name || "?").slice(0, 2).toUpperCase())}</span>`}<span class="nm" title="${esc(it.name)}">${esc(it.name)}</span>${invWho === "*" && it.owners > 1 ? `<span class="who">${it.owners} accounts</span>` : ""}</div>`).join("")
+      : `<div class="empty" style="grid-column:1/-1">Nothing here.</div>`;
+    $("invShowing").innerHTML = shown.length ? `Showing <b>${invPage * PER_PAGE + 1}–${invPage * PER_PAGE + page.length}</b> of <b>${shown.length}</b>` : "";
+    $("invPage").textContent = `${invPage + 1} / ${pages}`;
+    $("invPrev").disabled = invPage === 0;
+    $("invNext").disabled = invPage >= pages - 1;
+  }
+
+  // ---- Google Sheet (SheetDB): the summary pushed every minute while this page is open ----
+  const COLS = ["Account", "PC", "Game", "Level", "Online", "Last seen", "Values", "Stats", "Items"];
+  $("cols").innerHTML = COLS.map((c) => `<span>${esc(c)}</span>`).join("");
+  $("colN").textContent = COLS.length;
+  let sheetUrl = "";
+  try { sheetUrl = localStorage.getItem("mtwin.webSheetUrl") || ""; } catch {}
+  let sheetSaid = null;
+  const sheetRows = () => data.accounts.filter((a) => !hiddenGames.has(a.gameId)).map((a) => ({
+    "Account": a.name, "PC": a.pc || "", "Game": a.gameName || "", "Level": a.level ?? "",
+    "Online": a.online ? "Yes" : "No", "Last seen": new Date(a.lastSeen).toLocaleString(),
+    "Values": a.values.map((v) => `${v.name}: ${num(v.amount)}`).join("; "),
+    "Stats": a.stats.map((x) => `${x.name}: ${x.value}`).join("; "),
+    "Items": a.items.map((i) => (i.count > 1 ? `${i.name} x${i.count}` : i.name)).join("; "),
+  }));
+  function sheetBadge() {
+    const b = $("sheetBtn");
+    if (sheetUrl) b.dataset.on = ""; else delete b.dataset.on;
+    $("sheetLabel").textContent = sheetUrl ? (sheetSaid ? "Sheet · " + sheetSaid : "Sheet on") : "Google Sheet";
+  }
+  async function pushSheet() {
+    if (!sheetUrl || !data) return;
+    try {
+      const del = await fetch(sheetUrl.replace(/\/+$/, "") + "/all", { method: "DELETE" });
+      if (!del.ok && del.status !== 404) throw new Error("HTTP " + del.status);
+      const rows = sheetRows();
+      if (rows.length) {
+        const add = await fetch(sheetUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: rows }) });
+        if (!add.ok) throw new Error("HTTP " + add.status);
+      }
+      sheetSaid = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    } catch (e) {
+      sheetSaid = "failed";
+    }
+    sheetBadge();
+  }
+  const dlg = $("sheet");
+  $("sheetBtn").onclick = () => { $("sheetUrl").value = sheetUrl; $("sheetMsg").textContent = ""; $("sheetMsg").className = "dlg-msg"; dlg.showModal(); };
+  $("sheetClose").onclick = $("sheetCancel").onclick = () => dlg.close();
+  $("sheetCopy").onclick = async () => {
+    try { await navigator.clipboard.writeText(COLS.join("\t")); $("sheetMsg").className = "dlg-msg ok"; $("sheetMsg").textContent = "Copied: paste it into cell A1."; }
+    catch { $("sheetMsg").className = "dlg-msg bad"; $("sheetMsg").textContent = "Couldn't copy. Type the column names into row 1 instead."; }
+  };
+  $("sheetVerify").onclick = async () => {
+    const url = $("sheetUrl").value.trim();
+    $("sheetMsg").className = "dlg-msg";
+    if (!/^https:\/\/sheetdb\.io\/api\/v1\/[\w-]+\/?$/.test(url)) { $("sheetMsg").className = "dlg-msg bad"; $("sheetMsg").textContent = "That isn't a SheetDB API URL (https://sheetdb.io/api/v1/…)."; return; }
+    $("sheetMsg").textContent = "Checking…";
+    try {
+      const r = await fetch(url.replace(/\/+$/, "") + "/keys");
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const keys = await r.json();
+      const missing = COLS.filter((c) => !keys.includes(c));
+      if (missing.length) { $("sheetMsg").className = "dlg-msg bad"; $("sheetMsg").textContent = "Row 1 is missing: " + missing.join(", ") + ". Copy the schema into A1."; }
+      else { $("sheetMsg").className = "dlg-msg ok"; $("sheetMsg").textContent = "Looks good. Save to start."; }
+    } catch (e) { $("sheetMsg").className = "dlg-msg bad"; $("sheetMsg").textContent = "SheetDB didn't answer (" + e.message + ")."; }
+  };
+  $("sheetSave").onclick = () => {
+    const url = $("sheetUrl").value.trim();
+    if (url && !/^https:\/\/sheetdb\.io\/api\/v1\/[\w-]+\/?$/.test(url)) { $("sheetMsg").className = "dlg-msg bad"; $("sheetMsg").textContent = "That isn't a SheetDB API URL (https://sheetdb.io/api/v1/…)."; return; }
+    sheetUrl = url;
+    try { localStorage.setItem("mtwin.webSheetUrl", sheetUrl); } catch {}
+    sheetSaid = null;
+    dlg.close();
+    sheetBadge();
+    pushSheet();
+  };
+  $("sheetOff").onclick = () => { sheetUrl = ""; try { localStorage.removeItem("mtwin.webSheetUrl"); } catch {} sheetSaid = null; dlg.close(); sheetBadge(); };
+  sheetBadge();
+  setInterval(() => { if (sheetUrl) pushSheet(); }, 60000);
 
   async function load() {
     try {

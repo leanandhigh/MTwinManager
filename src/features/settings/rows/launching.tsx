@@ -6,7 +6,10 @@ import { qk, useMultiStatus } from "../../../data";
 import { fmtDate, t } from "../../../i18n";
 import { Skeleton } from "../../../ui/Bits";
 import { Button } from "../../../ui/Button";
-import { NumberField, Switch, TextField } from "../../../ui/controls";
+import { NumberField, OffOrNumberField, Segmented, Switch, TextField } from "../../../ui/controls";
+import { RANGES } from "../../../ui/ranges";
+import { useSameServer } from "../../launch/batchPrefs";
+import { useSessionFps } from "../../launch/launchQueue";
 import { Checkbox, Field, Select } from "../../../ui/Field";
 import { Meter } from "../../../ui/Meter";
 import { Morph, Swap } from "../../../ui/motion";
@@ -434,6 +437,62 @@ export function BreakerRow() {
   return (
     <SettingRow id="breaker">
       <BreakerFields />
+    </SettingRow>
+  );
+}
+
+/** The FPS cap for launches from the Play page (until MTwin Manager restarts): replaces each account's
+ * own cap and the default from Performance. */
+export function PlayFpsRow() {
+  const [fps, setFps] = useSessionFps();
+  return (
+    <SettingRow id="playFps">
+      <OffOrNumberField label={t("settings.playFps")} value={fps} range={RANGES.fpsCap} unit="FPS" short="FPS" onCommit={setFps} />
+    </SettingRow>
+  );
+}
+
+/** How a Play launch of several accounts picks servers: any, one shared, or each its own. */
+export function SameServerRow() {
+  const [mode, setMode] = useSameServer();
+  const together = mode === "pickFirst" || mode === "followFirst";
+  const kind = mode === "off" ? "off" : together ? "same" : "different";
+  return (
+    <SettingRow
+      id="sameServer"
+      below={
+        kind === "same" ? (
+          <div className="pt-2.5">
+            <Segmented label={t("launch.findServer")} value={mode} options={[{ value: "pickFirst", label: t("launch.pickServer") }, { value: "followFirst", label: t("launch.followFirst") }]} onChange={setMode} />
+          </div>
+        ) : kind === "different" ? (
+          <div className="pt-2.5">
+            <Segmented
+              label={t("launch.findServer")}
+              value={mode}
+              options={[
+                { value: "ownPrivate", label: t("launch.spreadOwn") },
+                { value: "randomPublic", label: t("launch.spreadRandom") },
+                { value: "closest", label: t("launch.spreadClosest") },
+                { value: "mostFull", label: t("servers.orderMostFull") },
+                { value: "mostEmpty", label: t("servers.orderMostEmpty") },
+              ]}
+              onChange={setMode}
+            />
+          </div>
+        ) : undefined
+      }
+    >
+      <Segmented
+        label={t("settings.servers")}
+        value={kind}
+        options={[
+          { value: "off", label: t("settings.serversAny") },
+          { value: "same", label: t("launch.sameServer") },
+          { value: "different", label: t("launch.spread") },
+        ]}
+        onChange={(k) => setMode(k === "off" ? "off" : k === "same" ? "pickFirst" : "randomPublic")}
+      />
     </SettingRow>
   );
 }

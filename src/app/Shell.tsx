@@ -2,7 +2,7 @@ import { lazy, startTransition, Suspense, useCallback, useEffect, useLayoutEffec
 import { createPortal } from "react-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { LoadFailed, toast } from "../ui/Toast";
-import type { Favourite, SameServer, Settings, VaultStatus } from "../api";
+import type { Favourite, Settings, VaultStatus } from "../api";
 import { qk, useAccounts, useGroups, useInstances } from "../data";
 import { t } from "../i18n";
 import { AddAccountDialog, type Tab as AddTab } from "../features/accounts/AddAccountDialog";
@@ -14,6 +14,7 @@ import { LaunchFlight } from "../features/launch/LaunchButton";
 import { lastLaunchAccount } from "../features/launch/launchQueue";
 import { isLive } from "../features/launch/Running";
 import { draftFor, EMPTY_DRAFT, type Draft } from "../features/launch/target";
+import { useSameServer } from "../features/launch/batchPrefs";
 import { AREAS, type SettingsArea } from "../features/settings/areas";
 import { useSplashPhase } from "../features/splash/phase";
 import { overlayOpen } from "../ui/a11y";
@@ -77,7 +78,7 @@ export function Shell({ vault, settings, islandSlot }: { vault: VaultStatus; set
     const id = lastLaunchAccount();
     return id === null ? [] : [id];
   });
-  const [sameServer, setSameServer] = useState<SameServer>("off");
+  const [sameServer, setSameServer] = useSameServer();
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
   const [sectionOrder, setSectionOrder] = useSectionOrder();
   const homeTabs = useHomeTabs(accounts.data);

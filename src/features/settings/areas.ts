@@ -16,6 +16,7 @@ export const AREAS: readonly AreaDef[] = [
     groups: [
       { ids: ["multi", "protectLogin", "launchDelay", "launchArgs", "protectMain"] },
       { label: "settings.group.recovery", ids: ["autoRejoin", "autoRestart", "breaker", "antiAfk"] },
+      { label: "settings.group.play", ids: ["windowLayout", "playFps", "sameServer"] },
       { label: "farm.settings", ids: ["replaceDead", "replaceChallenged", "farmDoneAt", "closeWhenDone"] },
       { label: "settings.group.stopping", ids: ["panic", "closeGrace", "shutdown"] },
       { label: "settings.client", ids: ["client", "executor", "clientPath", "autoUpdate"] },
