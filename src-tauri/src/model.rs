@@ -901,7 +901,7 @@ pub struct CookieExport {
 
 /// One bulk tool (Tools page), run on each picked account in turn.
 #[derive(Deserialize, TS, Clone, Debug)]
-#[serde(rename_all = "camelCase", tag = "kind")]
+#[serde(rename_all = "camelCase", rename_all_fields = "camelCase", tag = "kind")]
 #[ts(export)]
 pub enum AccountTool {
     /// Read each account's Robux.

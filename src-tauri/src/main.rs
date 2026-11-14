@@ -766,6 +766,7 @@ fn main() {
             executor::executor_script_add,
             executor::executor_script_delete,
             executor::executor_folder_open,
+            executor::executor_task_setup,
             progress::progress_web_set,
             progress::progress_remove,
             progress::progress_catalog_save,

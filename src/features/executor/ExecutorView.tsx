@@ -21,7 +21,7 @@ export function ExecutorView() {
   const settings = useSettings().data;
   const set = useSetSettings();
   const status = useQuery({ queryKey: KEY, queryFn: api.executorStatus, refetchInterval: 3000 }).data;
-  const [busy, setBusy] = useState<"launch" | "restart" | null>(null);
+  const [busy, setBusy] = useState<"launch" | "restart" | "task" | null>(null);
   const [editing, setEditing] = useState<{ name: string; text: string; isNew: boolean } | null>(null);
   const [removing, setRemoving] = useState<string | null>(null);
   const put = (s: ExecutorStatus) => qc.setQueryData(KEY, s);
@@ -87,6 +87,32 @@ export function ExecutorView() {
             <Button size="md" icon="refresh" busy={busy === "restart"} disabled={!status?.found || !!busy} onClick={() => launch(true)}>
               {t("executor.restart")}
             </Button>
+          </div>
+          <div className="ex-admin" data-on={status?.noPrompt || undefined}>
+            <span className="min-w-0">
+              <b>{t(status?.noPrompt ? "executor.noPromptOn" : "executor.noPrompt")}</b>
+              <span>{t(status?.noPrompt ? "executor.noPromptOnHint" : "executor.noPromptHint")}</span>
+            </span>
+            {!status?.noPrompt && (
+              <Button
+                size="sm"
+                icon="shield"
+                busy={busy === "task"}
+                disabled={!status?.found || !!busy}
+                onClick={() => {
+                  setBusy("task");
+                  api
+                    .executorTaskSetup()
+                    .then((s) => {
+                      put(s);
+                      toast(t("executor.noPromptDone"));
+                    }, toastError)
+                    .finally(() => setBusy(null));
+                }}
+              >
+                {t("executor.noPromptSetUp")}
+              </Button>
+            )}
           </div>
           <div className="ex-toggles">
             <label className="ex-toggle">

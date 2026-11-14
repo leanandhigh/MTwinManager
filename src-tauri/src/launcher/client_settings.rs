@@ -90,6 +90,49 @@ fn file() -> Option<PathBuf> {
     std::env::var_os("LOCALAPPDATA").map(|d| PathBuf::from(d).join("Roblox").join("GlobalBasicSettings_13.xml"))
 }
 
+/// Beside the file while MTwin Manager keeps it read-only (`guard`); a file the user made read-only
+/// has no mark and is never unlocked here.
+fn guard_mark(file: &Path) -> PathBuf {
+    file.with_extension("xml.mtwin-guard")
+}
+
+/// Once a launch has put the user's own values back, the file stays read-only while clients MTwin
+/// Manager started run: a capped client that closes writes all its settings back, the cap with
+/// them, and a Roblox started outside MTwin Manager (or after it closed) would then run capped too.
+/// `unguard` lifts it once none of them runs. Logged, never an error.
+fn guard(file: &Path) {
+    // Tests write their own files and delete them, which Windows refuses for a read-only file.
+    if cfg!(test) {
+        return;
+    }
+    let mark = guard_mark(file);
+    if mark.exists() || std::fs::metadata(file).is_ok_and(|m| m.permissions().readonly()) {
+        return;
+    }
+    match std::fs::write(&mark, b"").and_then(|()| set_readonly(file, true)) {
+        Ok(()) => log::debug!("Roblox settings: {} read-only while MTwin Manager's clients run", file.display()),
+        Err(e) => {
+            let _ = std::fs::remove_file(&mark);
+            log::warn!("Roblox settings: couldn't make {} read-only: {e}", file.display());
+        }
+    }
+}
+
+/// Lifts `guard` (none of MTwin Manager's clients runs any more).
+fn unguard(file: &Path) {
+    let mark = guard_mark(file);
+    if !mark.exists() {
+        return;
+    }
+    match set_readonly(file, false).or_else(|e| if e.kind() == ErrorKind::NotFound { Ok(()) } else { Err(e) }) {
+        Ok(()) => {
+            let _ = std::fs::remove_file(&mark);
+            log::debug!("Roblox settings: {} writable again", file.display());
+        }
+        Err(e) => log::warn!("Roblox settings: couldn't make {} writable again: {e}", file.display()),
+    }
+}
+
 /// The setting's number in `text` (pure).
 fn get(text: &str, (tag, name): (&str, &str)) -> Option<i64> {
     let open = format!("<{tag} name=\"{name}\">");
@@ -305,12 +348,12 @@ impl Undo {
             }
             let want = settle_values(&mut self.kept, now);
             if want == now {
-                return;
+                return guard(&self.file);
             }
             match replace(&self.file, &write(&text, want), Some(seen)) {
                 Err(e) if e.kind() == ErrorKind::Interrupted => continue,
                 Err(e) => return log::warn!("Roblox settings: couldn't put {} back: {e}", self.file.display()),
-                Ok(()) => return,
+                Ok(()) => return guard(&self.file),
             }
         }
         log::warn!("Roblox settings: {} kept changing; the watcher puts the user's own back", self.file.display());
@@ -539,6 +582,11 @@ pub fn spawn(app: AppHandle) {
             std::thread::sleep(WATCH);
             let Ok(_idle) = LOCK.try_lock() else { continue };
             let Some(file) = file() else { continue };
+            // None of MTwin Manager's clients runs (and no launch: `LOCK` is free): the file is the
+            // user's again, as Roblox started any other way needs it.
+            if !app.state::<App>().tracker.any_running() && crate::instances::process::roblox_processes().is_empty() {
+                unguard(&file);
+            }
             let Ok(modified) = std::fs::metadata(&file).and_then(|m| m.modified()) else { continue };
             if seen == Some(modified) {
                 continue;

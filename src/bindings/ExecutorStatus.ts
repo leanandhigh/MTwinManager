@@ -9,4 +9,8 @@ path: string, found: boolean, running: boolean,
 /**
  * Where its autoexec scripts go (None without a program).
  */
-autoexecDir: string | null, files: Array<ScriptFile>, };
+autoexecDir: string | null, 
+/**
+ * The scheduled task for this program is set up: it starts with admin rights, no prompt.
+ */
+noPrompt: boolean, files: Array<ScriptFile>, };

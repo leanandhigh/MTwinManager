@@ -196,6 +196,8 @@ export const api = {
   executorScriptAdd: (from: string) => invoke<ExecutorStatus>("executor_script_add", { from }),
   executorScriptDelete: (name: string) => invoke<ExecutorStatus>("executor_script_delete", { name }),
   executorFolderOpen: () => invoke<null>("executor_folder_open"),
+  /** One admin prompt now; from then on the executor starts with admin rights without asking. */
+  executorTaskSetup: () => invoke<ExecutorStatus>("executor_task_setup"),
   /** Add to farm (farming), Mark done (done) or Remove from farm (none). */
   accountsSetFarm: (ids: number[], farm: import("./bindings/FarmState").FarmState) => invoke<null>("accounts_set_farm", { ids, farm }),
   /** Master mode needs the password; DPAPI mode shows Windows Hello. */

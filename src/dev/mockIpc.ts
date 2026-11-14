@@ -832,6 +832,7 @@ end
 };
 const PROGRESS_DEFAULT_ALL = "-- Runs in every game, before the game's own script.\nlocal stats = P.player:FindFirstChild(\"leaderstats\")\n";
 let execRunning = false;
+let execNoPrompt = false;
 const execFiles = new Map<string, string>([["autofarm.lua", "-- Auto farm\nloadstring(game:HttpGet(\"https://example.com/farm.lua\"))()\n"], ["anti-afk.luau", "-- keeps the client awake\n"]]);
 let webShare = false;
 let webKey = "";
@@ -953,16 +954,18 @@ async function handle(cmd: string, args: Args): Promise<unknown> {
       });
     }
     case "executor_status":
+    case "executor_task_setup":
     case "executor_launch":
     case "executor_script_write":
     case "executor_script_add":
     case "executor_script_delete": {
       if (cmd === "executor_launch") execRunning = true;
+      if (cmd === "executor_task_setup") execNoPrompt = true;
       if (cmd === "executor_script_write") execFiles.set(args.name as string, args.text as string);
       if (cmd === "executor_script_delete") execFiles.delete(args.name as string);
       const path = settings.executorExe;
       return {
-        path, found: !!path, running: !!path && execRunning,
+        path, found: !!path, running: !!path && execRunning, noPrompt: execNoPrompt,
         autoexecDir: path ? "C:\\Users\\you\\AppData\\Local\\Potassium\\autoexec" : null,
         files: path ? [...execFiles].map(([name, text]) => ({ name, size: text.length })) : [],
       };
