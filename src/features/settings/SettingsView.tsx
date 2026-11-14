@@ -16,7 +16,7 @@ import { keyOf, placeNames, search, type Hit, type HitGroup } from "./search";
 import { SupportRow, VersionRow } from "./rows/about";
 import { AccentRow, BackgroundRow, MotionRow, SoundRow } from "./rows/appearance";
 import { BackupRow, BrowserDataRow, CleanLogsRow, DataFolderRow } from "./rows/data";
-import { BreakerRow, ClientCard, ClientPathRow, ExecutorRow, MultiRow, PlayFpsRow, SameServerRow, ShutdownRow } from "./rows/launching";
+import { BreakerRow, ClientCard, ClientPathRow, ExecutorRow, MultiRow, PerAccountRow, PlayFpsRow, SameServerRow, ShutdownRow } from "./rows/launching";
 import { EncryptionRow, MasterPasswordRow, PublicNetworkRow, RecoveryCodeRow } from "./rows/security";
 import { ShortcutsTable } from "./rows/shortcuts";
 
@@ -25,6 +25,7 @@ const RENDERERS: RowRenderers = {
   multi: MultiRow,
   breaker: BreakerRow,
   playFps: PlayFpsRow,
+  perAccount: PerAccountRow,
   sameServer: SameServerRow,
   shutdown: ShutdownRow,
   client: ClientCard,

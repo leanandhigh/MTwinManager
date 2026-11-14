@@ -457,3 +457,19 @@
     background: color-mix(in srgb, #a77bf3 14%, transparent);
   }
 }
+
+/* An account's details and cookie, in a dialog from its menu. */
+@layer brand {
+  .acc-dlg {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .acc-dlg-who {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--line);
+  }
+}

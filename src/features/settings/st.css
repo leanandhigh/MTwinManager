@@ -115,3 +115,58 @@
     }
   }
 }
+
+/* Settings > Launching > Per account: one row per account, its own launch options across. */
+@layer brand {
+  [data-row="perAccount"], #perAccount {
+    flex-wrap: wrap;
+  }
+  .pa-wrap {
+    width: 100%;
+    overflow-x: auto;
+    margin-top: 6px;
+  }
+  .pa {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .pa th {
+    text-align: start;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--fg-3);
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+  }
+  .pa td {
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: middle;
+  }
+  .pa tr:last-child td {
+    border-bottom: 0;
+  }
+  .pa-who {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 140px;
+  }
+  .pa-name {
+    display: block;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .pa-user {
+    display: block;
+    font-size: 11.5px;
+    color: var(--fg-3);
+  }
+  .pa-args {
+    min-width: 150px;
+  }
+}

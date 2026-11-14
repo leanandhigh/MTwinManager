@@ -2,13 +2,16 @@ import { useEffect, useId, useState } from "react";
 import { useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, asError, events, type InstallProgress, type RobloxClient } from "../../../api";
-import { qk, useMultiStatus } from "../../../data";
+import { qk, useAccounts, useMultiStatus, useSettings, useUpdateAccount } from "../../../data";
 import { fmtDate, t } from "../../../i18n";
 import { Skeleton } from "../../../ui/Bits";
 import { Button } from "../../../ui/Button";
 import { NumberField, OffOrNumberField, Segmented, Switch, TextField } from "../../../ui/controls";
 import { RANGES } from "../../../ui/ranges";
 import { useSameServer } from "../../launch/batchPrefs";
+import { accountName, Avatar } from "../../accounts/shared";
+import { FlagsDialog } from "../../performance/FlagsDialog";
+import type { AccountSummary } from "../../../api";
 import { useSessionFps } from "../../launch/launchQueue";
 import { Checkbox, Field, Select } from "../../../ui/Field";
 import { Meter } from "../../../ui/Meter";
@@ -494,5 +497,85 @@ export function SameServerRow() {
         onChange={(k) => setMode(k === "off" ? "off" : k === "same" ? "pickFirst" : "randomPublic")}
       />
     </SettingRow>
+  );
+}
+
+/** Each account's own launch options in one table (what the account panel's Overrides tab held):
+ * full quality, brought back when it drops, FPS cap, launch arguments, Discord alerts, FFlags. */
+export function PerAccountRow() {
+  const accounts = useAccounts().data ?? [];
+  const settings = useSettings().data;
+  const flagsOn = settings?.customFlagsScope === "account";
+  const [flagsFor, setFlagsFor] = useState<AccountSummary | null>(null);
+  const quiet = useUpdateAccount({ quiet: true });
+  return (
+    <SettingRow id="perAccount">
+      <div className="pa-wrap">
+        {accounts.length === 0 ? (
+          <p className="text-fg-3 text-[13px]">{t("settings.perAccountNone")}</p>
+        ) : (
+          <table className="pa">
+            <thead>
+              <tr>
+                <th>{t("settings.perAccountAccount")}</th>
+                <th data-tip={t("accounts.detail.fullQualityHint")}>{t("accounts.detail.fullQuality")}</th>
+                <th data-tip={t("accounts.detail.bringBackHint")}>{t("settings.perAccountBack")}</th>
+                <th>{t("accounts.detail.fpsCap")}</th>
+                <th>{t("accounts.detail.launchArgs")}</th>
+                <th data-tip={t("accounts.detail.muteDiscordHint")}>{t("settings.perAccountMute")}</th>
+                {flagsOn && <th>{t("flags.title")}</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {accounts.map((a) => (
+                <PerAccount key={a.id} account={a} flagsOn={flagsOn} onFlags={() => setFlagsFor(a)} />
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+      {flagsFor && (
+        <FlagsDialog
+          open
+          onClose={() => setFlagsFor(null)}
+          title={t("flags.accountTitle", { name: flagsFor.alias || flagsFor.displayName })}
+          flags={flagsFor.customFlags}
+          onSave={(customFlags) => quiet.mutateAsync({ id: flagsFor.id, patch: { customFlags } })}
+        />
+      )}
+    </SettingRow>
+  );
+}
+
+function PerAccount({ account: a, flagsOn, onFlags }: { account: AccountSummary; flagsOn: boolean; onFlags: () => void }) {
+  const update = useUpdateAccount();
+  const save = (patch: Parameters<typeof update.mutate>[0]["patch"]) => update.mutate({ id: a.id, patch });
+  const count = Object.keys(a.customFlags).length;
+  return (
+    <tr>
+      <td>
+        <span className="pa-who">
+          <Avatar account={a} size={24} />
+          <span className="min-w-0">
+            <span className="pa-name">{accountName(a)}</span>
+            <span className="pa-user">@{a.username}</span>
+          </span>
+        </span>
+      </td>
+      <td><Switch label={t("accounts.detail.fullQuality")} checked={a.fullQuality} onChange={(fullQuality) => save({ fullQuality })} /></td>
+      <td><Switch label={t("accounts.detail.bringBack")} checked={!a.allowDisconnect} onChange={(back) => save({ allowDisconnect: !back })} /></td>
+      <td>
+        <OffOrNumberField label={t("accounts.detail.fpsCap")} value={a.fpsCap ?? 0} range={RANGES.fpsCap} unit={t("accounts.detail.fpsUnit")} short="FPS" onCommit={(fpsCap) => save({ fpsCap })} />
+      </td>
+      <td className="pa-args">
+        <TextField label={t("accounts.detail.launchArgs")} placeholder={t("settings.perAccountDefault")} value={a.launchArgs ?? ""} onCommit={(launchArgs) => update.mutateAsync({ id: a.id, patch: { launchArgs } })} />
+      </td>
+      <td><Switch label={t("accounts.detail.muteDiscord")} checked={a.discordMuted} onChange={(discordMuted) => save({ discordMuted })} /></td>
+      {flagsOn && (
+        <td>
+          <Button size="sm" icon="pencil" onClick={onFlags}>{count ? t("flags.count", { count }) : t("flags.edit")}</Button>
+        </td>
+      )}
+    </tr>
   );
 }

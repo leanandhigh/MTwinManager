@@ -16,6 +16,7 @@ import { MenuRadioItem, Popover, useAnchor } from "../../ui/Popover";
 import { Divider, usePanelWidth } from "../../ui/Resizer";
 import { toast, toastError } from "../../ui/Toast";
 import { isLive } from "../launch/Running";
+import { AccountDialog } from "./AccountDialog";
 import { AccountMenu, type MenuAt } from "./AccountMenu";
 import { AccountsTable } from "./AccountsTable";
 import { AccountsToolbar, Counted } from "./AccountsToolbar";
@@ -95,7 +96,11 @@ export function AccountsView({ accounts, groups, density, vaultMode, clipboardSe
   const rangeFrom = useRef<number | null>(null);
   const [menu, setMenu] = useState<MenuAt | null>(null);
   const [tab, setTab] = useState<DetailTab>("overview");
-  const [narrow, setNarrow] = useState(false);
+  // No details panel any more: the list always fills the page; an account's details and cookie open
+  // in a dialog (its menu), its launch options are in Settings > Launching > Per-account.
+  const [, setNarrow] = useState(true);
+  const narrow = true;
+  const [editing, setEditing] = useState<{ id: number; tab: "details" | "cookie" } | null>(null);
   const [sheet, setSheet] = useState(false);
   const [befriendOpen, setBefriendOpen] = useState(false);
   const [killing, setKilling] = useState(false);
@@ -302,7 +307,7 @@ export function AccountsView({ accounts, groups, density, vaultMode, clipboardSe
 
   const open = (id: number) => {
     setSelected(id);
-    if (narrow) setSheet(true);
+    setEditing({ id, tab: "details" });
   };
   const closeSheet = () => {
     const id = current?.id;
@@ -642,6 +647,16 @@ export function AccountsView({ accounts, groups, density, vaultMode, clipboardSe
         onLaunch={onLaunch}
         onValidate={runValidate}
         onRemove={removing.ask}
+        onEdit={(id, tab) => setEditing({ id, tab })}
+      />
+      <AccountDialog
+        account={editing ? byId.get(editing.id) : undefined}
+        tab={editing?.tab ?? "details"}
+        onTab={(tab) => setEditing((e) => e && { ...e, tab })}
+        groups={groups}
+        vaultMode={vaultMode}
+        clipboardSeconds={clipboardSeconds}
+        onClose={() => setEditing(null)}
       />
       {removing.dialogs}
       <ConfirmDialog

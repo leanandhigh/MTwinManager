@@ -14,7 +14,7 @@ export type MenuAt = { id: number; x: number; y: number; from: HTMLElement; solo
 
 /** An account's menu in two labelled parts: what applies to the ticked rows (when this one is among
  * several), then what applies to this account alone. */
-export function AccountMenu({ at, account: a, selection, live, canLaunch, onClose, onLaunch, onValidate, onRemove }: {
+export function AccountMenu({ at, account: a, selection, live, canLaunch, onClose, onLaunch, onValidate, onRemove, onEdit }: {
   at: MenuAt | null;
   /** The account `at` points at, as it is now (the checkboxes follow its edits). */
   account: AccountSummary | undefined;
@@ -26,6 +26,8 @@ export function AccountMenu({ at, account: a, selection, live, canLaunch, onClos
   onLaunch: (ids: number[]) => void;
   onValidate: (ids: number[]) => void;
   onRemove: (ids: number[]) => void;
+  /** Its details (name, groups, colour, notes) or its cookie, in a dialog. */
+  onEdit?: (id: number, tab: "details" | "cookie") => void;
 }) {
   const update = useUpdateAccount();
   const ids = a && !at?.solo && selection.length > 1 && selection.includes(a.id) ? selection : a ? [a.id] : [];
@@ -53,6 +55,12 @@ export function AccountMenu({ at, account: a, selection, live, canLaunch, onClos
             !many && canLaunch(a.id) && <MenuItem icon="play" onSelect={() => onLaunch([a.id])}>{t("common.playEllipsis")}</MenuItem>
           )}
           {!many && <MenuItem icon="refresh" onSelect={() => onValidate([a.id])}>{t("accounts.menu.validate")}</MenuItem>}
+          {!many && onEdit && (
+            <>
+              <MenuItem icon="pencil" onSelect={() => onEdit(a.id, "details")}>{t("accounts.menu.editDetails")}</MenuItem>
+              <MenuItem icon="lock" onSelect={() => onEdit(a.id, "cookie")}>{t("accounts.menu.cookie")}</MenuItem>
+            </>
+          )}
           <MenuItem icon="globe" onSelect={() => browseAs(a.id)}>{t("accounts.menu.openSession")}</MenuItem>
           <MenuItem icon="external" onSelect={() => openUrl(`https://www.roblox.com/users/${a.userId}/profile`).catch(toastError)}>{t("accounts.menu.openProfile")}</MenuItem>
           <MenuItem icon="copy" onSelect={() => clip(a.username, t("accounts.menu.usernameCopied"))}>{t("accounts.menu.copyUsername")}</MenuItem>

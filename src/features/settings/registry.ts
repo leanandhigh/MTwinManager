@@ -217,16 +217,14 @@ const accounts = { view: "accounts", link: true } as const;
 /** Settings that live in other views: an account's own, one launch's, one client's. */
 const LINK_ENTRIES: readonly Entry[] = [
   { id: "acct.main", place: accounts, label: "accounts.detail.main", hint: "accounts.detail.mainHint", control: LINK },
-  { id: "acct.fullQuality", place: accounts, label: "accounts.detail.fullQuality", hint: "accounts.detail.fullQualityHint", control: LINK, aliases: ["graphics", "quality"] },
-  { id: "acct.bringBack", place: accounts, label: "accounts.detail.bringBack", hint: "accounts.detail.bringBackHint", control: LINK, aliases: ["rejoin", "disconnect", "restart"] },
-  { id: "acct.discordMuted", place: accounts, label: "accounts.detail.muteDiscord", hint: "accounts.detail.muteDiscordHint", control: LINK, aliases: ["alerts", "webhook"] },
-  { id: "acct.launchArgs", place: accounts, label: "accounts.detail.launchArgs", control: LINK, aliases: ["args"] },
-  { id: "acct.fpsCap", place: accounts, label: "accounts.detail.fpsCap", hint: "accounts.detail.fpsCapHint", control: LINK, aliases: ["fps"] },
-  { id: "acct.customFlags", place: accounts, label: "flags.title", hint: "flags.accountHint", control: LINK, aliases: ["fflags", "fastflags", "flags"] },
   {
     id: "windowLayout", place: launching, label: "launch.layout", more: "launch.layoutHint", field: "windowLayout",
     control: { kind: "segmented", options: [{ value: "off", label: "launch.layoutOff" }, { value: "fit", label: "launch.layoutFit" }, { value: "tiny", label: "launch.layoutTiny" }] },
     aliases: ["tile", "fit", "tiny", "layout"],
+  },
+  {
+    id: "perAccount", place: launching, label: "settings.perAccount", hint: "settings.perAccountHint", control: CUSTOM,
+    aliases: ["full quality", "graphics", "bring back", "rejoin", "fps", "launch arguments", "args", "mute", "discord", "fflags", "flags", "account"],
   },
   { id: "playFps", place: launching, label: "settings.playFps", hint: "settings.playFpsHint", field: "local:playFps", control: CUSTOM, aliases: ["fps", "cap"] },
   { id: "sameServer", place: launching, label: "settings.servers", hint: "settings.serversHint", field: "local:sameServer", control: CUSTOM, aliases: ["same server", "different servers", "spread", "together"] },

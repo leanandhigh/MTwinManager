@@ -299,7 +299,7 @@ function ServerName({ visit: v }: { visit: ServerVisit }) {
 }
 
 /** What the user calls it, its groups and colour, and how it is treated. Text saves on blur or Enter. */
-function Organise({ account: a, groups }: { account: AccountSummary; groups: Group[] }) {
+export function Organise({ account: a, groups }: { account: AccountSummary; groups: Group[] }) {
   const update = useUpdateAccount();
   const save = (patch: AccountPatch) => update.mutate({ id: a.id, patch });
   const [alias, setAlias] = useState(a.alias);
