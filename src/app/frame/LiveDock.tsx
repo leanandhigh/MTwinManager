@@ -28,6 +28,8 @@ export function LiveDock({ accounts }: { accounts: AccountSummary[] }) {
   const settings = useSettings().data;
   const set = useSetSettings({ quiet: true });
   const layout = settings?.windowLayout ?? "off";
+  // Tiny: tiled in tiny cells, or (without Auto-tile) each made tiny where it is.
+  const tiny = layout === "tiny" || (layout === "off" && !!settings?.tinyOnLaunch);
   // Ticked clients (Kill selected); ones that ended drop out.
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const chosen = running.filter((i) => picked.has(i.id));
@@ -88,7 +90,25 @@ export function LiveDock({ accounts }: { accounts: AccountSummary[] }) {
           <div className="ld-toggles">
             <label className="ld-toggle">
               <span>{t("live.autoTile")}</span>
-              <Switch label={t("live.autoTile")} checked={layout !== "off"} onChange={(on) => set.mutate({ windowLayout: on ? "fit" : "off" })} />
+              <Switch label={t("live.autoTile")} checked={layout !== "off"} onChange={(on) => {
+                  // Tiled with Auto-tiny on: the tiny-cell layout; alone: as big as all fit.
+                  set.mutate(on ? { windowLayout: tiny ? "tiny" : "fit", tinyOnLaunch: false } : { windowLayout: "off", tinyOnLaunch: tiny });
+                  // The clients already running take their cells now, not only the next ones.
+                  if (on && running.length) api.instancesTile(tiny).catch(toastError);
+                }} />
+            </label>
+            <label className="ld-toggle" data-tip={t("live.autoTinyHint")}>
+              <span>{t("live.autoTiny")}</span>
+              <Switch label={t("live.autoTiny")} checked={tiny} onChange={(on) => {
+                  if (layout !== "off") {
+                    // With Auto-tile: tiny cells, as many as fit (or back to as big as all fit).
+                    set.mutate({ windowLayout: on ? "tiny" : "fit", tinyOnLaunch: false });
+                    if (running.length) api.instancesTile(on).catch(toastError);
+                  } else {
+                    set.mutate({ tinyOnLaunch: on });
+                    for (const i of running) if (i.micro !== on) api.instanceMicro(i.id, on).catch(() => {});
+                  }
+                }} />
             </label>
             <label className="ld-toggle">
               <span>{t("live.autoMinimize")}</span>

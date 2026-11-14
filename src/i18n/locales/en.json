@@ -1941,6 +1941,8 @@
   "servers.joinTitle": "Join",
   "updates.platform": "Platform",
   "live.autoTile": "Auto-tile windows",
+  "live.autoTiny": "Auto-tiny",
+  "live.autoTinyHint": "Makes each client a tiny window once it's in a game. With Auto-tile on, they tile in tiny cells, as many as fit.",
   "live.autoMinimize": "Auto-minimize",
   "live.pickAll": "Pick all",
   "play.withN_one": "Play with {count} account",

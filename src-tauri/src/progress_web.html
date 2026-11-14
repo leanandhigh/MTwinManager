@@ -107,33 +107,37 @@
   .inv-foot .pager { margin-left: auto; display: flex; align-items: center; gap: 8px; }
   .pbtn { height: 32px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--s1); color: var(--fg); font: inherit; font-size: 13px; cursor: pointer; }
   .pbtn:disabled { opacity: 0.45; cursor: default; }
-  /* Google Sheet dialog */
-  dialog { border: 1px solid var(--line); border-radius: 12px; background: var(--s1); color: var(--fg); padding: 0; width: min(480px, calc(100vw - 32px)); }
-  dialog::backdrop { background: rgb(0 0 0 / 0.55); }
-  .dlg-h { display: flex; align-items: center; gap: 12px; padding: 18px 20px 6px; }
-  .dlg-h .ic { width: 38px; height: 38px; border-radius: 9px; display: grid; place-items: center; background: color-mix(in srgb, #2fbf71 16%, transparent); color: #2fbf71; }
-  .dlg-h b { display: block; font-size: 16px; }
-  .dlg-h span { color: var(--fg2); font-size: 12.5px; }
-  .dlg-h .x { margin-left: auto; background: none; border: 0; color: var(--fg2); font-size: 20px; cursor: pointer; }
-  .dlg-b { padding: 12px 20px; display: flex; flex-direction: column; gap: 12px; }
-  .dlg-b label { font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg2); font-weight: 600; }
-  .dlg-b input { height: 38px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); font: 13px ui-monospace, Consolas, monospace; padding: 0 12px; }
-  .dlg-b .hint { color: var(--fg3); font-size: 12px; margin-top: -6px; }
-  .dlg-b .hint a { color: #2fbf71; }
-  .schema { border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
-  .schema-h { display: flex; align-items: center; gap: 8px; }
-  .schema-h b { font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; }
-  .schema-h .n { font-size: 11px; background: var(--s2); border-radius: 6px; padding: 1px 6px; color: var(--fg2); }
-  .schema-h .sp { margin-left: auto; display: flex; gap: 6px; }
-  .cols { display: flex; flex-wrap: wrap; gap: 6px; }
-  .cols span { font: 12px ui-monospace, Consolas, monospace; background: var(--s2); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
-  .steps { margin: 0; padding: 10px 0 0; border-top: 1px solid var(--line); list-style: none; display: flex; flex-direction: column; gap: 8px; font-size: 12.5px; color: var(--fg2); counter-reset: s; }
-  .steps li::before { counter-increment: s; content: counter(s); display: inline-grid; place-items: center; width: 18px; height: 18px; margin-right: 8px; border-radius: 50%; background: color-mix(in srgb, #2fbf71 18%, transparent); color: #2fbf71; font-size: 11px; font-weight: 700; }
-  .dlg-msg { font-size: 12.5px; }
+  /* Sheet sync dialog: MTwin's own, a numbered rail of three steps. */
+  dialog { border: 1px solid var(--line); border-radius: 14px; background: var(--bg); color: var(--fg); padding: 0; width: min(520px, calc(100vw - 32px)); box-shadow: 0 24px 60px rgb(0 0 0 / 0.45); }
+  dialog::backdrop { background: rgb(0 0 0 / 0.6); backdrop-filter: blur(2px); }
+  .sx-top { position: relative; padding: 20px 22px 16px; border-bottom: 1px solid var(--line); background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 10%, transparent), transparent); }
+  .sx-top h3 { margin: 0; font-size: 17px; letter-spacing: -0.01em; display: flex; align-items: center; gap: 8px; }
+  .sx-top h3 i { width: 8px; height: 8px; border-radius: 2px; background: var(--accent); display: inline-block; }
+  .sx-top p { margin: 4px 0 0; color: var(--fg2); font-size: 12.5px; }
+  .sx-top .x { position: absolute; top: 14px; right: 14px; width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--line); background: var(--s1); color: var(--fg2); font-size: 16px; cursor: pointer; }
+  .sx-steps { list-style: none; margin: 0; padding: 18px 22px 6px; display: flex; flex-direction: column; }
+  .sx-step { position: relative; display: grid; grid-template-columns: 28px 1fr; gap: 0 12px; padding-bottom: 18px; }
+  .sx-step::before { content: ""; position: absolute; left: 13.5px; top: 30px; bottom: 2px; width: 1px; background: var(--line); }
+  .sx-step:last-child::before { display: none; }
+  .sx-n { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; font-size: 12.5px; font-weight: 700; color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--s1)); border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); }
+  .sx-step[data-done] .sx-n { color: #fff; background: var(--accent); border-color: var(--accent); }
+  .sx-b { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+  .sx-b b { font-size: 13.5px; line-height: 28px; }
+  .sx-b small { color: var(--fg3); font-size: 12px; margin-top: -6px; }
+  .sx-b small a { color: var(--accent); }
+  .sx-code { display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 12px; border-radius: 8px; background: var(--s1); border: 1px solid var(--line); }
+  .sx-code code { flex: 1; min-width: 0; font: 12px ui-monospace, Consolas, monospace; color: var(--fg2); white-space: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .sx-code code em { font-style: normal; color: var(--fg3); padding: 0 4px; }
+  .sx-in { height: 38px; border-radius: 8px; border: 1px solid var(--line); background: var(--s1); color: var(--fg); font: 12.5px ui-monospace, Consolas, monospace; padding: 0 12px; }
+  .sx-in:focus { outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: -1px; }
+  .sx-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .dlg-msg { font-size: 12.5px; color: var(--fg2); }
   .dlg-msg.ok { color: var(--ok); } .dlg-msg.bad { color: var(--accent); }
-  .dlg-f { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 20px 18px; border-top: 1px solid var(--line); }
-  .btn2 { height: 36px; padding: 0 16px; border-radius: 8px; border: 1px solid var(--line); background: var(--s2); color: var(--fg); font: inherit; font-size: 13px; cursor: pointer; }
-  .btn2.go { background: #2f8f5b; border-color: #2f8f5b; color: #fff; }
+  .sx-foot { display: flex; align-items: center; gap: 8px; padding: 14px 22px 18px; border-top: 1px solid var(--line); }
+  .sx-foot .sp { flex: 1; }
+  .btn2 { height: 34px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--s1); color: var(--fg); font: inherit; font-size: 13px; cursor: pointer; }
+  .btn2.go { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .btn2.ghost { background: none; border-color: transparent; color: var(--fg2); }
   .btn2.sm { height: 30px; padding: 0 10px; font-size: 12.5px; }
   @media (max-width: 520px) {
     header { display: grid; grid-template-columns: 1fr auto; row-gap: 6px; }
@@ -146,7 +150,7 @@
   <header>
     <div class="brand"><img class="mark" src="/logo.png" alt="" width="30" height="30"><span>MTwin Progress</span></div>
     <span class="live"><span id="dot" class="dot"></span><span id="status">Connecting…</span></span>
-    <button class="hbtn" id="sheetBtn" type="button" title="Google Sheet"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M2 6h12M2 10h12M6 6v8"/></svg><span id="sheetLabel">Google Sheet</span></button>
+    <button class="hbtn" id="sheetBtn" type="button" title="Google Sheet"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M2 6h12M2 10h12M6 6v8"/></svg><span id="sheetLabel">Sheet sync</span></button>
     <button class="theme" id="theme" type="button" title="Light / dark" aria-label="Light / dark"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 2a6 6 0 0 1 0 12z" fill="currentColor"/></svg></button>
   </header>
   <section class="stats" id="stats"></section>
@@ -181,19 +185,23 @@
   </section>
 </div>
 <dialog id="sheet">
-  <div class="dlg-h"><span class="ic"><svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M2 6h12M2 10h12M6 6v8"/></svg></span><span><b>Google Sheet</b><span>Push your accounts summary to a Google Sheet</span></span><button class="x" id="sheetClose" type="button" aria-label="Close">×</button></div>
-  <div class="dlg-b">
-    <label for="sheetUrl">API URL</label>
-    <input id="sheetUrl" placeholder="https://sheetdb.io/api/v1/..." autocomplete="off" spellcheck="false">
-    <div class="hint">Get a URL from <a href="https://sheetdb.io" target="_blank" rel="noopener">sheetdb.io</a> and enable Create and Delete permissions.</div>
-    <div class="schema">
-      <div class="schema-h"><b>Sheet schema</b><span class="n" id="colN"></span><span class="sp"><button class="btn2 sm" id="sheetCopy" type="button">Copy</button><button class="btn2 sm" id="sheetVerify" type="button">Verify</button></span></div>
-      <div class="cols" id="cols"></div>
-      <ol class="steps"><li>Click <b>Copy</b>, then paste into cell <b>A1</b> of your sheet</li><li>Paste your SheetDB URL above</li><li>Click <b>Verify</b>, then <b>Save</b>. While this page is open it updates the sheet every minute.</li></ol>
-    </div>
-    <div class="dlg-msg" id="sheetMsg"></div>
+  <div class="sx-top">
+    <h3><i></i>Sheet sync</h3>
+    <p>Keep a Google Sheet up to date with every account's progress, through SheetDB.</p>
+    <button class="x" id="sheetClose" type="button" aria-label="Close">×</button>
   </div>
-  <div class="dlg-f"><button class="btn2" id="sheetOff" type="button">Turn off</button><button class="btn2" id="sheetCancel" type="button">Cancel</button><button class="btn2 go" id="sheetSave" type="button">Save</button></div>
+  <ol class="sx-steps">
+    <li class="sx-step" id="stepCopy"><span class="sx-n">1</span><div class="sx-b"><b>Put the header row in your sheet</b>
+      <div class="sx-code"><code id="cols"></code><button class="btn2 sm" id="sheetCopy" type="button">Copy</button></div>
+      <small>Paste it into cell A1. <span id="colN"></span> columns.</small></div></li>
+    <li class="sx-step" id="stepUrl"><span class="sx-n">2</span><div class="sx-b"><b>Connect it</b>
+      <input class="sx-in" id="sheetUrl" placeholder="https://sheetdb.io/api/v1/..." autocomplete="off" spellcheck="false">
+      <small>Make an API for the sheet on <a href="https://sheetdb.io" target="_blank" rel="noopener">sheetdb.io</a> with Create and Delete allowed, and paste its URL.</small></div></li>
+    <li class="sx-step" id="stepCheck"><span class="sx-n">3</span><div class="sx-b"><b>Check it</b>
+      <div class="sx-row"><button class="btn2 sm" id="sheetVerify" type="button">Check connection</button><span class="dlg-msg" id="sheetMsg"></span></div>
+      <small>Once saved, it updates every minute while this page is open.</small></div></li>
+  </ol>
+  <div class="sx-foot"><button class="btn2 ghost" id="sheetOff" type="button">Turn off</button><span class="sp"></span><button class="btn2" id="sheetCancel" type="button">Cancel</button><button class="btn2 go" id="sheetSave" type="button">Save</button></div>
 </dialog>
 <script>
 (() => {
@@ -399,7 +407,7 @@
 
   // ---- Google Sheet (SheetDB): the summary pushed every minute while this page is open ----
   const COLS = ["Account", "PC", "Game", "Level", "Online", "Last seen", "Values", "Stats", "Items"];
-  $("cols").innerHTML = COLS.map((c) => `<span>${esc(c)}</span>`).join("");
+  $("cols").innerHTML = COLS.map(esc).join("<em>|</em>");
   $("colN").textContent = COLS.length;
   let sheetUrl = "";
   try { sheetUrl = localStorage.getItem("mtwin.webSheetUrl") || ""; } catch {}
@@ -414,7 +422,7 @@
   function sheetBadge() {
     const b = $("sheetBtn");
     if (sheetUrl) b.dataset.on = ""; else delete b.dataset.on;
-    $("sheetLabel").textContent = sheetUrl ? (sheetSaid ? "Sheet · " + sheetSaid : "Sheet on") : "Google Sheet";
+    $("sheetLabel").textContent = sheetUrl ? (sheetSaid ? "Synced " + sheetSaid : "Sheet sync on") : "Sheet sync";
   }
   async function pushSheet() {
     if (!sheetUrl || !data) return;
@@ -433,10 +441,10 @@
     sheetBadge();
   }
   const dlg = $("sheet");
-  $("sheetBtn").onclick = () => { $("sheetUrl").value = sheetUrl; $("sheetMsg").textContent = ""; $("sheetMsg").className = "dlg-msg"; dlg.showModal(); };
+  $("sheetBtn").onclick = () => { $("sheetUrl").value = sheetUrl; $("sheetMsg").textContent = ""; $("sheetMsg").className = "dlg-msg"; for (const id of ["stepCopy", "stepUrl", "stepCheck"]) delete $(id).dataset.done; dlg.showModal(); };
   $("sheetClose").onclick = $("sheetCancel").onclick = () => dlg.close();
   $("sheetCopy").onclick = async () => {
-    try { await navigator.clipboard.writeText(COLS.join("\t")); $("sheetMsg").className = "dlg-msg ok"; $("sheetMsg").textContent = "Copied: paste it into cell A1."; }
+    try { await navigator.clipboard.writeText(COLS.join("\t")); $("stepCopy").dataset.done = ""; $("sheetMsg").className = "dlg-msg ok"; $("sheetMsg").textContent = "Copied: paste it into cell A1."; }
     catch { $("sheetMsg").className = "dlg-msg bad"; $("sheetMsg").textContent = "Couldn't copy. Type the column names into row 1 instead."; }
   };
   $("sheetVerify").onclick = async () => {
@@ -450,7 +458,7 @@
       const keys = await r.json();
       const missing = COLS.filter((c) => !keys.includes(c));
       if (missing.length) { $("sheetMsg").className = "dlg-msg bad"; $("sheetMsg").textContent = "Row 1 is missing: " + missing.join(", ") + ". Copy the schema into A1."; }
-      else { $("sheetMsg").className = "dlg-msg ok"; $("sheetMsg").textContent = "Looks good. Save to start."; }
+      else { $("stepUrl").dataset.done = ""; $("stepCheck").dataset.done = ""; $("sheetMsg").className = "dlg-msg ok"; $("sheetMsg").textContent = "Connected. Save to start."; }
     } catch (e) { $("sheetMsg").className = "dlg-msg bad"; $("sheetMsg").textContent = "SheetDB didn't answer (" + e.message + ")."; }
   };
   $("sheetSave").onclick = () => {

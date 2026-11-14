@@ -1879,6 +1879,8 @@
   "servers.joinTitle": "เข้าร่วม",
   "updates.platform": "แพลตฟอร์ม",
   "live.autoTile": "จัดหน้าต่างอัตโนมัติ",
+  "live.autoTiny": "หน้าต่างเล็กอัตโนมัติ",
+  "live.autoTinyHint": "ทำให้ไคลเอนต์เป็นหน้าต่างเล็กเมื่อเข้าเกม ถ้าเปิด Auto-tile ด้วย จะเรียงเป็นช่องเล็กให้ได้มากที่สุด",
   "live.autoMinimize": "ย่อหน้าต่างอัตโนมัติ",
   "live.pickAll": "เลือกทั้งหมด",
   "play.withN_other": "เล่นด้วย {count} บัญชี",
